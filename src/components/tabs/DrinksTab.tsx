@@ -94,7 +94,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                       {drink.category ? getCategoryLabel(drink.category) : "Select category"}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
+                  <SelectContent className="max-h-[300px] bg-background z-50">
                     {Object.entries(drinkCategories).map(([key, { label }]) => (
                       <SelectItem key={key} value={key}>
                         {label}
@@ -115,7 +115,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select drink" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
+                  <SelectContent className="max-h-[300px] bg-background z-50">
                     {drink.category &&
                       drinkCategories[drink.category as keyof typeof drinkCategories].options.map(
                         (option) => (
@@ -161,7 +161,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                     <SelectTrigger className="w-28">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background z-50">
                       <SelectItem value="ml">ml</SelectItem>
                       <SelectItem value="oz">oz</SelectItem>
                       <SelectItem value="shots">shots</SelectItem>
