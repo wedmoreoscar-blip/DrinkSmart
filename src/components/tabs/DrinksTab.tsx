@@ -3,10 +3,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Plus, X, RefreshCw } from "lucide-react";
+import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { drinkCategories } from "@/data/drinksData";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 type DrinkEntry = {
   id: string;
@@ -18,10 +22,33 @@ type DrinkEntry = {
   mixer?: string;
 };
 
+type FlattenedDrink = {
+  name: string;
+  abv: number;
+  category: string;
+};
+
+// Flatten all drinks into a searchable array
+const allDrinks: FlattenedDrink[] = Object.entries(drinkCategories).flatMap(([categoryKey, category]) =>
+  category.options.map(option => ({
+    name: option.name,
+    abv: option.abv,
+    category: categoryKey,
+  }))
+);
+
+// Determine default unit based on category
+const getDefaultUnit = (category: string): "ml" | "oz" | "shots" | "pints" => {
+  if (category.includes("beer") || category.includes("cider")) return "pints";
+  if (category === "shots") return "shots";
+  return "ml";
+};
+
 const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const { state, updateDrinks, recalculate } = useAppContext();
   const drinks = state.drinks;
   const { toast } = useToast();
+  const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
 
   const addDrink = () => {
     updateDrinks([
@@ -44,6 +71,21 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
     );
   };
 
+  const selectDrink = (drinkId: string, drinkName: string) => {
+    const selectedDrink = allDrinks.find(d => d.name === drinkName);
+    if (selectedDrink) {
+      const defaultUnit = getDefaultUnit(selectedDrink.category);
+      updateDrinks(
+        drinks.map((d) =>
+          d.id === drinkId 
+            ? { ...d, drink: drinkName, category: selectedDrink.category, unit: defaultUnit } 
+            : d
+        )
+      );
+      setOpenPopovers({ ...openPopovers, [drinkId]: false });
+    }
+  };
+
   const handleRecalculate = () => {
     recalculate();
     toast({
@@ -52,8 +94,9 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
     });
   };
 
-  const getCategoryLabel = (categoryKey: string) => {
-    return drinkCategories[categoryKey]?.label || "Select category";
+  const getDrinkABV = (drinkName: string) => {
+    const drink = allDrinks.find(d => d.name === drinkName);
+    return drink ? drink.abv : null;
   };
 
   return (
@@ -79,53 +122,62 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              {/* Category Selection */}
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select
-                  value={drink.category}
-                  onValueChange={(value) => {
-                    updateDrink(drink.id, "category", value);
-                    updateDrink(drink.id, "drink", "");
-                  }}
+              {/* Drink Search */}
+              <div className="space-y-2 md:col-span-2">
+                <Label>Search for a drink</Label>
+                <Popover 
+                  open={openPopovers[drink.id]} 
+                  onOpenChange={(open) => setOpenPopovers({ ...openPopovers, [drink.id]: open })}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category">
-                      {drink.category ? getCategoryLabel(drink.category) : "Select category"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px] bg-background z-50">
-                    {Object.entries(drinkCategories).map(([key, { label }]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Drink Selection */}
-              <div className="space-y-2">
-                <Label>Drink</Label>
-                <Select
-                  value={drink.drink}
-                  onValueChange={(value) => updateDrink(drink.id, "drink", value)}
-                  disabled={!drink.category}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select drink" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px] bg-background z-50">
-                    {drink.category &&
-                      drinkCategories[drink.category as keyof typeof drinkCategories].options.map(
-                        (option) => (
-                          <SelectItem key={option.name} value={option.name}>
-                            {option.name} ({option.abv}% ABV)
-                          </SelectItem>
-                        )
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openPopovers[drink.id]}
+                      className="w-full justify-between"
+                    >
+                      {drink.drink ? (
+                        <span>
+                          {drink.drink} 
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({getDrinkABV(drink.drink)}% ABV)
+                          </span>
+                        </span>
+                      ) : (
+                        "Search for a drink..."
                       )}
-                  </SelectContent>
-                </Select>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Type drink name (e.g., mal, beer, vodka)..." />
+                      <CommandList>
+                        <CommandEmpty>No drinks found.</CommandEmpty>
+                        <CommandGroup>
+                          {allDrinks.map((drinkOption) => (
+                            <CommandItem
+                              key={drinkOption.name}
+                              value={drinkOption.name}
+                              onSelect={() => selectDrink(drink.id, drinkOption.name)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  drink.drink === drinkOption.name ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span>{drinkOption.name}</span>
+                              <span className="ml-auto text-xs text-muted-foreground">
+                                {drinkOption.abv}% ABV
+                              </span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Custom ABV */}
