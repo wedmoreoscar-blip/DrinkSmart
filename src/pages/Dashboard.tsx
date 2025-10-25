@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AppProvider } from "@/contexts/AppContext";
 import UserInfoTab from "@/components/tabs/UserInfoTab";
+import InebriationLevelTab from "@/components/tabs/InebriationLevelTab";
 import DrinksTab from "@/components/tabs/DrinksTab";
 import TimelineTab from "@/components/tabs/TimelineTab";
 import ResultsTab from "@/components/tabs/ResultsTab";
@@ -23,15 +24,20 @@ const Dashboard = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsList className="grid w-full grid-cols-5 mb-6">
               <TabsTrigger value="user-info">User Info</TabsTrigger>
+              <TabsTrigger value="target-buzz">Target Buzz</TabsTrigger>
               <TabsTrigger value="drinks">Drinks</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="results">Results</TabsTrigger>
             </TabsList>
 
             <TabsContent value="user-info">
-              <UserInfoTab onNext={() => setActiveTab("drinks")} />
+              <UserInfoTab onNext={() => setActiveTab("target-buzz")} />
+            </TabsContent>
+
+            <TabsContent value="target-buzz">
+              <InebriationLevelTab onNext={() => setActiveTab("drinks")} />
             </TabsContent>
 
             <TabsContent value="drinks">

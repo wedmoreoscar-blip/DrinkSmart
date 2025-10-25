@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowRight, RefreshCw, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
@@ -12,6 +14,7 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
   const { userMetrics } = state;
   const { toast } = useToast();
   const { metricType, heightUnit, weightUnit, heightCm, heightFt, heightIn, weight, bodyFat, age, sex } = userMetrics;
+  const [isFFMIHelpOpen, setIsFFMIHelpOpen] = useState(false);
 
   const handleRecalculate = () => {
     recalculate();
@@ -58,68 +61,6 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
           </Button>
         </div>
       </Card>
-
-      {/* FFMI Information Card */}
-      {metricType === "ffmi" && (
-        <Card className="p-6 bg-secondary/10 border-secondary/30">
-          <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
-            <span className="text-2xl">💡</span> What is FFMI?
-          </h3>
-          <p className="text-sm mb-4 leading-relaxed">
-            <strong>FFMI (Fat Free Mass Index)</strong> calculates your muscle mass relative to your height. 
-            It's super popular with bodybuilders and fitness enthusiasts to compare physique and track gains. 
-            Think of it as BMI's cooler, more athletic cousin! 🏋️
-          </p>
-          
-          <div className="mt-6">
-            <h4 className="font-semibold mb-3 text-lg">Body Fat % Reference Guide</h4>
-            
-            {/* Women's Table */}
-            <div className="mb-6">
-              <p className="text-sm font-semibold mb-2 text-secondary">For Women 👩</p>
-              <div className="bg-card rounded-lg overflow-hidden border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left p-3 font-semibold">Classification</th>
-                      <th className="text-left p-3 font-semibold">Body Fat %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    <tr><td className="p-3">Essential Fat</td><td className="p-3 font-mono">10-13%</td></tr>
-                    <tr className="bg-muted/30"><td className="p-3">Athletes</td><td className="p-3 font-mono">18-20%</td></tr>
-                    <tr><td className="p-3">Fitness</td><td className="p-3 font-mono">21-24%</td></tr>
-                    <tr className="bg-muted/30"><td className="p-3">Average</td><td className="p-3 font-mono">25-31%</td></tr>
-                    <tr><td className="p-3">Obese</td><td className="p-3 font-mono">32%+</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Men's Table */}
-            <div>
-              <p className="text-sm font-semibold mb-2 text-primary">For Men 👨</p>
-              <div className="bg-card rounded-lg overflow-hidden border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left p-3 font-semibold">Classification</th>
-                      <th className="text-left p-3 font-semibold">Body Fat %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    <tr><td className="p-3">Essential Fat</td><td className="p-3 font-mono">2-5%</td></tr>
-                    <tr className="bg-muted/30"><td className="p-3">Athletes</td><td className="p-3 font-mono">10-13%</td></tr>
-                    <tr><td className="p-3">Fitness</td><td className="p-3 font-mono">14-17%</td></tr>
-                    <tr className="bg-muted/30"><td className="p-3">Average</td><td className="p-3 font-mono">18-24%</td></tr>
-                    <tr><td className="p-3">Obese</td><td className="p-3 font-mono">25%+</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
 
       {/* Body Metrics Input */}
       <Card className="p-6 space-y-4">
@@ -219,12 +160,88 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
               value={bodyFat}
               onChange={(e) => updateUserMetrics({ bodyFat: e.target.value })}
             />
-            <p className="text-xs text-muted-foreground">
-              Enter your body fat percentage (refer to the guide above 👆)
-            </p>
           </div>
         )}
       </Card>
+
+      {/* FFMI Help Section - Collapsible */}
+      {metricType === "ffmi" && (
+        <Collapsible open={isFFMIHelpOpen} onOpenChange={setIsFFMIHelpOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between">
+              <span className="flex items-center gap-2">
+                <Info className="w-4 h-4" />
+                FFMI Help & Body Fat Reference
+              </span>
+              {isFFMIHelpOpen ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="animate-accordion-down">
+            <Card className="p-6 bg-secondary/10 border-secondary/30 mt-2">
+              <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                <span className="text-xl">💡</span> What is FFMI?
+              </h3>
+              <p className="text-sm mb-4 leading-relaxed">
+                <strong>FFMI (Fat Free Mass Index)</strong> calculates your muscle mass relative to your height. 
+                It's super popular with bodybuilders and fitness enthusiasts to compare physique and track gains. 
+                Think of it as BMI's cooler, more athletic cousin! 🏋️
+              </p>
+              
+              <div className="mt-6">
+                <h4 className="font-semibold mb-3">Body Fat % Reference Guide</h4>
+                
+                {/* Women's Table */}
+                <div className="mb-6">
+                  <p className="text-sm font-semibold mb-2 text-secondary">For Women 👩</p>
+                  <div className="bg-card rounded-lg overflow-hidden border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="text-left p-2 font-semibold">Classification</th>
+                          <th className="text-left p-2 font-semibold">Body Fat %</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        <tr><td className="p-2">Essential Fat</td><td className="p-2 font-mono">10-13%</td></tr>
+                        <tr className="bg-muted/30"><td className="p-2">Athletes</td><td className="p-2 font-mono">18-20%</td></tr>
+                        <tr><td className="p-2">Fitness</td><td className="p-2 font-mono">21-24%</td></tr>
+                        <tr className="bg-muted/30"><td className="p-2">Average</td><td className="p-2 font-mono">25-31%</td></tr>
+                        <tr><td className="p-2">Obese</td><td className="p-2 font-mono">32%+</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Men's Table */}
+                <div>
+                  <p className="text-sm font-semibold mb-2 text-primary">For Men 👨</p>
+                  <div className="bg-card rounded-lg overflow-hidden border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="text-left p-2 font-semibold">Classification</th>
+                          <th className="text-left p-2 font-semibold">Body Fat %</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        <tr><td className="p-2">Essential Fat</td><td className="p-2 font-mono">2-5%</td></tr>
+                        <tr className="bg-muted/30"><td className="p-2">Athletes</td><td className="p-2 font-mono">10-13%</td></tr>
+                        <tr><td className="p-2">Fitness</td><td className="p-2 font-mono">14-17%</td></tr>
+                        <tr className="bg-muted/30"><td className="p-2">Average</td><td className="p-2 font-mono">18-24%</td></tr>
+                        <tr><td className="p-2">Obese</td><td className="p-2 font-mono">25%+</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
 
       {/* Additional Info */}
       <Card className="p-6 space-y-4">
@@ -260,7 +277,7 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Helps us calculate more accurate results! 🎯
+            Helps us calculate accurate results
           </p>
         </div>
       </Card>
@@ -276,10 +293,10 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
           Update Metrics
         </Button>
         <Button
-          className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+          className="flex-1"
           onClick={onNext}
         >
-          Next: Choose Your Drinks! 🍹
+          Next: Set Your Target
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>

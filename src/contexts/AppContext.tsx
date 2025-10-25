@@ -31,8 +31,9 @@ type AppState = {
   userMetrics: UserMetrics;
   inebriationLevel: number;
   drinks: DrinkEntry[];
-  startTime: number; // seconds since start
-  isTimerRunning: boolean;
+  startTime: number; // seconds since start (deprecated)
+  isTimerRunning: boolean; // deprecated
+  startDateTime: Date | null; // actual start time
 };
 
 type AppContextType = {
@@ -41,6 +42,7 @@ type AppContextType = {
   updateInebriationLevel: (level: number) => void;
   updateDrinks: (drinks: DrinkEntry[]) => void;
   updateTimeline: (startTime: number, isRunning: boolean) => void;
+  updateStartTime: (startTime: Date) => void;
   recalculate: () => void;
 };
 
@@ -63,6 +65,7 @@ const initialState: AppState = {
   drinks: [{ id: "1", category: "", drink: "", quantity: "", unit: "ml" }],
   startTime: 0,
   isTimerRunning: false,
+  startDateTime: null,
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -87,6 +90,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => ({ ...prev, startTime, isTimerRunning: isRunning }));
   };
 
+  const updateStartTime = (startTime: Date) => {
+    setState((prev) => ({ ...prev, startDateTime: startTime }));
+  };
+
   const recalculate = () => {
     // This will trigger recalculation in the Results tab
     // For now, it's a placeholder - actual calculations will be implemented later
@@ -101,6 +108,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateInebriationLevel,
         updateDrinks,
         updateTimeline,
+        updateStartTime,
         recalculate,
       }}
     >

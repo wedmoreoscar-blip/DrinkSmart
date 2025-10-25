@@ -1,221 +1,334 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Play, Pause, RotateCcw } from "lucide-react";
+import { ArrowRight, Clock, Check } from "lucide-react";
 
 const TimelineTab = ({ onNext }: { onNext: () => void }) => {
-  const { state, updateTimeline } = useAppContext();
-  const [isRunning, setIsRunning] = useState(state.isTimerRunning);
-  const [seconds, setSeconds] = useState(state.startTime);
-  const [customStart, setCustomStart] = useState({ hours: "0", minutes: "0", seconds: "0" });
-  const [useCustomStart, setUseCustomStart] = useState(false);
+  const { state, updateStartTime } = useAppContext();
+  const [showTimeSelection, setShowTimeSelection] = useState(!state.startDateTime);
+  const [startOption, setStartOption] = useState<"now" | "earlier">("now");
+  const [selectedHour, setSelectedHour] = useState("12");
+  const [selectedMinute, setSelectedMinute] = useState("00");
+  const [selectedPeriod, setSelectedPeriod] = useState<"AM" | "PM">("PM");
+  const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Update current time every minute
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRunning) {
-      interval = setInterval(() => {
-        setSeconds((s) => {
-          const newSeconds = s + 1;
-          updateTimeline(newSeconds, true);
-          return newSeconds;
-        });
-      }, 1000);
-    }
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
     return () => clearInterval(interval);
-  }, [isRunning, updateTimeline]);
+  }, []);
 
-  const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  const handleCreateTimeline = () => {
+    if (startOption === "now") {
+      updateStartTime(new Date());
+    } else {
+      const now = new Date();
+      const hour = selectedPeriod === "PM" && selectedHour !== "12" 
+        ? parseInt(selectedHour) + 12 
+        : selectedPeriod === "AM" && selectedHour === "12" 
+        ? 0 
+        : parseInt(selectedHour);
+      
+      const startTime = new Date(now);
+      startTime.setHours(hour, parseInt(selectedMinute), 0, 0);
+      
+      // If the time is in the future, assume it was yesterday
+      if (startTime > now) {
+        startTime.setDate(startTime.getDate() - 1);
+      }
+      
+      updateStartTime(startTime);
+    }
+    setShowTimeSelection(false);
   };
 
-  const handleCustomStart = () => {
-    const totalSeconds = 
-      parseInt(customStart.hours || "0") * 3600 +
-      parseInt(customStart.minutes || "0") * 60 +
-      parseInt(customStart.seconds || "0");
-    setSeconds(totalSeconds);
-    updateTimeline(totalSeconds, false);
-    setUseCustomStart(false);
+  // Calculate timeline stages
+  const getTimelineStages = () => {
+    if (!state.startDateTime) return [];
+    
+    const start = new Date(state.startDateTime);
+    const stages = [
+      { 
+        name: "Start", 
+        time: start, 
+        description: "First drink consumed",
+        offsetMinutes: 0
+      },
+      { 
+        name: "Peak Buzz", 
+        time: new Date(start.getTime() + 45 * 60000), 
+        description: "Maximum effects reached",
+        offsetMinutes: 45
+      },
+      { 
+        name: "Sobering Up", 
+        time: new Date(start.getTime() + 120 * 60000), 
+        description: "Effects diminishing",
+        offsetMinutes: 120
+      },
+      { 
+        name: "Recovery", 
+        time: new Date(start.getTime() + 180 * 60000), 
+        description: "Significant recovery",
+        offsetMinutes: 180
+      },
+      { 
+        name: "Sober", 
+        time: new Date(start.getTime() + 300 * 60000), 
+        description: "Back to baseline",
+        offsetMinutes: 300
+      },
+    ];
+    
+    return stages;
   };
 
-  const toggleTimer = () => {
-    const newIsRunning = !isRunning;
-    setIsRunning(newIsRunning);
-    updateTimeline(seconds, newIsRunning);
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
   };
 
-  const reset = () => {
-    setSeconds(0);
-    setIsRunning(false);
-    updateTimeline(0, false);
+  const getElapsedTime = () => {
+    if (!state.startDateTime) return "0h 0m";
+    const elapsed = currentTime.getTime() - new Date(state.startDateTime).getTime();
+    const hours = Math.floor(elapsed / 3600000);
+    const minutes = Math.floor((elapsed % 3600000) / 60000);
+    return `${hours}h ${minutes}m`;
   };
+
+  const getCurrentStageIndex = () => {
+    if (!state.startDateTime) return -1;
+    const elapsed = currentTime.getTime() - new Date(state.startDateTime).getTime();
+    const minutes = elapsed / 60000;
+    
+    if (minutes < 45) return 0;
+    if (minutes < 120) return 1;
+    if (minutes < 180) return 2;
+    if (minutes < 300) return 3;
+    return 4;
+  };
+
+  const getIndicatorPosition = () => {
+    if (!state.startDateTime) return 0;
+    const stages = getTimelineStages();
+    const currentIndex = getCurrentStageIndex();
+    
+    if (currentIndex >= stages.length - 1) return 100;
+    if (currentIndex < 0) return 0;
+    
+    const currentStage = stages[currentIndex];
+    const nextStage = stages[currentIndex + 1];
+    const elapsed = currentTime.getTime() - new Date(state.startDateTime).getTime();
+    const currentMinutes = elapsed / 60000;
+    
+    const stageProgress = (currentMinutes - currentStage.offsetMinutes) / 
+                         (nextStage.offsetMinutes - currentStage.offsetMinutes);
+    
+    const basePosition = (currentIndex / (stages.length - 1)) * 100;
+    const stageSize = (1 / (stages.length - 1)) * 100;
+    
+    return basePosition + (stageProgress * stageSize);
+  };
+
+  if (showTimeSelection) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold mb-2">When did you start drinking?</h2>
+          <p className="text-muted-foreground">
+            This helps us track your journey accurately
+          </p>
+        </div>
+
+        <Card className="p-8 space-y-6">
+          <div className="space-y-2">
+            <Label className="text-lg">Start Time</Label>
+            <Select value={startOption} onValueChange={(val) => setStartOption(val as "now" | "earlier")}>
+              <SelectTrigger className="text-lg h-12">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                <SelectItem value="now">Right Now</SelectItem>
+                <SelectItem value="earlier">Earlier (Select Time)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {startOption === "earlier" && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <Label className="text-base">Select the time you started</Label>
+              <div className="flex gap-3 items-center justify-center">
+                <Select value={selectedHour} onValueChange={setSelectedHour}>
+                  <SelectTrigger className="w-24 h-14 text-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const hour = i + 1;
+                      return (
+                        <SelectItem key={hour} value={hour.toString().padStart(2, "0")}>
+                          {hour.toString().padStart(2, "0")}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                
+                <span className="text-3xl font-bold">:</span>
+                
+                <Select value={selectedMinute} onValueChange={setSelectedMinute}>
+                  <SelectTrigger className="w-24 h-14 text-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {Array.from({ length: 60 }, (_, i) => (
+                      <SelectItem key={i} value={i.toString().padStart(2, "0")}>
+                        {i.toString().padStart(2, "0")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedPeriod} onValueChange={(val) => setSelectedPeriod(val as "AM" | "PM")}>
+                  <SelectTrigger className="w-24 h-14 text-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          <Button 
+            size="lg" 
+            className="w-full" 
+            onClick={handleCreateTimeline}
+          >
+            <Clock className="w-5 h-5 mr-2" />
+            Create Timeline
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  const stages = getTimelineStages();
+  const currentStageIndex = getCurrentStageIndex();
+  const indicatorPosition = getIndicatorPosition();
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <Card className="p-8 space-y-8">
-        {/* Stopwatch Display */}
-        <div className="text-center space-y-4">
-          <div className="text-6xl md:text-7xl font-bold font-mono text-primary">
-            {formatTime(seconds)}
-          </div>
-          <p className="text-muted-foreground">Time elapsed since starting</p>
+      {/* Elapsed Time Header */}
+      <div className="text-center space-y-2">
+        <div className="text-5xl font-bold text-primary font-mono">
+          {getElapsedTime()}
         </div>
+        <p className="text-muted-foreground">since you started drinking</p>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setShowTimeSelection(true)}
+          className="text-xs"
+        >
+          Change start time
+        </Button>
+      </div>
 
-        {/* Control Buttons */}
-        <div className="flex gap-4 justify-center">
-          <Button
-            size="lg"
-            variant={isRunning ? "outline" : "default"}
-            onClick={toggleTimer}
+      {/* Dynamic Timeline */}
+      <Card className="p-6 min-h-[600px] relative">
+        <div className="relative h-[550px]">
+          {/* Timeline Line */}
+          <div className="absolute left-8 top-0 bottom-0 w-1 bg-muted"></div>
+          
+          {/* Moving Indicator */}
+          <div 
+            className="absolute left-6 w-5 h-5 rounded-full bg-primary animate-pulse transition-all duration-1000 ease-linear z-20"
+            style={{ top: `${indicatorPosition}%`, transform: 'translateY(-50%)' }}
           >
-            {isRunning ? (
-              <>
-                <Pause className="w-5 h-5 mr-2" />
-                Pause
-              </>
-            ) : (
-              <>
-                <Play className="w-5 h-5 mr-2" />
-                Start
-              </>
-            )}
-          </Button>
-          <Button size="lg" variant="outline" onClick={reset}>
-            <RotateCcw className="w-5 h-5 mr-2" />
-            Reset
-          </Button>
-        </div>
-
-        {/* Custom Start Time */}
-        <div className="pt-6 border-t space-y-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-base">Already been drinking?</Label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setUseCustomStart(!useCustomStart)}
-            >
-              Set Custom Start
-            </Button>
+            <div className="absolute inset-0 rounded-full bg-primary/30 animate-ping"></div>
           </div>
 
-          {useCustomStart && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm">Hours</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={customStart.hours}
-                    onChange={(e) => setCustomStart({ ...customStart, hours: e.target.value })}
-                  />
+          {/* Timeline Stages */}
+          <div className="relative space-y-0 h-full flex flex-col justify-between">
+            {stages.map((stage, index) => {
+              const isPast = index < currentStageIndex;
+              const isCurrent = index === currentStageIndex;
+              const isFuture = index > currentStageIndex;
+
+              return (
+                <div key={stage.name} className="relative flex items-center gap-6 py-2">
+                  {/* Stage Node */}
+                  <div 
+                    className={`relative z-10 w-6 h-6 rounded-full border-4 transition-all duration-300 ${
+                      isPast 
+                        ? 'bg-muted border-muted' 
+                        : isCurrent 
+                        ? 'bg-primary border-primary scale-125' 
+                        : 'bg-background border-primary'
+                    }`}
+                  >
+                    {isPast && (
+                      <Check className="w-3 h-3 text-muted-foreground absolute inset-0 m-auto" />
+                    )}
+                  </div>
+
+                  {/* Stage Content */}
+                  <div 
+                    className={`flex-1 transition-all duration-300 ${
+                      isPast ? 'opacity-40' : 'opacity-100'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 
+                          className={`font-semibold transition-all ${
+                            isCurrent ? 'text-xl text-primary' : 'text-lg'
+                          }`}
+                        >
+                          {stage.name}
+                        </h3>
+                        <p 
+                          className={`text-sm text-muted-foreground ${
+                            isCurrent ? 'font-medium' : ''
+                          }`}
+                        >
+                          {stage.description}
+                        </p>
+                      </div>
+                      <span 
+                        className={`text-sm font-mono ${
+                          isCurrent ? 'text-primary font-bold' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {formatTime(stage.time)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">Minutes</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={customStart.minutes}
-                    onChange={(e) => setCustomStart({ ...customStart, minutes: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">Seconds</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={customStart.seconds}
-                    onChange={(e) => setCustomStart({ ...customStart, seconds: e.target.value })}
-                  />
-                </div>
-              </div>
-              <Button className="w-full" onClick={handleCustomStart}>
-                Apply Start Time
-              </Button>
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
 
-        {/* Timeline Preview - Trainline Style */}
-        <Card className="p-6 bg-muted/50 space-y-6">
-          <h3 className="font-semibold text-center text-lg">Drinking Journey Timeline</h3>
-          
-          <div className="relative space-y-6 pl-8">
-            {/* Timeline Line */}
-            <div className="absolute left-3 top-4 bottom-4 w-0.5 bg-primary/30"></div>
-            
-            {/* Timeline Events */}
-            <div className="relative">
-              <div className="absolute -left-8 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-background"></div>
-              </div>
-              <div className="bg-background rounded-lg p-4 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Started Drinking</span>
-                  <span className="text-sm text-muted-foreground">{formatTime(0)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="absolute -left-8 w-6 h-6 rounded-full bg-primary/50 flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-background"></div>
-              </div>
-              <div className="bg-background rounded-lg p-4 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Peak Effects</span>
-                  <span className="text-sm text-muted-foreground">~45-60 min</span>
-                </div>
-                <p className="text-sm text-muted-foreground">Maximum blood alcohol content reached</p>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="absolute -left-8 w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-background"></div>
-              </div>
-              <div className="bg-background rounded-lg p-4 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Next Drink Window</span>
-                  <span className="text-sm text-muted-foreground">~90 min</span>
-                </div>
-                <p className="text-sm text-muted-foreground">Safe time for next drink if continuing</p>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="absolute -left-8 w-6 h-6 rounded-full bg-muted flex items-center justify-center border-2 border-primary/30">
-                <div className="w-2 h-2 rounded-full bg-background"></div>
-              </div>
-              <div className="bg-background rounded-lg p-4 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Sobering Up</span>
-                  <span className="text-sm text-muted-foreground">~2-3 hours</span>
-                </div>
-                <p className="text-sm text-muted-foreground">Effects significantly diminishing</p>
-              </div>
-            </div>
-          </div>
-          
-          <p className="text-xs text-center text-muted-foreground pt-2">
-            * Timeline predictions based on your inputs - actual calculations on Results tab
-          </p>
-        </Card>
+        <p className="text-xs text-center text-muted-foreground mt-4 pt-4 border-t">
+          Timeline updates automatically based on your start time
+        </p>
       </Card>
 
       {/* Action Button */}
       <div className="flex justify-end">
-        <Button onClick={onNext}>
+        <Button size="lg" onClick={onNext}>
           View Results
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
