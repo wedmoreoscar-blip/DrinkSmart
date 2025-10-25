@@ -162,14 +162,9 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
             />
           </div>
         )}
-      </Card>
 
-      {/* Additional Info - only shown for FFMI */}
-      {metricType === "ffmi" && (
-        <Card className="p-6 space-y-4">
-          <h3 className="font-semibold text-xl">🎯 Tell Us More</h3>
-
-          {/* Age Input */}
+        {/* Age Input - only shown for FFMI */}
+        {metricType === "ffmi" && (
           <div className="space-y-2">
             <Label>Age</Label>
             <Input
@@ -180,8 +175,10 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
               min="18"
             />
           </div>
+        )}
 
-          {/* Sex Selection */}
+        {/* Sex Selection - only shown for FFMI */}
+        {metricType === "ffmi" && (
           <div className="space-y-2">
             <Label>Sex</Label>
             <Select
@@ -202,8 +199,8 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
               Helps us calculate accurate results
             </p>
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
 
       {/* FFMI Help Section - Collapsible */}
       {metricType === "ffmi" && (
