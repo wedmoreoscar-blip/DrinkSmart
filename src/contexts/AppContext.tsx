@@ -30,6 +30,7 @@ type UserMetrics = {
 type AppState = {
   userMetrics: UserMetrics;
   inebriationLevel: number;
+  targetBAC: { min: number; max: number }; // BAC range for selected inebriation level
   drinks: DrinkEntry[];
   startTime: number; // seconds since start (deprecated)
   isTimerRunning: boolean; // deprecated
@@ -62,6 +63,7 @@ const initialState: AppState = {
     sex: "",
   },
   inebriationLevel: 3,
+  targetBAC: { min: 0.06, max: 0.09 }, // Default to level 3 (Tipsy)
   drinks: [{ id: "1", category: "", drink: "", quantity: "", unit: "ml" }],
   startTime: 0,
   isTimerRunning: false,
@@ -79,7 +81,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateInebriationLevel = (level: number) => {
-    setState((prev) => ({ ...prev, inebriationLevel: level }));
+    // Import buzzLevels dynamically to get BAC range
+    import("@/data/buzzLevels").then(({ getBACForLevel }) => {
+      const bacRange = getBACForLevel(level);
+      setState((prev) => ({ 
+        ...prev, 
+        inebriationLevel: level,
+        targetBAC: { min: bacRange.min_bac, max: bacRange.max_bac }
+      }));
+    });
   };
 
   const updateDrinks = (drinks: DrinkEntry[]) => {

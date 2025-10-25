@@ -4,25 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight } from "lucide-react";
-
-const buzzDescriptions = [
-  { level: 1, label: "Slightly Buzzed", desc: "Feeling warm and relaxed" },
-  { level: 2, label: "Light Buzz", desc: "A bit more talkative and comfortable" },
-  { level: 3, label: "Tipsy", desc: "Giggly and carefree, inhibitions lowering" },
-  { level: 4, label: "Moderately Drunk", desc: "Feeling confident and social" },
-  { level: 5, label: "Properly Drunk", desc: "Everything's funny, balance getting wobbly" },
-  { level: 6, label: "Very Drunk", desc: "Dancing feels amazing, judgment's out the window" },
-  { level: 7, label: "Heavily Drunk", desc: "Slurring words, coordination struggling" },
-  { level: 8, label: "Wasted", desc: "Room's spinning, memories getting blurry" },
-  { level: 9, label: "Blackout Territory", desc: "High risk of memory loss and poor decisions" },
-  { level: 10, label: "Danger Zone", desc: "Serious impairment, health risks present" },
-];
+import { buzzLevels } from "@/data/buzzLevels";
 
 const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
   const { state, updateInebriationLevel } = useAppContext();
   const [localLevel, setLocalLevel] = useState(state.inebriationLevel);
   
-  const currentDescription = buzzDescriptions[localLevel - 1];
+  const currentDescription = buzzLevels[localLevel - 1];
   
   const handleSliderChange = (value: number[]) => {
     setLocalLevel(value[0]);
