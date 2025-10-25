@@ -164,44 +164,46 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
         )}
       </Card>
 
-      {/* Additional Info */}
-      <Card className="p-6 space-y-4">
-        <h3 className="font-semibold text-xl">🎯 Tell Us More</h3>
+      {/* Additional Info - only shown for FFMI */}
+      {metricType === "ffmi" && (
+        <Card className="p-6 space-y-4">
+          <h3 className="font-semibold text-xl">🎯 Tell Us More</h3>
 
-        {/* Age Input */}
-        <div className="space-y-2">
-          <Label>Age</Label>
-          <Input
-            type="number"
-            placeholder="e.g., 25"
-            value={age}
-            onChange={(e) => updateUserMetrics({ age: e.target.value })}
-            min="18"
-          />
-        </div>
+          {/* Age Input */}
+          <div className="space-y-2">
+            <Label>Age</Label>
+            <Input
+              type="number"
+              placeholder="e.g., 25"
+              value={age}
+              onChange={(e) => updateUserMetrics({ age: e.target.value })}
+              min="18"
+            />
+          </div>
 
-        {/* Sex Selection */}
-        <div className="space-y-2">
-          <Label>Sex</Label>
-          <Select
-            value={sex}
-            onValueChange={(value: "male" | "female") => 
-              updateUserMetrics({ sex: value })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select your sex" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            Helps us calculate accurate results
-          </p>
-        </div>
-      </Card>
+          {/* Sex Selection */}
+          <div className="space-y-2">
+            <Label>Sex</Label>
+            <Select
+              value={sex}
+              onValueChange={(value: "male" | "female") => 
+                updateUserMetrics({ sex: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select your sex" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Helps us calculate accurate results
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* FFMI Help Section - Collapsible */}
       {metricType === "ffmi" && (
