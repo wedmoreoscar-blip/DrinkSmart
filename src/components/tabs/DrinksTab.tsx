@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, Plus, X, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { drinkCategories } from "@/data/drinksData";
 
 type DrinkEntry = {
   id: string;
@@ -13,62 +14,8 @@ type DrinkEntry = {
   drink: string;
   customABV?: string;
   quantity: string;
-  unit: "ml" | "oz";
+  unit: "ml" | "oz" | "shots" | "pints";
   mixer?: string;
-};
-
-const drinkCategories = {
-  beer: {
-    label: "Beer",
-    options: [
-      { name: "Light Beer", abv: 4 },
-      { name: "Regular Beer", abv: 5 },
-      { name: "IPA", abv: 6.5 },
-      { name: "Strong Beer", abv: 8 },
-    ],
-  },
-  wine: {
-    label: "Wine",
-    options: [
-      { name: "White Wine", abv: 12 },
-      { name: "Red Wine", abv: 13 },
-      { name: "Prosecco", abv: 11 },
-      { name: "Port", abv: 20 },
-    ],
-  },
-  spirits: {
-    label: "Spirits",
-    options: [
-      { name: "Vodka", abv: 40 },
-      { name: "Whiskey", abv: 40 },
-      { name: "Rum", abv: 40 },
-      { name: "Gin", abv: 40 },
-      { name: "Tequila", abv: 40 },
-    ],
-  },
-  cocktails: {
-    label: "Cocktails",
-    options: [
-      { name: "Margarita", abv: 15 },
-      { name: "Mojito", abv: 13 },
-      { name: "Old Fashioned", abv: 32 },
-      { name: "Martini", abv: 28 },
-      { name: "Cosmopolitan", abv: 22 },
-    ],
-  },
-  shots: {
-    label: "Shots",
-    options: [
-      { name: "Vodka Shot", abv: 40 },
-      { name: "Tequila Shot", abv: 40 },
-      { name: "Jägermeister", abv: 35 },
-      { name: "Fireball", abv: 33 },
-    ],
-  },
-  custom: {
-    label: "Custom",
-    options: [{ name: "Custom Drink", abv: 0 }],
-  },
 };
 
 const DrinksTab = ({ onNext }: { onNext: () => void }) => {
@@ -100,23 +47,31 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const handleRecalculate = () => {
     recalculate();
     toast({
-      title: "Drinks Updated",
-      description: "Your drink list has been saved and calculations updated.",
+      title: "Drinks Updated! 🍻",
+      description: "Your drink list has been saved. Let's see where the night takes you!",
     });
+  };
+
+  const getCategoryLabel = (categoryKey: string) => {
+    return drinkCategories[categoryKey]?.label || "Select category";
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="space-y-4">
         {drinks.map((drink, index) => (
-          <Card key={drink.id} className="p-6 space-y-4">
+          <Card key={drink.id} className="p-6 space-y-4 border-primary/20 hover:border-primary/40 transition-colors">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-lg">Drink {index + 1}</h3>
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <span className="text-2xl">🍹</span>
+                Drink {index + 1}
+              </h3>
               {drinks.length > 1 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => removeDrink(drink.id)}
+                  className="hover:bg-destructive/20 hover:text-destructive"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -135,9 +90,11 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Select category">
+                      {drink.category ? getCategoryLabel(drink.category) : "Select category"}
+                    </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px]">
                     {Object.entries(drinkCategories).map(([key, { label }]) => (
                       <SelectItem key={key} value={key}>
                         {label}
@@ -158,7 +115,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select drink" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px]">
                     {drink.category &&
                       drinkCategories[drink.category as keyof typeof drinkCategories].options.map(
                         (option) => (
@@ -197,14 +154,18 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                   />
                   <Select
                     value={drink.unit}
-                    onValueChange={(value: "ml" | "oz") => updateDrink(drink.id, "unit", value)}
+                    onValueChange={(value: "ml" | "oz" | "shots" | "pints") => 
+                      updateDrink(drink.id, "unit", value)
+                    }
                   >
-                    <SelectTrigger className="w-24">
+                    <SelectTrigger className="w-28">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ml">ml</SelectItem>
                       <SelectItem value="oz">oz</SelectItem>
+                      <SelectItem value="shots">shots</SelectItem>
+                      <SelectItem value="pints">pints</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -214,7 +175,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
               <div className="space-y-2 md:col-span-2">
                 <Label>Mixer/Dilution (optional)</Label>
                 <Input
-                  placeholder="e.g., 200ml Coke"
+                  placeholder="e.g., 200ml Coke, lemonade, etc."
                   value={drink.mixer || ""}
                   onChange={(e) => updateDrink(drink.id, "mixer", e.target.value)}
                 />
@@ -225,7 +186,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
 
         <Button
           variant="outline"
-          className="w-full"
+          className="w-full border-dashed border-2 hover:border-primary hover:bg-primary/5"
           onClick={addDrink}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -244,10 +205,10 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
           Recalculate
         </Button>
         <Button
-          className="flex-1"
+          className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
           onClick={onNext}
         >
-          Next: Timeline
+          Next: Timeline 🕐
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>

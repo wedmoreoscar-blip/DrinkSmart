@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, RefreshCw } from "lucide-react";
@@ -12,180 +11,256 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
   const { state, updateUserMetrics, recalculate } = useAppContext();
   const { userMetrics } = state;
   const { toast } = useToast();
+  const { metricType, heightUnit, weightUnit, heightCm, heightFt, heightIn, weight, bodyFat, age, sex } = userMetrics;
 
   const handleRecalculate = () => {
     recalculate();
     toast({
-      title: "Metrics Updated",
-      description: "Your information has been saved and calculations updated.",
+      title: "Metrics Updated! 🎉",
+      description: "Your info has been saved. Let's party responsibly!",
     });
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <Card className="p-6 md:p-8 space-y-6">
-        {/* Metric Type Toggle */}
-        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-          <div className="space-y-1">
-            <Label className="text-base font-semibold">
-              {userMetrics.metricType === "bmi" ? "Use BMI (Height & Weight)" : "Use FFMI (Body Fat %)"}
+      {/* Main heading */}
+      <div>
+        <h2 className="text-3xl font-bold mb-2">
+          {metricType === "bmi" ? "BMI" : "FFMI"} Calculator
+        </h2>
+        <p className="text-muted-foreground">
+          {metricType === "bmi" 
+            ? "Let's get your body metrics to calculate your perfect buzz! 🎉" 
+            : "Track your gains and plan your party! 💪🎊"}
+        </p>
+      </div>
+
+      {/* Toggle between BMI and FFMI */}
+      <Card className="p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="metric-toggle" className="text-lg font-semibold">
+              {metricType === "bmi" ? "Using BMI" : "Using FFMI"}
             </Label>
-            <p className="text-sm text-muted-foreground">
-              {userMetrics.metricType === "bmi" 
-                ? "Calculate based on height and weight" 
-                : "Calculate based on body fat percentage"}
+            <p className="text-sm text-muted-foreground mt-1">
+              {metricType === "bmi" 
+                ? "Standard body mass calculation" 
+                : "Advanced fitness calculation"}
             </p>
           </div>
-          <Switch 
-            checked={userMetrics.metricType === "ffmi"}
-            onCheckedChange={(checked) => 
-              updateUserMetrics({ metricType: checked ? "ffmi" : "bmi" })
-            }
+          <Button
+            variant={metricType === "ffmi" ? "default" : "outline"}
+            size="sm"
+            onClick={() => updateUserMetrics({ metricType: metricType === "ffmi" ? "bmi" : "ffmi" })}
+            className="transition-all"
+          >
+            Use FFMI
+          </Button>
+        </div>
+      </Card>
+
+      {/* FFMI Information Card */}
+      {metricType === "ffmi" && (
+        <Card className="p-6 bg-secondary/10 border-secondary/30">
+          <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+            <span className="text-2xl">💡</span> What is FFMI?
+          </h3>
+          <p className="text-sm mb-4 leading-relaxed">
+            <strong>FFMI (Fat Free Mass Index)</strong> calculates your muscle mass relative to your height. 
+            It's super popular with bodybuilders and fitness enthusiasts to compare physique and track gains. 
+            Think of it as BMI's cooler, more athletic cousin! 🏋️
+          </p>
+          
+          <div className="mt-6">
+            <h4 className="font-semibold mb-3 text-lg">Body Fat % Reference Guide</h4>
+            
+            {/* Women's Table */}
+            <div className="mb-6">
+              <p className="text-sm font-semibold mb-2 text-secondary">For Women 👩</p>
+              <div className="bg-card rounded-lg overflow-hidden border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="text-left p-3 font-semibold">Classification</th>
+                      <th className="text-left p-3 font-semibold">Body Fat %</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    <tr><td className="p-3">Essential Fat</td><td className="p-3 font-mono">10-13%</td></tr>
+                    <tr className="bg-muted/30"><td className="p-3">Athletes</td><td className="p-3 font-mono">18-20%</td></tr>
+                    <tr><td className="p-3">Fitness</td><td className="p-3 font-mono">21-24%</td></tr>
+                    <tr className="bg-muted/30"><td className="p-3">Average</td><td className="p-3 font-mono">25-31%</td></tr>
+                    <tr><td className="p-3">Obese</td><td className="p-3 font-mono">32%+</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Men's Table */}
+            <div>
+              <p className="text-sm font-semibold mb-2 text-primary">For Men 👨</p>
+              <div className="bg-card rounded-lg overflow-hidden border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="text-left p-3 font-semibold">Classification</th>
+                      <th className="text-left p-3 font-semibold">Body Fat %</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    <tr><td className="p-3">Essential Fat</td><td className="p-3 font-mono">2-5%</td></tr>
+                    <tr className="bg-muted/30"><td className="p-3">Athletes</td><td className="p-3 font-mono">10-13%</td></tr>
+                    <tr><td className="p-3">Fitness</td><td className="p-3 font-mono">14-17%</td></tr>
+                    <tr className="bg-muted/30"><td className="p-3">Average</td><td className="p-3 font-mono">18-24%</td></tr>
+                    <tr><td className="p-3">Obese</td><td className="p-3 font-mono">25%+</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Body Metrics Input */}
+      <Card className="p-6 space-y-4">
+        <h3 className="font-semibold text-xl">
+          {metricType === "bmi" ? "📏 Height & Weight" : "💪 Body Composition"}
+        </h3>
+
+        {/* Height Input - shown for both BMI and FFMI */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Height</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={heightUnit === "cm" ? "default" : "outline"}
+                size="sm"
+                onClick={() => updateUserMetrics({ heightUnit: "cm" })}
+              >
+                cm
+              </Button>
+              <Button
+                type="button"
+                variant={heightUnit === "ft" ? "default" : "outline"}
+                size="sm"
+                onClick={() => updateUserMetrics({ heightUnit: "ft" })}
+              >
+                ft/in
+              </Button>
+            </div>
+          </div>
+
+          {heightUnit === "cm" ? (
+            <Input
+              type="number"
+              placeholder="e.g., 175"
+              value={heightCm}
+              onChange={(e) => updateUserMetrics({ heightCm: e.target.value })}
+            />
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="ft"
+                value={heightFt}
+                onChange={(e) => updateUserMetrics({ heightFt: e.target.value })}
+                className="flex-1"
+              />
+              <Input
+                type="number"
+                placeholder="in"
+                value={heightIn}
+                onChange={(e) => updateUserMetrics({ heightIn: e.target.value })}
+                className="flex-1"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Weight Input - shown for both BMI and FFMI */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Weight</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={weightUnit === "kg" ? "default" : "outline"}
+                size="sm"
+                onClick={() => updateUserMetrics({ weightUnit: "kg" })}
+              >
+                kg
+              </Button>
+              <Button
+                type="button"
+                variant={weightUnit === "lbs" ? "default" : "outline"}
+                size="sm"
+                onClick={() => updateUserMetrics({ weightUnit: "lbs" })}
+              >
+                lbs
+              </Button>
+            </div>
+          </div>
+          <Input
+            type="number"
+            placeholder={weightUnit === "kg" ? "e.g., 70" : "e.g., 154"}
+            value={weight}
+            onChange={(e) => updateUserMetrics({ weight: e.target.value })}
           />
         </div>
 
-        {/* BMI Inputs */}
-        {userMetrics.metricType === "bmi" && (
-          <div className="space-y-6">
-            {/* Height Input */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Height</Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={userMetrics.heightUnit === "cm" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateUserMetrics({ heightUnit: "cm" })}
-                  >
-                    cm
-                  </Button>
-                  <Button
-                    variant={userMetrics.heightUnit === "ft" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateUserMetrics({ heightUnit: "ft" })}
-                  >
-                    ft/in
-                  </Button>
-                </div>
-              </div>
-              
-              {userMetrics.heightUnit === "cm" ? (
-                <Input
-                  type="number"
-                  placeholder="e.g., 175"
-                  value={userMetrics.heightCm}
-                  onChange={(e) => updateUserMetrics({ heightCm: e.target.value })}
-                  className="text-lg"
-                />
-              ) : (
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      placeholder="Feet"
-                      value={userMetrics.heightFt}
-                      onChange={(e) => updateUserMetrics({ heightFt: e.target.value })}
-                      className="text-lg"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      placeholder="Inches"
-                      value={userMetrics.heightIn}
-                      onChange={(e) => updateUserMetrics({ heightIn: e.target.value })}
-                      className="text-lg"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Weight Input */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Weight</Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={userMetrics.weightUnit === "kg" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateUserMetrics({ weightUnit: "kg" })}
-                  >
-                    kg
-                  </Button>
-                  <Button
-                    variant={userMetrics.weightUnit === "lbs" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateUserMetrics({ weightUnit: "lbs" })}
-                  >
-                    lbs
-                  </Button>
-                </div>
-              </div>
-              
-              <Input
-                type="number"
-                placeholder={userMetrics.weightUnit === "kg" ? "e.g., 75" : "e.g., 165"}
-                value={userMetrics.weight}
-                onChange={(e) => updateUserMetrics({ weight: e.target.value })}
-                className="text-lg"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* FFMI Input */}
-        {userMetrics.metricType === "ffmi" && (
-          <div className="space-y-3">
-            <Label className="text-base">Body Fat Percentage</Label>
+        {/* Body Fat Percentage - only shown for FFMI */}
+        {metricType === "ffmi" && (
+          <div className="space-y-2">
+            <Label>Body Fat Percentage</Label>
             <Input
               type="number"
               placeholder="e.g., 15"
-              value={userMetrics.bodyFat}
+              value={bodyFat}
               onChange={(e) => updateUserMetrics({ bodyFat: e.target.value })}
-              className="text-lg"
-              min="1"
-              max="50"
             />
-            <p className="text-sm text-muted-foreground">
-              Enter your body fat percentage (typically 10-30% for most adults)
+            <p className="text-xs text-muted-foreground">
+              Enter your body fat percentage (refer to the guide above 👆)
             </p>
           </div>
         )}
+      </Card>
+
+      {/* Additional Info */}
+      <Card className="p-6 space-y-4">
+        <h3 className="font-semibold text-xl">🎯 Tell Us More</h3>
 
         {/* Age Input */}
-        <div className="space-y-3">
-          <Label className="text-base">Age</Label>
+        <div className="space-y-2">
+          <Label>Age</Label>
           <Input
             type="number"
             placeholder="e.g., 25"
-            value={userMetrics.age}
+            value={age}
             onChange={(e) => updateUserMetrics({ age: e.target.value })}
-            className="text-lg"
             min="18"
-            max="120"
           />
         </div>
 
         {/* Sex Selection */}
-        <div className="space-y-3">
-          <Label className="text-base">Sex</Label>
+        <div className="space-y-2">
+          <Label>Sex</Label>
           <Select
-            value={userMetrics.sex}
+            value={sex}
             onValueChange={(value: "male" | "female") => 
               updateUserMetrics({ sex: value })
             }
           >
-            <SelectTrigger className="text-lg">
-              <SelectValue placeholder="Select sex" />
+            <SelectTrigger>
+              <SelectValue placeholder="Select your sex" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="male">Male</SelectItem>
               <SelectItem value="female">Female</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-sm text-muted-foreground">
-            Used for accurate metabolism calculations
+          <p className="text-xs text-muted-foreground">
+            Helps us calculate more accurate results! 🎯
           </p>
         </div>
       </Card>
@@ -198,13 +273,13 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
           onClick={handleRecalculate}
         >
           <RefreshCw className="w-4 h-4 mr-2" />
-          Recalculate
+          Update Metrics
         </Button>
         <Button
-          className="flex-1"
+          className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
           onClick={onNext}
         >
-          Next: Drinks
+          Next: Choose Your Drinks! 🍹
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
