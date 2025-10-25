@@ -57,7 +57,7 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
             onClick={() => updateUserMetrics({ metricType: metricType === "ffmi" ? "bmi" : "ffmi" })}
             className="transition-all"
           >
-            Use FFMI
+            {metricType === "ffmi" ? "Use BMI" : "Use FFMI"}
           </Button>
         </div>
       </Card>
