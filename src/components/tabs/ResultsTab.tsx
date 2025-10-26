@@ -97,60 +97,60 @@ const ResultsTab = () => {
 
 
       {/* Current State Summary */}
-      <Card className="p-6 bg-muted/30">
-        <h3 className="font-semibold mb-4">Current Configuration</h3>
-        <div className="space-y-4">
-          <div>
-            <h4 className="text-sm font-semibold text-muted-foreground mb-2">User Metrics:</h4>
-            <div className="pl-4 space-y-1 text-sm">
-              <div>
-                <span className="text-muted-foreground">Age:</span>
-                <span className="ml-2 font-medium">{state.userMetrics.age || "Not set"}</span>
+      <Card className="p-8 bg-muted/30">
+        <h3 className="text-xl font-bold mb-6">Current Configuration</h3>
+        
+        {/* User Metrics Section */}
+        <div className="mb-8">
+          <h4 className="text-base font-semibold text-primary mb-4">User Metrics</h4>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card className="p-4 bg-background/60">
+              <div className="text-sm text-muted-foreground mb-1">Age</div>
+              <div className="text-lg font-semibold">{state.userMetrics.age || "Not set"}</div>
+            </Card>
+            
+            <Card className="p-4 bg-background/60">
+              <div className="text-sm text-muted-foreground mb-1">Sex</div>
+              <div className="text-lg font-semibold capitalize">{state.userMetrics.sex || "Not set"}</div>
+            </Card>
+            
+            <Card className="p-4 bg-background/60">
+              <div className="text-sm text-muted-foreground mb-1">Height</div>
+              <div className="text-lg font-semibold">
+                {state.userMetrics.heightUnit === "cm" 
+                  ? (state.userMetrics.heightCm ? `${state.userMetrics.heightCm} cm` : "Not set")
+                  : (state.userMetrics.heightFt && state.userMetrics.heightIn 
+                      ? `${state.userMetrics.heightFt}' ${state.userMetrics.heightIn}"` 
+                      : "Not set")}
               </div>
-              <div>
-                <span className="text-muted-foreground">Sex:</span>
-                <span className="ml-2 font-medium capitalize">{state.userMetrics.sex || "Not set"}</span>
+            </Card>
+            
+            <Card className="p-4 bg-background/60">
+              <div className="text-sm text-muted-foreground mb-1">Weight</div>
+              <div className="text-lg font-semibold">
+                {state.userMetrics.weight ? `${state.userMetrics.weight} ${state.userMetrics.weightUnit}` : "Not set"}
               </div>
-              <div>
-                <span className="text-muted-foreground">Height:</span>
-                <span className="ml-2 font-medium">
-                  {state.userMetrics.heightUnit === "cm" 
-                    ? (state.userMetrics.heightCm ? `${state.userMetrics.heightCm} cm` : "Not set")
-                    : (state.userMetrics.heightFt && state.userMetrics.heightIn 
-                        ? `${state.userMetrics.heightFt}' ${state.userMetrics.heightIn}"` 
-                        : "Not set")}
-                </span>
+            </Card>
+            
+            <Card className="p-4 bg-background/60">
+              <div className="text-sm text-muted-foreground mb-1">Metric Type</div>
+              <div className="text-lg font-semibold">
+                {state.userMetrics.metricType === "bmi" ? "BMI" : "FFMI"}
+                {state.userMetrics.metricType === "ffmi" && state.userMetrics.bodyFat 
+                  ? ` (${state.userMetrics.bodyFat}%)` 
+                  : ""}
               </div>
-              <div>
-                <span className="text-muted-foreground">Weight:</span>
-                <span className="ml-2 font-medium">
-                  {state.userMetrics.weight ? `${state.userMetrics.weight} ${state.userMetrics.weightUnit}` : "Not set"}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Metric Type:</span>
-                <span className="ml-2 font-medium">
-                  {state.userMetrics.metricType === "bmi" ? "BMI" : "FFMI"}
-                  {state.userMetrics.metricType === "ffmi" && state.userMetrics.bodyFat 
-                    ? ` (${state.userMetrics.bodyFat}% body fat)` 
-                    : ""}
-                </span>
-              </div>
-            </div>
+            </Card>
           </div>
-          
-          <div className="grid md:grid-cols-2 gap-4 text-sm pt-2 border-t">
-            <div>
-              <span className="text-muted-foreground">Drinks Added:</span>
-              <span className="ml-2 font-medium">{state.drinks.length}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Time Elapsed:</span>
-              <span className="ml-2 font-medium">
-                {state.timeDelta ? `${state.timeDelta.toFixed(1)} hrs` : "0 hrs"}
-              </span>
-            </div>
-          </div>
+        </div>
+
+        {/* Drinks Section */}
+        <div>
+          <h4 className="text-base font-semibold text-primary mb-4">Drinks</h4>
+          <Card className="p-4 bg-background/60">
+            <div className="text-sm text-muted-foreground mb-1">Drinks Added</div>
+            <div className="text-2xl font-bold text-primary">{state.drinks.length}</div>
+          </Card>
         </div>
       </Card>
 
