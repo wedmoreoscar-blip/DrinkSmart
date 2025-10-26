@@ -160,7 +160,13 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
         <div className="space-y-4">
           <div className="flex justify-center">
             <Button 
-              onClick={() => updateInebriationLevel(localLevel)}
+              onClick={() => {
+                updateInebriationLevel(localLevel);
+                toast({
+                  title: "Buzz level updated",
+                  description: `Your target buzz level has been set to ${localLevel}.`,
+                });
+              }}
               variant="outline"
               size="sm"
             >
