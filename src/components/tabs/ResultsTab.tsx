@@ -101,7 +101,7 @@ const ResultsTab = () => {
         <h3 className="text-xl font-bold mb-6">Current Configuration</h3>
         
         {/* User Metrics Section */}
-        <div className="mb-8">
+        <div>
           <h4 className="text-base font-semibold text-primary mb-4">User Metrics</h4>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card className="p-4 bg-background/60">
@@ -142,15 +142,6 @@ const ResultsTab = () => {
               </div>
             </Card>
           </div>
-        </div>
-
-        {/* Drinks Section */}
-        <div>
-          <h4 className="text-base font-semibold text-primary mb-4">Drinks</h4>
-          <Card className="p-4 bg-background/60">
-            <div className="text-sm text-muted-foreground mb-1">Drinks Added</div>
-            <div className="text-2xl font-bold text-primary">{state.drinks.length}</div>
-          </Card>
         </div>
       </Card>
 
