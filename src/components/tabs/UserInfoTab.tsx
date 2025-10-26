@@ -10,7 +10,7 @@ import { ArrowRight, RefreshCw, ChevronDown, ChevronUp, Info } from "lucide-reac
 import { useToast } from "@/hooks/use-toast";
 
 const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
-  const { state, updateUserMetrics, recalculate } = useAppContext();
+  const { state, updateUserMetrics, recalculate, calculateDrinkPresets } = useAppContext();
   const { userMetrics } = state;
   const { toast } = useToast();
   const { metricType, heightUnit, weightUnit, heightCm, heightFt, heightIn, weight, bodyFat, age, sex } = userMetrics;
@@ -18,6 +18,10 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
 
   const handleRecalculate = () => {
     recalculate();
+    
+    // Recalculate drink presets with updated user metrics
+    calculateDrinkPresets();
+    
     toast({
       title: "Metrics Updated! 🎉",
       description: "Your info has been saved. Let's party responsibly!",
