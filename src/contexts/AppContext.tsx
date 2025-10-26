@@ -114,7 +114,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const calculateTimeDelta = (startTime: Date | null, targetTime: Date | null): number | null => {
     if (!startTime || !targetTime) return null;
-    const diffMs = targetTime.getTime() - startTime.getTime();
+    
+    // Check if we're crossing midnight
+    const startHour = startTime.getHours();
+    const startMinutes = startTime.getMinutes();
+    const targetHour = targetTime.getHours();
+    const targetMinutes = targetTime.getMinutes();
+    
+    let adjustedTarget = new Date(targetTime);
+    
+    // If target time appears earlier in the day, assume it's the next day
+    if (targetHour < startHour || (targetHour === startHour && targetMinutes <= startMinutes)) {
+      adjustedTarget = new Date(targetTime);
+      adjustedTarget.setDate(adjustedTarget.getDate() + 1);
+    }
+    
+    const diffMs = adjustedTarget.getTime() - startTime.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
     return diffHours;
   };
