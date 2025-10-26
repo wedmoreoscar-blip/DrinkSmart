@@ -92,38 +92,81 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
 
           {/* Drink Equivalents */}
           {drinkEquivalents && (
-            <Card className="p-6 bg-background/80">
-              <h3 className="text-lg font-semibold mb-4">This is equivalent to:</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Martini className="w-5 h-5 text-primary" />
-                  <span className="text-base">
-                    <span className="font-bold text-primary">{drinkEquivalents.shots}</span> shots of vodka @37.5% ABV
-                  </span>
+            <div className="grid lg:grid-cols-[1fr,auto] gap-6 items-start">
+              <Card className="p-6 bg-gradient-to-br from-background to-muted/20 border-primary/10">
+                <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                  This is equivalent to:
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Martini className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-2xl font-bold text-primary">{drinkEquivalents.shots}</div>
+                      <div className="text-sm text-muted-foreground">shots of vodka @37.5% ABV</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Beer className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-2xl font-bold text-primary">{drinkEquivalents.pints}</div>
+                      <div className="text-sm text-muted-foreground">pints of beer @5% ABV</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Wine className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-2xl font-bold text-primary">{drinkEquivalents.glasses}</div>
+                      <div className="text-sm text-muted-foreground">glasses of wine @12% ABV</div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Beer className="w-5 h-5 text-primary" />
-                  <span className="text-base">
-                    <span className="font-bold text-primary">{drinkEquivalents.pints}</span> pints of beer @5% ABV
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Wine className="w-5 h-5 text-primary" />
-                  <span className="text-base">
-                    <span className="font-bold text-primary">{drinkEquivalents.glasses}</span> glasses of wine @12% ABV
-                  </span>
-                </div>
-              </div>
-            </Card>
+              </Card>
+              
+              <Button 
+                onClick={onNavigateToDrinks} 
+                size="lg"
+                className="lg:mt-12 w-full lg:w-auto group"
+              >
+                Add Some Drinks!
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </div>
           )}
 
-          {/* Standard Measurements */}
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>* Standard measurements:</p>
-            <p className="pl-4">Glass of wine = 175ml</p>
-            <p className="pl-4">Shot = 30ml</p>
-            <p className="pl-4">Pint = 568ml</p>
-          </div>
+          {/* Safety Disclaimer */}
+          <Card className="p-6 bg-muted/30 border-muted">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <div className="space-y-3">
+                <p className="font-semibold text-sm">Important Safety Reminders</p>
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>These calculations are estimates - always err on the side of caution</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Never drink and drive - arrange alternative transportation</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Stay hydrated and eat food while drinking</span>
+                  </li>
+                </ul>
+                <div className="pt-2 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium">Standard measurements:</span> Glass of wine = 175ml, Shot = 30ml, Pint = 568ml
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
         </>
       ) : (
         <Card className="p-12 text-center space-y-6">
@@ -142,81 +185,6 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
       )}
 
 
-      {/* Current State Summary */}
-      <Card className="p-8 bg-muted/30">
-        <h3 className="text-xl font-bold mb-6">Current Configuration</h3>
-        
-        {/* User Metrics Section */}
-        <div>
-          <h4 className="text-base font-semibold text-primary mb-4">User Metrics</h4>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="p-4 bg-background/60">
-              <div className="text-sm text-muted-foreground mb-1">Age</div>
-              <div className="text-lg font-semibold">{state.userMetrics.age || "Not set"}</div>
-            </Card>
-            
-            <Card className="p-4 bg-background/60">
-              <div className="text-sm text-muted-foreground mb-1">Sex</div>
-              <div className="text-lg font-semibold capitalize">{state.userMetrics.sex || "Not set"}</div>
-            </Card>
-            
-            <Card className="p-4 bg-background/60">
-              <div className="text-sm text-muted-foreground mb-1">Height</div>
-              <div className="text-lg font-semibold">
-                {state.userMetrics.heightUnit === "cm" 
-                  ? (state.userMetrics.heightCm ? `${state.userMetrics.heightCm} cm` : "Not set")
-                  : (state.userMetrics.heightFt && state.userMetrics.heightIn 
-                      ? `${state.userMetrics.heightFt}' ${state.userMetrics.heightIn}"` 
-                      : "Not set")}
-              </div>
-            </Card>
-            
-            <Card className="p-4 bg-background/60">
-              <div className="text-sm text-muted-foreground mb-1">Weight</div>
-              <div className="text-lg font-semibold">
-                {state.userMetrics.weight ? `${state.userMetrics.weight} ${state.userMetrics.weightUnit}` : "Not set"}
-              </div>
-            </Card>
-            
-            <Card className="p-4 bg-background/60">
-              <div className="text-sm text-muted-foreground mb-1">Metric Type</div>
-              <div className="text-lg font-semibold">
-                {state.userMetrics.metricType === "bmi" ? "BMI" : "FFMI"}
-                {state.userMetrics.metricType === "ffmi" && state.userMetrics.bodyFat 
-                  ? ` (${state.userMetrics.bodyFat}%)` 
-                  : ""}
-              </div>
-            </Card>
-          </div>
-        </div>
-      </Card>
-
-      {/* Safety Disclaimer */}
-      <Card className="p-6 bg-accent/10 border-accent/30">
-        <div className="flex items-start gap-4">
-          <AlertTriangle className="w-6 h-6 text-accent flex-shrink-0 mt-1" />
-          <div className="space-y-2 text-sm">
-            <p className="font-semibold text-accent-foreground">
-              Important Safety Reminders
-            </p>
-            <ul className="space-y-1 text-muted-foreground list-disc list-inside">
-              <li>These calculations are estimates and may vary based on individual factors</li>
-              <li>Always err on the side of caution and drink less than recommended</li>
-              <li>Never drink and drive - arrange alternative transportation</li>
-              <li>Stay hydrated and eat food while drinking</li>
-              <li>Know your personal limits and stop if you feel unwell</li>
-            </ul>
-          </div>
-        </div>
-      </Card>
-
-      {/* Navigation */}
-      <div className="flex justify-center">
-        <Button onClick={onNavigateToDrinks}>
-          Add Some Drinks!
-          <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
-      </div>
 
     </div>
   );
