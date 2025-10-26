@@ -191,53 +191,58 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
       {/* Timing Section */}
       <Card className="p-6 md:p-8 space-y-6">
         <div className="space-y-6">
-          {/* Start Time */}
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Start Time
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                When do you want to start drinking?
-              </p>
-            </div>
-            
+          {/* Time Selection - Side by Side */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Start Time */}
             <div className="space-y-4">
-              <ClockTimePicker
-                value={localStartTime}
-                onChange={handleStartTimeChange}
-              />
-              <div className="flex items-center justify-center">
-                <Button 
-                  variant={isStartTimeNow() ? "default" : "outline"}
-                  size="sm"
-                  onClick={handleSetNow}
-                  className={isStartTimeNow() ? "bg-primary" : ""}
-                >
-                  Now
-                </Button>
+              <div className="space-y-1">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Start Time
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  When do you want to start drinking?
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex justify-center">
+                  <ClockTimePicker
+                    value={localStartTime}
+                    onChange={handleStartTimeChange}
+                  />
+                </div>
+                <div className="flex items-center justify-center">
+                  <Button 
+                    variant={isStartTimeNow() ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleSetNow}
+                    className={isStartTimeNow() ? "bg-primary" : ""}
+                  >
+                    Now
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Target/Peak Time */}
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Target Time
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                When do you want to reach your buzz?
-              </p>
-            </div>
-            
-            <div>
-              <ClockTimePicker
-                value={localTargetTime}
-                onChange={handleTargetTimeChange}
-              />
+            {/* Target/Peak Time */}
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Target Time
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  When do you want to reach your buzz?
+                </p>
+              </div>
+              
+              <div className="flex justify-center">
+                <ClockTimePicker
+                  value={localTargetTime}
+                  onChange={handleTargetTimeChange}
+                />
+              </div>
             </div>
           </div>
 
