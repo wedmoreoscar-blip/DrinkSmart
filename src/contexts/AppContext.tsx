@@ -37,6 +37,7 @@ type AppState = {
   startDateTime: Date | null; // actual start time
   drinkingStartTime: Date | null; // when user starts drinking
   drinkingTargetTime: Date | null; // when user wants to reach their buzz
+  timeDelta: number | null; // difference between start and target time in hours (float)
 };
 
 type AppContextType = {
@@ -74,6 +75,7 @@ const initialState: AppState = {
   startDateTime: null,
   drinkingStartTime: null,
   drinkingTargetTime: null,
+  timeDelta: null,
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -110,12 +112,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => ({ ...prev, startDateTime: startTime }));
   };
 
+  const calculateTimeDelta = (startTime: Date | null, targetTime: Date | null): number | null => {
+    if (!startTime || !targetTime) return null;
+    const diffMs = targetTime.getTime() - startTime.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    return diffHours;
+  };
+
   const updateDrinkingStartTime = (time: Date | null) => {
-    setState((prev) => ({ ...prev, drinkingStartTime: time }));
+    setState((prev) => {
+      const timeDelta = calculateTimeDelta(time, prev.drinkingTargetTime);
+      return { ...prev, drinkingStartTime: time, timeDelta };
+    });
   };
 
   const updateDrinkingTargetTime = (time: Date | null) => {
-    setState((prev) => ({ ...prev, drinkingTargetTime: time }));
+    setState((prev) => {
+      const timeDelta = calculateTimeDelta(prev.drinkingStartTime, time);
+      return { ...prev, drinkingTargetTime: time, timeDelta };
+    });
   };
 
   const recalculate = () => {
