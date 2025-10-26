@@ -101,6 +101,14 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
     });
   };
 
+  const handlePresetTime = (hours: number) => {
+    const newTargetTime = new Date(localStartTime);
+    newTargetTime.setHours(newTargetTime.getHours() + hours);
+    setLocalTargetTime(newTargetTime);
+    setHasUnsavedChanges(true);
+    validateTimes(localStartTime, newTargetTime);
+  };
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
@@ -237,11 +245,36 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
                 </p>
               </div>
               
-              <div className="flex justify-center">
-                <TimePicker
-                  value={localTargetTime}
-                  onChange={handleTargetTimeChange}
-                />
+              <div className="space-y-3">
+                <div className="flex justify-center">
+                  <TimePicker
+                    value={localTargetTime}
+                    onChange={handleTargetTimeChange}
+                  />
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePresetTime(1)}
+                  >
+                    +1hr
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePresetTime(2)}
+                  >
+                    +2hrs
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePresetTime(4)}
+                  >
+                    +4hrs
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
