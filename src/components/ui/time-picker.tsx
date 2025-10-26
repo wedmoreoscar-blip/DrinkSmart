@@ -33,7 +33,7 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
         <SelectTrigger className="w-20">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="bg-background z-50">
+        <SelectContent side="top" className="bg-background z-50">
           {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
             <SelectItem key={hour} value={hour.toString()}>
               {hour.toString().padStart(2, "0")}
@@ -49,7 +49,7 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
         <SelectTrigger className="w-20">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="bg-background z-50">
+        <SelectContent side="top" className="bg-background z-50">
           {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
             <SelectItem key={minute} value={minute.toString()}>
               {minute.toString().padStart(2, "0")}
