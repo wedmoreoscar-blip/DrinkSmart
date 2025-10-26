@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ClockTimePickerProps {
   value: Date | null;
@@ -10,115 +10,100 @@ interface ClockTimePickerProps {
 
 export function ClockTimePicker({ value, onChange, className }: ClockTimePickerProps) {
   const currentDate = value || new Date(new Date().setHours(0, 0, 0, 0));
-  const [mode, setMode] = useState<"hours" | "minutes">("hours");
+  const hoursRef = useRef<HTMLDivElement>(null);
+  const minutesRef = useRef<HTMLDivElement>(null);
   
   const hours = currentDate.getHours();
   const minutes = currentDate.getMinutes();
 
-  const handleHourClick = (hour: number) => {
+  const hoursList = Array.from({ length: 24 }, (_, i) => i);
+  const minutesList = Array.from({ length: 60 }, (_, i) => i);
+
+  const handleHourChange = (hour: number) => {
     const newDate = new Date(currentDate);
     newDate.setHours(hour);
     onChange(newDate);
-    setMode("minutes");
   };
 
-  const handleMinuteClick = (minute: number) => {
+  const handleMinuteChange = (minute: number) => {
     const newDate = new Date(currentDate);
     newDate.setMinutes(minute);
     onChange(newDate);
   };
 
-  const renderClock = () => {
-    const isHoursMode = mode === "hours";
-    const maxValue = isHoursMode ? 24 : 60;
-    const currentValue = isHoursMode ? hours : minutes;
-    const step = isHoursMode ? 1 : 5;
-    
-    const numbers = [];
-    for (let i = 0; i < maxValue; i += step) {
-      numbers.push(i);
+  // Scroll to selected value on mount
+  useEffect(() => {
+    if (hoursRef.current) {
+      const selectedHour = hoursRef.current.querySelector(`[data-value="${hours}"]`);
+      if (selectedHour) {
+        selectedHour.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }
     }
-
-    return (
-      <div className="relative w-64 h-64 mx-auto">
-        {/* Clock circle */}
-        <div className="absolute inset-0 rounded-full border-2 border-primary/20 bg-background/50" />
-        
-        {/* Center display */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-4xl font-bold font-mono">
-              {hours.toString().padStart(2, "0")}:{minutes.toString().padStart(2, "0")}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {isHoursMode ? "Select hour" : "Select minute"}
-            </div>
-          </div>
-        </div>
-
-        {/* Numbers around the clock */}
-        {numbers.map((num) => {
-          const angle = (num / maxValue) * 2 * Math.PI - Math.PI / 2;
-          const radius = 100;
-          const x = Math.cos(angle) * radius + 128;
-          const y = Math.sin(angle) * radius + 128;
-          
-          const isSelected = num === currentValue;
-          
-          return (
-            <button
-              key={num}
-              onClick={() => isHoursMode ? handleHourClick(num) : handleMinuteClick(num)}
-              className={cn(
-                "absolute w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-sm font-semibold transition-all",
-                "hover:bg-primary hover:text-primary-foreground hover:scale-110",
-                isSelected && "bg-primary text-primary-foreground scale-110 shadow-lg"
-              )}
-              style={{
-                left: `${x}px`,
-                top: `${y}px`,
-              }}
-            >
-              {num.toString().padStart(2, "0")}
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
+    if (minutesRef.current) {
+      const selectedMinute = minutesRef.current.querySelector(`[data-value="${minutes}"]`);
+      if (selectedMinute) {
+        selectedMinute.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }
+    }
+  }, []);
 
   return (
-    <Card className={cn("p-6", className)}>
-      <div className="space-y-4">
-        {/* Mode toggle buttons */}
-        <div className="flex gap-2 justify-center">
-          <button
-            onClick={() => setMode("hours")}
-            className={cn(
-              "px-4 py-2 rounded-md text-sm font-medium transition-all",
-              mode === "hours"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            )}
-          >
-            Hours
-          </button>
-          <button
-            onClick={() => setMode("minutes")}
-            className={cn(
-              "px-4 py-2 rounded-md text-sm font-medium transition-all",
-              mode === "minutes"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            )}
-          >
-            Minutes
-          </button>
+    <div className={cn("relative", className)}>
+      <div className="flex items-center justify-center gap-2">
+        {/* Hours column */}
+        <div className="relative">
+          <ScrollArea className="h-48 w-20 rounded-lg border">
+            <div ref={hoursRef} className="py-20">
+              {hoursList.map((hour) => (
+                <button
+                  key={hour}
+                  data-value={hour}
+                  onClick={() => handleHourChange(hour)}
+                  className={cn(
+                    "w-full h-12 flex items-center justify-center text-lg font-medium transition-all",
+                    "hover:bg-muted",
+                    hours === hour
+                      ? "text-primary font-bold scale-110"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {hour.toString().padStart(2, "0")}
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+          {/* Selection indicator */}
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-12 border-y-2 border-primary/20 pointer-events-none" />
         </div>
 
-        {/* Clock display */}
-        {renderClock()}
+        <span className="text-2xl font-bold">:</span>
+
+        {/* Minutes column */}
+        <div className="relative">
+          <ScrollArea className="h-48 w-20 rounded-lg border">
+            <div ref={minutesRef} className="py-20">
+              {minutesList.map((minute) => (
+                <button
+                  key={minute}
+                  data-value={minute}
+                  onClick={() => handleMinuteChange(minute)}
+                  className={cn(
+                    "w-full h-12 flex items-center justify-center text-lg font-medium transition-all",
+                    "hover:bg-muted",
+                    minutes === minute
+                      ? "text-primary font-bold scale-110"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {minute.toString().padStart(2, "0")}
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+          {/* Selection indicator */}
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-12 border-y-2 border-primary/20 pointer-events-none" />
+        </div>
       </div>
-    </Card>
+    </div>
   );
 }
