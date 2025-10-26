@@ -35,6 +35,8 @@ type AppState = {
   startTime: number; // seconds since start (deprecated)
   isTimerRunning: boolean; // deprecated
   startDateTime: Date | null; // actual start time
+  drinkingStartTime: Date | null; // when user starts drinking
+  drinkingTargetTime: Date | null; // when user wants to reach their buzz
 };
 
 type AppContextType = {
@@ -44,6 +46,8 @@ type AppContextType = {
   updateDrinks: (drinks: DrinkEntry[]) => void;
   updateTimeline: (startTime: number, isRunning: boolean) => void;
   updateStartTime: (startTime: Date) => void;
+  updateDrinkingStartTime: (time: Date | null) => void;
+  updateDrinkingTargetTime: (time: Date | null) => void;
   recalculate: () => void;
 };
 
@@ -68,6 +72,8 @@ const initialState: AppState = {
   startTime: 0,
   isTimerRunning: false,
   startDateTime: null,
+  drinkingStartTime: null,
+  drinkingTargetTime: null,
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -104,6 +110,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => ({ ...prev, startDateTime: startTime }));
   };
 
+  const updateDrinkingStartTime = (time: Date | null) => {
+    setState((prev) => ({ ...prev, drinkingStartTime: time }));
+  };
+
+  const updateDrinkingTargetTime = (time: Date | null) => {
+    setState((prev) => ({ ...prev, drinkingTargetTime: time }));
+  };
+
   const recalculate = () => {
     // This will trigger recalculation in the Results tab
     // For now, it's a placeholder - actual calculations will be implemented later
@@ -119,6 +133,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateDrinks,
         updateTimeline,
         updateStartTime,
+        updateDrinkingStartTime,
+        updateDrinkingTargetTime,
         recalculate,
       }}
     >

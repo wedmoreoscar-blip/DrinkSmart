@@ -3,12 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Clock } from "lucide-react";
 import { buzzLevels } from "@/data/buzzLevels";
+import { TimePicker } from "@/components/ui/time-picker";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
-  const { state, updateInebriationLevel } = useAppContext();
+  const { state, updateInebriationLevel, updateDrinkingStartTime, updateDrinkingTargetTime } = useAppContext();
   const [localLevel, setLocalLevel] = useState(state.inebriationLevel);
+  const [timeError, setTimeError] = useState<string>("");
   
   const currentDescription = buzzLevels[localLevel - 1];
   
@@ -28,6 +31,39 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
     if (localLevel <= 3) return "text-green-600 dark:text-green-400";
     if (localLevel <= 6) return "text-orange-600 dark:text-orange-400";
     return "text-red-600 dark:text-red-400";
+  };
+
+  const handleStartTimeChange = (date: Date) => {
+    updateDrinkingStartTime(date);
+    validateTimes(date, state.drinkingTargetTime);
+  };
+
+  const handleTargetTimeChange = (date: Date) => {
+    updateDrinkingTargetTime(date);
+    validateTimes(state.drinkingStartTime, date);
+  };
+
+  const validateTimes = (start: Date | null, target: Date | null) => {
+    if (start && target && target <= start) {
+      setTimeError("Target time must be after start time");
+    } else {
+      setTimeError("");
+    }
+  };
+
+  const handleSetNow = () => {
+    const now = new Date();
+    updateDrinkingStartTime(now);
+    validateTimes(now, state.drinkingTargetTime);
+  };
+
+  const formatTime = (date: Date | null) => {
+    if (!date) return "Not set";
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true 
+    });
   };
 
   return (
@@ -92,10 +128,79 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
         </div>
       </Card>
 
+      {/* Timing Section */}
+      <Card className="p-6 md:p-8 space-y-6">
+        <div className="space-y-6">
+          {/* Start Time */}
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-xl font-semibold flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Start Time
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                When do you wanna start drinking?
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <TimePicker
+                value={state.drinkingStartTime}
+                onChange={handleStartTimeChange}
+              />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSetNow}
+              >
+                Now
+              </Button>
+              {state.drinkingStartTime && (
+                <span className="text-sm text-muted-foreground">
+                  {formatTime(state.drinkingStartTime)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Target/Peak Time */}
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-xl font-semibold flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Target/Peak Time
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                When do you want to reach your buzz?
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <TimePicker
+                value={state.drinkingTargetTime}
+                onChange={handleTargetTimeChange}
+              />
+              {state.drinkingTargetTime && (
+                <span className="text-sm text-muted-foreground">
+                  {formatTime(state.drinkingTargetTime)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {timeError && (
+            <Alert variant="destructive">
+              <AlertDescription>{timeError}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </Card>
+
       {/* Next Button */}
       <div className="flex justify-end">
-        <Button size="lg" onClick={onNext}>
-          Next: Add Your Drinks
+        <Button size="lg" onClick={onNext} disabled={!!timeError}>
+          Next: User Info
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
