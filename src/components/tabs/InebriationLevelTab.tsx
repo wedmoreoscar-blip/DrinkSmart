@@ -8,9 +8,6 @@ import { buzzLevels } from "@/data/buzzLevels";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
   const { state, updateInebriationLevel, updateDrinkingStartTime, updateDrinkingTargetTime } = useAppContext();
@@ -25,9 +22,6 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
     state.drinkingTargetTime || new Date(new Date().setHours(0, 0, 0, 0))
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [showDurationDialog, setShowDurationDialog] = useState(false);
-  const [durationHours, setDurationHours] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState("");
   
   const currentDescription = buzzLevels[localLevel - 1];
   
@@ -77,43 +71,12 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   const handleSetNow = () => {
-    setShowDurationDialog(true);
-  };
-
-  const handleDurationSubmit = () => {
-    const hours = parseInt(durationHours || "0");
-    const minutes = parseInt(durationMinutes || "0");
-    
-    if (hours === 0 && minutes === 0) {
-      toast({
-        title: "Invalid duration",
-        description: "Please enter a duration greater than 0.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const now = new Date();
+    // Round to nearest minute for comparison
     now.setSeconds(0, 0);
-    
-    // Calculate target time
-    const target = new Date(now);
-    target.setHours(target.getHours() + hours);
-    target.setMinutes(target.getMinutes() + minutes);
-    
     setLocalStartTime(now);
-    setLocalTargetTime(target);
     setHasUnsavedChanges(true);
-    validateTimes(now, target);
-    
-    setShowDurationDialog(false);
-    setDurationHours("");
-    setDurationMinutes("");
-    
-    toast({
-      title: "Times set",
-      description: `Start time set to now, target time set to ${hours}h ${minutes}m from now.`,
-    });
+    validateTimes(now, localTargetTime);
   };
 
   const isStartTimeNow = () => {
@@ -311,54 +274,6 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
-
-      {/* Duration Dialog */}
-      <Dialog open={showDurationDialog} onOpenChange={setShowDurationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>How long until you reach your buzz?</DialogTitle>
-            <DialogDescription>
-              Enter how many hours and/or minutes from now you'd like to reach your target buzz level.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="hours">Hours</Label>
-              <Input
-                id="hours"
-                type="number"
-                min="0"
-                max="24"
-                placeholder="0"
-                value={durationHours}
-                onChange={(e) => setDurationHours(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="minutes">Minutes</Label>
-              <Input
-                id="minutes"
-                type="number"
-                min="0"
-                max="59"
-                placeholder="0"
-                value={durationMinutes}
-                onChange={(e) => setDurationMinutes(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDurationDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleDurationSubmit}>
-              Set Times
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
