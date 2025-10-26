@@ -114,6 +114,14 @@ const ResultsTab = () => {
               </div>
             </Card>
           )}
+
+          {/* Standard Measurements */}
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>* Standard measurements:</p>
+            <p className="pl-4">Glass of wine = 175ml</p>
+            <p className="pl-4">Shot = 30ml</p>
+            <p className="pl-4">Pint = 568ml</p>
+          </div>
         </>
       ) : (
         <Card className="p-12 text-center space-y-6">
@@ -208,13 +216,6 @@ const ResultsTab = () => {
         </Button>
       </div>
 
-      {/* Standard Measurements Footer */}
-      <div className="text-xs text-muted-foreground space-y-1 pt-4">
-        <p>* Standard measurements:</p>
-        <p className="pl-4">Glass of wine = 175ml</p>
-        <p className="pl-4">Shot = 30ml</p>
-        <p className="pl-4">Pint = 568ml</p>
-      </div>
     </div>
   );
 };
