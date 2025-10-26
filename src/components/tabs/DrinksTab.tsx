@@ -345,7 +345,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
               "w-5 h-5 transition-colors duration-500",
               progressPercentage >= 110 ? "text-red-600" : "text-green-600"
             )} />
-            <h3 className="font-semibold text-lg">Pure Alcohol Progress</h3>
+            <h3 className="font-semibold text-lg">Drinks Target</h3>
           </div>
           
           {/* Battery/Tank Visual */}
@@ -391,10 +391,6 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                 )}>{pureAlcoholChosen.toFixed(1)} ml</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Target</p>
-                <p className="font-bold">{totalPureAlcoholNeeded.toFixed(1)} ml</p>
-              </div>
-              <div>
                 <p className="text-muted-foreground">Remaining</p>
                 <p className={cn(
                   "font-bold",
@@ -402,6 +398,10 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                 )}>
                   {remainingPureAlcohol !== null ? remainingPureAlcohol.toFixed(1) : "0"} ml
                 </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Target</p>
+                <p className="font-bold">{totalPureAlcoholNeeded.toFixed(1)} ml</p>
               </div>
             </div>
 
