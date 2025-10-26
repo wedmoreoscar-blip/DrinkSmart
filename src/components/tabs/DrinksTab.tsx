@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown } from "lucide-react";
+import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { drinkCategories } from "@/data/drinksData";
 import { cn } from "@/lib/utils";
@@ -63,6 +63,16 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
     }
   };
 
+  const resetDrink = (id: string) => {
+    updateDrinks(
+      drinks.map((d) =>
+        d.id === id 
+          ? { id: d.id, category: "", drink: "", quantity: "", unit: "ml", mixer: "" } 
+          : d
+      )
+    );
+  };
+
   const updateDrink = (id: string, field: keyof DrinkEntry, value: string) => {
     updateDrinks(
       drinks.map((d) =>
@@ -109,16 +119,26 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                 <span className="text-2xl">🍹</span>
                 Drink {index + 1}
               </h3>
-              {drinks.length > 1 && (
+              <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => removeDrink(drink.id)}
-                  className="hover:bg-destructive/20 hover:text-destructive"
+                  onClick={() => resetDrink(drink.id)}
+                  className="hover:bg-primary/20"
                 >
-                  <X className="w-4 h-4" />
+                  <RotateCcw className="w-4 h-4" />
                 </Button>
-              )}
+                {drinks.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeDrink(drink.id)}
+                    className="hover:bg-destructive/20 hover:text-destructive"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
