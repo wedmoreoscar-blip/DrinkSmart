@@ -334,18 +334,34 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
 
       {/* Pure Alcohol Progress Meter */}
       {totalPureAlcoholNeeded !== null && pureAlcoholChosen > 0 && (
-        <Card className="p-6 space-y-4 bg-gradient-to-br from-green-500/10 to-green-600/10 border-green-500/30">
+        <Card className={cn(
+          "p-6 space-y-4 bg-gradient-to-br transition-colors duration-500",
+          progressPercentage >= 110 
+            ? "from-red-500/10 to-red-600/10 border-red-500/30" 
+            : "from-green-500/10 to-green-600/10 border-green-500/30"
+        )}>
           <div className="flex items-center gap-2 mb-2">
-            <Battery className="w-5 h-5 text-green-600" />
+            <Battery className={cn(
+              "w-5 h-5 transition-colors duration-500",
+              progressPercentage >= 110 ? "text-red-600" : "text-green-600"
+            )} />
             <h3 className="font-semibold text-lg">Pure Alcohol Progress</h3>
           </div>
           
           {/* Battery/Tank Visual */}
           <div className="space-y-2">
-            <div className="relative w-full h-12 bg-muted rounded-lg border-2 border-green-600/50 overflow-hidden">
+            <div className={cn(
+              "relative w-full h-12 bg-muted rounded-lg border-2 overflow-hidden transition-colors duration-500",
+              progressPercentage >= 110 ? "border-red-600/50" : "border-green-600/50"
+            )}>
               {/* Fill */}
               <div
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500 ease-out animate-fade-in"
+                className={cn(
+                  "absolute top-0 left-0 h-full bg-gradient-to-r transition-all duration-500 ease-out animate-fade-in",
+                  progressPercentage >= 110 
+                    ? "from-red-500 to-red-600" 
+                    : "from-green-500 to-green-600"
+                )}
                 style={{ width: `${Math.min(progressPercentage, 100)}%` }}
               />
               
@@ -359,14 +375,20 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
               </div>
               
               {/* Battery Terminal */}
-              <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-6 bg-green-600/50 rounded-r" />
+              <div className={cn(
+                "absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-6 rounded-r transition-colors duration-500",
+                progressPercentage >= 110 ? "bg-red-600/50" : "bg-green-600/50"
+              )} />
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 text-center text-sm">
               <div>
                 <p className="text-muted-foreground">Consumed</p>
-                <p className="font-bold text-green-600">{pureAlcoholChosen.toFixed(1)} ml</p>
+                <p className={cn(
+                  "font-bold transition-colors duration-500",
+                  progressPercentage >= 110 ? "text-red-600" : "text-green-600"
+                )}>{pureAlcoholChosen.toFixed(1)} ml</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Target</p>
