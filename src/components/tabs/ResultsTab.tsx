@@ -147,41 +147,6 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
             </div>
           )}
 
-          {/* Drink Preset Percentages */}
-          {state.drinkPresets.length > 0 && (
-            <Card className="p-6 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Droplet className="w-5 h-5 text-secondary" />
-                Drink Preset Target Percentages
-              </h3>
-              <p className="text-sm text-muted-foreground mb-6">
-                Each drink shows what % of your target BAC it represents
-              </p>
-              
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {state.drinkPresets.map((preset, index) => (
-                  <div 
-                    key={index}
-                    className="p-4 rounded-lg bg-background/50 hover:bg-background transition-colors border border-border/50"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">{preset.name}</span>
-                      {preset.unit === "shots" && <Martini className="w-4 h-4 text-muted-foreground" />}
-                      {preset.unit === "pints" && <Beer className="w-4 h-4 text-muted-foreground" />}
-                      {preset.unit === "glasses" && <Wine className="w-4 h-4 text-muted-foreground" />}
-                    </div>
-                    <div className="text-2xl font-bold text-secondary">
-                      {preset.percentageOfTarget.toFixed(1)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {preset.pureAlcoholMl.toFixed(1)}ml pure alcohol
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
           {/* Safety Disclaimer */}
           <Card className="p-6 bg-muted/30 border-muted">
             <div className="flex items-start gap-4">

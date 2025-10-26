@@ -10,13 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 
 const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
-  const { 
-    state, 
-    updateInebriationLevel, 
-    updateDrinkingStartTime, 
-    updateDrinkingTargetTime,
-    calculateDrinkPresets 
-  } = useAppContext();
+  const { state, updateInebriationLevel, updateDrinkingStartTime, updateDrinkingTargetTime } = useAppContext();
   const [localLevel, setLocalLevel] = useState(state.inebriationLevel);
   const [timeError, setTimeError] = useState<string>("");
   
@@ -100,9 +94,6 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
     updateDrinkingStartTime(localStartTime);
     updateDrinkingTargetTime(localTargetTime);
     setHasUnsavedChanges(false);
-    
-    // Calculate drink presets after times are saved
-    calculateDrinkPresets();
     
     toast({
       title: "Times saved",

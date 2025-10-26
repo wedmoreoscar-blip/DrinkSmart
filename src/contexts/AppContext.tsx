@@ -14,16 +14,6 @@ type DrinkEntry = {
   mixer?: string;
 };
 
-export type DrinkPreset = {
-  name: string;
-  quantity: number;
-  unit: "shots" | "pints" | "glasses";
-  volumeMl: number;
-  abv: number;
-  pureAlcoholMl: number;
-  percentageOfTarget: number;
-};
-
 type UserMetrics = {
   metricType: MetricType;
   heightUnit: HeightUnit;
@@ -48,7 +38,6 @@ type AppState = {
   drinkingStartTime: Date | null; // when user starts drinking
   drinkingTargetTime: Date | null; // when user wants to reach their buzz
   timeDelta: number | null; // difference between start and target time in hours (float)
-  drinkPresets: DrinkPreset[]; // calculated percentages for common drink presets
 };
 
 type AppContextType = {
@@ -61,7 +50,6 @@ type AppContextType = {
   updateDrinkingStartTime: (time: Date | null) => void;
   updateDrinkingTargetTime: (time: Date | null) => void;
   recalculate: () => void;
-  calculateDrinkPresets: () => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -88,7 +76,6 @@ const initialState: AppState = {
   drinkingStartTime: null,
   drinkingTargetTime: null,
   timeDelta: null,
-  drinkPresets: [],
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -167,80 +154,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     console.log("Recalculating with current state:", state);
   };
 
-  const calculateDrinkPresets = () => {
-    const { userMetrics, targetBAC, timeDelta } = state;
-    
-    // Check if we have all required data
-    if (!userMetrics.weight || !userMetrics.sex || timeDelta === null) {
-      console.log("Cannot calculate presets - missing required data");
-      return;
-    }
-
-    // Convert weight to grams
-    let weightInGrams: number;
-    if (userMetrics.weightUnit === "kg") {
-      weightInGrams = parseFloat(userMetrics.weight) * 1000;
-    } else {
-      weightInGrams = parseFloat(userMetrics.weight) * 453.592;
-    }
-
-    const R = userMetrics.sex === "male" ? 0.68 : 0.55;
-    const BAC = (targetBAC.min + targetBAC.max) / 2;
-    const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * weightInGrams * R;
-    const totalPureAlcoholMl = pureAlcoholGrams / 0.789;
-
-    // Define drink presets with their properties
-    const SHOT_ML = 30;
-    const PINT_ML = 568;
-    const GLASS_ML = 175;
-    const VODKA_ABV = 37.5;
-    const BEER_ABV = 5;
-    const WINE_ABV = 12;
-
-    const presetDefinitions = [
-      // Vodka shots
-      { name: "1 Shot Vodka", quantity: 1, unit: "shots" as const, volumeMl: SHOT_ML, abv: VODKA_ABV },
-      { name: "2 Shots Vodka", quantity: 2, unit: "shots" as const, volumeMl: SHOT_ML * 2, abv: VODKA_ABV },
-      { name: "3 Shots Vodka", quantity: 3, unit: "shots" as const, volumeMl: SHOT_ML * 3, abv: VODKA_ABV },
-      { name: "5 Shots Vodka", quantity: 5, unit: "shots" as const, volumeMl: SHOT_ML * 5, abv: VODKA_ABV },
-      { name: "10 Shots Vodka", quantity: 10, unit: "shots" as const, volumeMl: SHOT_ML * 10, abv: VODKA_ABV },
-      
-      // Beer pints
-      { name: "1 Pint Beer", quantity: 1, unit: "pints" as const, volumeMl: PINT_ML, abv: BEER_ABV },
-      { name: "2 Pints Beer", quantity: 2, unit: "pints" as const, volumeMl: PINT_ML * 2, abv: BEER_ABV },
-      { name: "3 Pints Beer", quantity: 3, unit: "pints" as const, volumeMl: PINT_ML * 3, abv: BEER_ABV },
-      { name: "5 Pints Beer", quantity: 5, unit: "pints" as const, volumeMl: PINT_ML * 5, abv: BEER_ABV },
-      { name: "10 Pints Beer", quantity: 10, unit: "pints" as const, volumeMl: PINT_ML * 10, abv: BEER_ABV },
-      
-      // Wine glasses
-      { name: "1 Glass Wine", quantity: 1, unit: "glasses" as const, volumeMl: GLASS_ML, abv: WINE_ABV },
-      { name: "2 Glasses Wine", quantity: 2, unit: "glasses" as const, volumeMl: GLASS_ML * 2, abv: WINE_ABV },
-      { name: "3 Glasses Wine", quantity: 3, unit: "glasses" as const, volumeMl: GLASS_ML * 3, abv: WINE_ABV },
-      { name: "5 Glasses Wine", quantity: 5, unit: "glasses" as const, volumeMl: GLASS_ML * 5, abv: WINE_ABV },
-      { name: "10 Glasses Wine", quantity: 10, unit: "glasses" as const, volumeMl: GLASS_ML * 10, abv: WINE_ABV },
-    ];
-
-    // Calculate percentage for each preset
-    const calculatedPresets: DrinkPreset[] = presetDefinitions.map(preset => {
-      const pureAlcoholMl = preset.volumeMl * (preset.abv / 100);
-      const percentageOfTarget = (pureAlcoholMl / totalPureAlcoholMl) * 100;
-
-      return {
-        ...preset,
-        pureAlcoholMl,
-        percentageOfTarget: Math.round(percentageOfTarget * 10) / 10, // Round to 1 decimal
-      };
-    });
-
-    // Update state
-    setState(prev => ({ ...prev, drinkPresets: calculatedPresets }));
-    
-    // Save to localStorage
-    localStorage.setItem('drinkPresets', JSON.stringify(calculatedPresets));
-    
-    console.log("Drink presets calculated:", calculatedPresets);
-  };
-
   return (
     <AppContext.Provider
       value={{
@@ -253,7 +166,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateDrinkingStartTime,
         updateDrinkingTargetTime,
         recalculate,
-        calculateDrinkPresets,
       }}
     >
       {children}
