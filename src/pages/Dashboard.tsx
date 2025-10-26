@@ -41,7 +41,7 @@ const Dashboard = () => {
             </TabsContent>
 
             <TabsContent value="results">
-              <ResultsTab />
+              <ResultsTab onNavigateToDrinks={() => setActiveTab("drinks")} />
             </TabsContent>
 
             <TabsContent value="drinks">

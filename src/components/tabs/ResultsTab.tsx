@@ -1,14 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
-import { Home, AlertTriangle, Droplet, Beer, Wine, Martini } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight } from "lucide-react";
 import { buzzLevels } from "@/data/buzzLevels";
 import { SHOT_ML, PINT_ML, GLASS_ML, VODKA_ABV, BEER_ABV, WINE_ABV } from "@/lib/drinkConstants";
 
-const ResultsTab = () => {
+type ResultsTabProps = {
+  onNavigateToDrinks: () => void;
+};
+
+const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
   const { state } = useAppContext();
-  const navigate = useNavigate();
 
   // Calculate pure alcohol needed
   const calculateAlcoholNeeded = () => {
@@ -210,9 +212,9 @@ const ResultsTab = () => {
 
       {/* Navigation */}
       <div className="flex justify-center">
-        <Button onClick={() => navigate("/")}>
-          <Home className="w-4 h-4 mr-2" />
-          Return to Welcome
+        <Button onClick={onNavigateToDrinks}>
+          Go to Drinks Tab
+          <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
 
