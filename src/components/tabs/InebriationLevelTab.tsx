@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, Clock, Save } from "lucide-react";
 import { buzzLevels } from "@/data/buzzLevels";
-import { ClockTimePicker } from "@/components/ui/clock-time-picker";
+import { TimePicker } from "@/components/ui/time-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 
@@ -207,7 +207,7 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
               
               <div className="space-y-3">
                 <div className="flex justify-center">
-                  <ClockTimePicker
+                  <TimePicker
                     value={localStartTime}
                     onChange={handleStartTimeChange}
                   />
@@ -238,7 +238,7 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
               </div>
               
               <div className="flex justify-center">
-                <ClockTimePicker
+                <TimePicker
                   value={localTargetTime}
                   onChange={handleTargetTimeChange}
                 />
