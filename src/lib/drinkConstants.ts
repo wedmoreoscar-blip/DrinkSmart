@@ -2,7 +2,7 @@
 // These values are used for calculations but not displayed directly to users
 export const SHOT_ML = 30;
 export const PINT_ML = 568;
-export const OZ_ML = 28.4;
+export const OZ_ML = 29.5735;
 export const GLASS_ML = 175;
 
 // Standard ABV percentages for common drinks
