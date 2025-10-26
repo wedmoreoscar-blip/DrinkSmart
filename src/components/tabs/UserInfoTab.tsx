@@ -291,7 +291,7 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
           className="flex-1"
           onClick={onNext}
         >
-          Next: Set Your Target
+          See Your Results
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
