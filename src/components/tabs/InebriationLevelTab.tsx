@@ -65,9 +65,20 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
 
   const handleSetNow = () => {
     const now = new Date();
+    // Round to nearest minute for comparison
+    now.setSeconds(0, 0);
     setLocalStartTime(now);
     setHasUnsavedChanges(true);
     validateTimes(now, localTargetTime);
+  };
+
+  const isStartTimeNow = () => {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    const start = new Date(localStartTime);
+    start.setSeconds(0, 0);
+    // Check if within same minute
+    return Math.abs(now.getTime() - start.getTime()) < 60000;
   };
 
   const handleSaveTimes = () => {
@@ -145,11 +156,22 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
           </div>
         </div>
 
-        {/* Responsible Drinking Note */}
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground italic">
-            Remember: Know your limits, stay safe, and never drink and drive
-          </p>
+        {/* Update Button and Responsible Drinking Note */}
+        <div className="space-y-4">
+          <div className="flex justify-center">
+            <Button 
+              onClick={() => updateInebriationLevel(localLevel)}
+              variant="outline"
+              size="sm"
+            >
+              Update Buzz Level
+            </Button>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground italic">
+              Remember: Know your limits, stay safe, and never drink and drive
+            </p>
+          </div>
         </div>
       </Card>
 
@@ -164,7 +186,7 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
                 Start Time
               </h3>
               <p className="text-sm text-muted-foreground">
-                When do you wanna start drinking?
+                When do you want to start drinking?
               </p>
             </div>
             
@@ -174,9 +196,10 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
                 onChange={handleStartTimeChange}
               />
               <Button 
-                variant="outline" 
+                variant={isStartTimeNow() ? "default" : "outline"}
                 size="sm"
                 onClick={handleSetNow}
+                className={isStartTimeNow() ? "bg-primary" : ""}
               >
                 Now
               </Button>
@@ -191,7 +214,7 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
             <div className="space-y-1">
               <h3 className="text-xl font-semibold flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Target/Peak Time
+                Target Time
               </h3>
               <p className="text-sm text-muted-foreground">
                 When do you want to reach your buzz?

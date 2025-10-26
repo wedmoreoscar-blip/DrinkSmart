@@ -1,18 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, Clock, Check } from "lucide-react";
 
 const TimelineTab = ({ onNext }: { onNext: () => void }) => {
-  const { state, updateStartTime } = useAppContext();
-  const [showTimeSelection, setShowTimeSelection] = useState(!state.startDateTime);
-  const [startOption, setStartOption] = useState<"now" | "earlier">("now");
-  const [selectedHour, setSelectedHour] = useState("12");
-  const [selectedMinute, setSelectedMinute] = useState("00");
-  const [selectedPeriod, setSelectedPeriod] = useState<"AM" | "PM">("PM");
+  const { state } = useAppContext();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update current time every minute
@@ -23,35 +16,11 @@ const TimelineTab = ({ onNext }: { onNext: () => void }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleCreateTimeline = () => {
-    if (startOption === "now") {
-      updateStartTime(new Date());
-    } else {
-      const now = new Date();
-      const hour = selectedPeriod === "PM" && selectedHour !== "12" 
-        ? parseInt(selectedHour) + 12 
-        : selectedPeriod === "AM" && selectedHour === "12" 
-        ? 0 
-        : parseInt(selectedHour);
-      
-      const startTime = new Date(now);
-      startTime.setHours(hour, parseInt(selectedMinute), 0, 0);
-      
-      // If the time is in the future, assume it was yesterday
-      if (startTime > now) {
-        startTime.setDate(startTime.getDate() - 1);
-      }
-      
-      updateStartTime(startTime);
-    }
-    setShowTimeSelection(false);
-  };
-
   // Calculate timeline stages
   const getTimelineStages = () => {
-    if (!state.startDateTime) return [];
+    if (!state.drinkingStartTime) return [];
     
-    const start = new Date(state.startDateTime);
+    const start = new Date(state.drinkingStartTime);
     const stages = [
       { 
         name: "Start", 
@@ -97,16 +66,16 @@ const TimelineTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   const getElapsedTime = () => {
-    if (!state.startDateTime) return "0h 0m";
-    const elapsed = currentTime.getTime() - new Date(state.startDateTime).getTime();
+    if (!state.drinkingStartTime) return "0h 0m";
+    const elapsed = currentTime.getTime() - new Date(state.drinkingStartTime).getTime();
     const hours = Math.floor(elapsed / 3600000);
     const minutes = Math.floor((elapsed % 3600000) / 60000);
     return `${hours}h ${minutes}m`;
   };
 
   const getCurrentStageIndex = () => {
-    if (!state.startDateTime) return -1;
-    const elapsed = currentTime.getTime() - new Date(state.startDateTime).getTime();
+    if (!state.drinkingStartTime) return -1;
+    const elapsed = currentTime.getTime() - new Date(state.drinkingStartTime).getTime();
     const minutes = elapsed / 60000;
     
     if (minutes < 45) return 0;
@@ -117,7 +86,7 @@ const TimelineTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   const getIndicatorPosition = () => {
-    if (!state.startDateTime) return 0;
+    if (!state.drinkingStartTime) return 0;
     const stages = getTimelineStages();
     const currentIndex = getCurrentStageIndex();
     
@@ -126,7 +95,7 @@ const TimelineTab = ({ onNext }: { onNext: () => void }) => {
     
     const currentStage = stages[currentIndex];
     const nextStage = stages[currentIndex + 1];
-    const elapsed = currentTime.getTime() - new Date(state.startDateTime).getTime();
+    const elapsed = currentTime.getTime() - new Date(state.drinkingStartTime).getTime();
     const currentMinutes = elapsed / 60000;
     
     const stageProgress = (currentMinutes - currentStage.offsetMinutes) / 
@@ -138,92 +107,23 @@ const TimelineTab = ({ onNext }: { onNext: () => void }) => {
     return basePosition + (stageProgress * stageSize);
   };
 
-  if (showTimeSelection) {
+  const stages = getTimelineStages();
+  
+  // Show message if no start time set
+  if (!state.drinkingStartTime) {
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold mb-2">When did you start drinking?</h2>
+        <Card className="p-8 text-center">
+          <Clock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-2xl font-bold mb-2">Set Your Start Time First</h2>
           <p className="text-muted-foreground">
-            This helps us track your journey accurately
+            Please go back to the Target Buzz tab and set your drinking start time to view your timeline.
           </p>
-        </div>
-
-        <Card className="p-8 space-y-6">
-          <div className="space-y-2">
-            <Label className="text-lg">Start Time</Label>
-            <Select value={startOption} onValueChange={(val) => setStartOption(val as "now" | "earlier")}>
-              <SelectTrigger className="text-lg h-12">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50">
-                <SelectItem value="now">Right Now</SelectItem>
-                <SelectItem value="earlier">Earlier (Select Time)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {startOption === "earlier" && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <Label className="text-base">Select the time you started</Label>
-              <div className="flex gap-3 items-center justify-center">
-                <Select value={selectedHour} onValueChange={setSelectedHour}>
-                  <SelectTrigger className="w-24 h-14 text-2xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    {Array.from({ length: 12 }, (_, i) => {
-                      const hour = i + 1;
-                      return (
-                        <SelectItem key={hour} value={hour.toString().padStart(2, "0")}>
-                          {hour.toString().padStart(2, "0")}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                
-                <span className="text-3xl font-bold">:</span>
-                
-                <Select value={selectedMinute} onValueChange={setSelectedMinute}>
-                  <SelectTrigger className="w-24 h-14 text-2xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    {Array.from({ length: 60 }, (_, i) => (
-                      <SelectItem key={i} value={i.toString().padStart(2, "0")}>
-                        {i.toString().padStart(2, "0")}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={selectedPeriod} onValueChange={(val) => setSelectedPeriod(val as "AM" | "PM")}>
-                  <SelectTrigger className="w-24 h-14 text-2xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    <SelectItem value="AM">AM</SelectItem>
-                    <SelectItem value="PM">PM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          <Button 
-            size="lg" 
-            className="w-full" 
-            onClick={handleCreateTimeline}
-          >
-            <Clock className="w-5 h-5 mr-2" />
-            Create Timeline
-          </Button>
         </Card>
       </div>
     );
   }
-
-  const stages = getTimelineStages();
+  
   const currentStageIndex = getCurrentStageIndex();
   const indicatorPosition = getIndicatorPosition();
 
@@ -235,14 +135,6 @@ const TimelineTab = ({ onNext }: { onNext: () => void }) => {
           {getElapsedTime()}
         </div>
         <p className="text-muted-foreground">since you started drinking</p>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => setShowTimeSelection(true)}
-          className="text-xs"
-        >
-          Change start time
-        </Button>
       </div>
 
       {/* Dynamic Timeline */}

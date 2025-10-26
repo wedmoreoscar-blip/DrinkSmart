@@ -274,7 +274,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
           onClick={handleRecalculate}
         >
           <RefreshCw className="w-4 h-4 mr-2" />
-          Recalculate
+          Update Drinks
         </Button>
         <Button
           className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
