@@ -30,8 +30,8 @@ const ResultsTab = () => {
     // Get R value based on sex
     const R = userMetrics.sex === "male" ? 0.68 : 0.55;
 
-    // Use max BAC from target range
-    const BAC = targetBAC.max;
+    // Use average BAC from target range
+    const BAC = (targetBAC.min + targetBAC.max) / 2;
 
     // Calculate pure alcohol in grams
     // Formula: (BAC/100 + (0.00015*time_delta)) * (WEIGHT in grams) * R
