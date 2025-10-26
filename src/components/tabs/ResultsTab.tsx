@@ -213,7 +213,7 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
       {/* Navigation */}
       <div className="flex justify-center">
         <Button onClick={onNavigateToDrinks}>
-          Go to Drinks Tab
+          Add Some Drinks!
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
