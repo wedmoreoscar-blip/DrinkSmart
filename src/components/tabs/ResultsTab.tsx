@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
-import { Home, AlertTriangle, Droplet } from "lucide-react";
+import { Home, AlertTriangle, Droplet, Beer, Wine, Martini } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { buzzLevels } from "@/data/buzzLevels";
+import { SHOT_ML, PINT_ML, GLASS_ML, VODKA_ABV, BEER_ABV, WINE_ABV } from "@/lib/drinkConstants";
 
 const ResultsTab = () => {
   const { state } = useAppContext();
@@ -49,27 +50,71 @@ const ResultsTab = () => {
   const alcoholNeeded = calculateAlcoholNeeded();
   const currentBuzzLevel = buzzLevels.find((b) => b.level === state.inebriationLevel);
 
+  // Calculate drink equivalents
+  const calculateDrinkEquivalents = (pureAlcoholMl: number) => {
+    const shots = ((pureAlcoholMl * (1 / VODKA_ABV)) / SHOT_ML);
+    const pints = ((pureAlcoholMl * (1 / BEER_ABV)) / PINT_ML);
+    const glasses = ((pureAlcoholMl * (1 / WINE_ABV)) / GLASS_ML);
+    
+    return {
+      shots: shots.toFixed(1),
+      pints: pints.toFixed(1),
+      glasses: glasses.toFixed(1),
+    };
+  };
+
+  const drinkEquivalents = alcoholNeeded ? calculateDrinkEquivalents(alcoholNeeded.ml) : null;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Alcohol Calculation Result */}
       {alcoholNeeded ? (
-        <Card className="p-8 text-center space-y-6 bg-gradient-to-br from-primary/5 to-primary/10">
-          <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 flex items-center justify-center">
-            <Droplet className="w-10 h-10 text-primary" />
-          </div>
-          
-          <div className="space-y-3">
-            <h2 className="text-3xl font-bold text-primary">
-              {alcoholNeeded.ml.toFixed(1)} ml
-            </h2>
-            <p className="text-lg font-medium">
-              of pure alcohol/ethanol needed
-            </p>
-            <p className="text-muted-foreground">
-              to reach <span className="font-semibold text-foreground">Buzz Level {state.inebriationLevel} - {currentBuzzLevel?.label}</span>
-            </p>
-          </div>
-        </Card>
+        <>
+          <Card className="p-8 text-center space-y-6 bg-gradient-to-br from-primary/5 to-primary/10">
+            <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 flex items-center justify-center">
+              <Droplet className="w-10 h-10 text-primary" />
+            </div>
+            
+            <div className="space-y-3">
+              <h2 className="text-3xl font-bold text-primary">
+                {alcoholNeeded.ml.toFixed(1)} ml
+              </h2>
+              <p className="text-lg font-medium">
+                of pure alcohol/ethanol needed
+              </p>
+              <p className="text-muted-foreground">
+                to reach <span className="font-semibold text-foreground">Buzz Level {state.inebriationLevel} - {currentBuzzLevel?.label}</span>
+              </p>
+            </div>
+          </Card>
+
+          {/* Drink Equivalents */}
+          {drinkEquivalents && (
+            <Card className="p-6 bg-background/80">
+              <h3 className="text-lg font-semibold mb-4">This is equivalent to:</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Martini className="w-5 h-5 text-primary" />
+                  <span className="text-base">
+                    <span className="font-bold text-primary">{drinkEquivalents.shots}</span> shots of vodka @37.5% ABV
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Beer className="w-5 h-5 text-primary" />
+                  <span className="text-base">
+                    <span className="font-bold text-primary">{drinkEquivalents.pints}</span> pints of beer @5% ABV
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Wine className="w-5 h-5 text-primary" />
+                  <span className="text-base">
+                    <span className="font-bold text-primary">{drinkEquivalents.glasses}</span> glasses of wine @12% ABV
+                  </span>
+                </div>
+              </div>
+            </Card>
+          )}
+        </>
       ) : (
         <Card className="p-12 text-center space-y-6">
           <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
@@ -161,6 +206,14 @@ const ResultsTab = () => {
           <Home className="w-4 h-4 mr-2" />
           Return to Welcome
         </Button>
+      </div>
+
+      {/* Standard Measurements Footer */}
+      <div className="text-xs text-muted-foreground space-y-1 pt-4">
+        <p>* Standard measurements:</p>
+        <p className="pl-4">Glass of wine = 175ml</p>
+        <p className="pl-4">Shot = 30ml</p>
+        <p className="pl-4">Pint = 568ml</p>
       </div>
     </div>
   );
