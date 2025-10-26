@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, Clock, Save } from "lucide-react";
 import { buzzLevels } from "@/data/buzzLevels";
-import { TimePicker } from "@/components/ui/time-picker";
+import { ClockTimePicker } from "@/components/ui/clock-time-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 
@@ -203,22 +203,21 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
               </p>
             </div>
             
-            <div className="flex items-center gap-4">
-              <TimePicker
+            <div className="space-y-4">
+              <ClockTimePicker
                 value={localStartTime}
                 onChange={handleStartTimeChange}
               />
-              <Button 
-                variant={isStartTimeNow() ? "default" : "outline"}
-                size="sm"
-                onClick={handleSetNow}
-                className={isStartTimeNow() ? "bg-primary" : ""}
-              >
-                Now
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                {formatTime(localStartTime)}
-              </span>
+              <div className="flex items-center justify-center">
+                <Button 
+                  variant={isStartTimeNow() ? "default" : "outline"}
+                  size="sm"
+                  onClick={handleSetNow}
+                  className={isStartTimeNow() ? "bg-primary" : ""}
+                >
+                  Now
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -234,14 +233,11 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
               </p>
             </div>
             
-            <div className="flex items-center gap-4">
-              <TimePicker
+            <div>
+              <ClockTimePicker
                 value={localTargetTime}
                 onChange={handleTargetTimeChange}
               />
-              <span className="text-sm text-muted-foreground">
-                {formatTime(localTargetTime)}
-              </span>
             </div>
           </div>
 
