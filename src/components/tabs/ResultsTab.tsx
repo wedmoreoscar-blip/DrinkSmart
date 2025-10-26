@@ -1,46 +1,120 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
-import { Home, AlertTriangle } from "lucide-react";
+import { Home, AlertTriangle, Droplet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { buzzLevels } from "@/data/buzzLevels";
 
 const ResultsTab = () => {
   const { state } = useAppContext();
   const navigate = useNavigate();
 
+  // Calculate pure alcohol needed
+  const calculateAlcoholNeeded = () => {
+    const { userMetrics, targetBAC, timeDelta } = state;
+    
+    // Check if we have all required data
+    if (!userMetrics.weight || !userMetrics.sex || timeDelta === null) {
+      return null;
+    }
+
+    // Convert weight to grams
+    let weightInGrams: number;
+    if (userMetrics.weightUnit === "kg") {
+      weightInGrams = parseFloat(userMetrics.weight) * 1000;
+    } else {
+      // Convert lbs to grams (1 lb = 453.592 grams)
+      weightInGrams = parseFloat(userMetrics.weight) * 453.592;
+    }
+
+    // Get R value based on sex
+    const R = userMetrics.sex === "male" ? 0.68 : 0.55;
+
+    // Use max BAC from target range
+    const BAC = targetBAC.max;
+
+    // Calculate pure alcohol in grams
+    // Formula: (BAC/100 + (0.00015*time_delta)) * (WEIGHT in grams) * R
+    const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * weightInGrams * R;
+
+    // Convert to ml (divide by 0.789)
+    const pureAlcoholMl = pureAlcoholGrams / 0.789;
+
+    return {
+      grams: pureAlcoholGrams,
+      ml: pureAlcoholMl,
+    };
+  };
+
+  const alcoholNeeded = calculateAlcoholNeeded();
+  const currentBuzzLevel = buzzLevels.find((b) => b.level === state.inebriationLevel);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Placeholder Content */}
-      <Card className="p-12 text-center space-y-6">
-        <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-          <AlertTriangle className="w-12 h-12 text-primary" />
-        </div>
-        
-        <div className="space-y-3">
-          <h2 className="text-2xl font-bold">Calculations Coming Soon</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            This is where your personalized alcohol metabolism calculations, timeline predictions, 
-            and drinking pace recommendations will appear based on your body metrics and drink selections.
-          </p>
-        </div>
+      {/* Alcohol Calculation Result */}
+      {alcoholNeeded ? (
+        <Card className="p-8 text-center space-y-6 bg-gradient-to-br from-primary/5 to-primary/10">
+          <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 flex items-center justify-center">
+            <Droplet className="w-10 h-10 text-primary" />
+          </div>
+          
+          <div className="space-y-3">
+            <h2 className="text-3xl font-bold text-primary">
+              {alcoholNeeded.ml.toFixed(1)} ml
+            </h2>
+            <p className="text-lg font-medium">
+              of pure alcohol/ethanol needed
+            </p>
+            <p className="text-muted-foreground">
+              to reach <span className="font-semibold text-foreground">{currentBuzzLevel?.label}</span>
+              {" "}({currentBuzzLevel?.bac_range} BAC)
+            </p>
+          </div>
 
-        <div className="pt-6 space-y-4">
-          <div className="grid md:grid-cols-3 gap-4 text-left">
-            <Card className="p-4 bg-muted/50">
-              <h3 className="font-semibold mb-2">Blood Alcohol Content</h3>
-              <p className="text-sm text-muted-foreground">Estimated BAC over time</p>
+          <div className="grid md:grid-cols-2 gap-4 pt-4">
+            <Card className="p-4 bg-background/50">
+              <h3 className="font-semibold mb-2">Target BAC</h3>
+              <p className="text-2xl font-bold text-primary">{(state.targetBAC.max * 100).toFixed(2)}%</p>
             </Card>
-            <Card className="p-4 bg-muted/50">
-              <h3 className="font-semibold mb-2">Drinking Pace</h3>
-              <p className="text-sm text-muted-foreground">Recommended timing between drinks</p>
-            </Card>
-            <Card className="p-4 bg-muted/50">
-              <h3 className="font-semibold mb-2">Safety Timeline</h3>
-              <p className="text-sm text-muted-foreground">When you'll be safe to drive</p>
+            <Card className="p-4 bg-background/50">
+              <h3 className="font-semibold mb-2">Time to Target</h3>
+              <p className="text-2xl font-bold text-primary">
+                {state.timeDelta ? `${state.timeDelta.toFixed(1)} hrs` : "N/A"}
+              </p>
             </Card>
           </div>
-        </div>
-      </Card>
+        </Card>
+      ) : (
+        <Card className="p-12 text-center space-y-6">
+          <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+            <AlertTriangle className="w-12 h-12 text-primary" />
+          </div>
+          
+          <div className="space-y-3">
+            <h2 className="text-2xl font-bold">Complete Your Profile</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Please fill in your user information (weight and sex) and set your drinking timeline 
+              to see personalized alcohol calculations.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Additional Info Cards */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card className="p-4 bg-muted/50">
+          <h3 className="font-semibold mb-2">Blood Alcohol Content</h3>
+          <p className="text-sm text-muted-foreground">Estimated BAC over time</p>
+        </Card>
+        <Card className="p-4 bg-muted/50">
+          <h3 className="font-semibold mb-2">Drinking Pace</h3>
+          <p className="text-sm text-muted-foreground">Recommended timing between drinks</p>
+        </Card>
+        <Card className="p-4 bg-muted/50">
+          <h3 className="font-semibold mb-2">Safety Timeline</h3>
+          <p className="text-sm text-muted-foreground">When you'll be safe to drive</p>
+        </Card>
+      </div>
 
       {/* Current State Summary */}
       <Card className="p-6 bg-muted/30">
