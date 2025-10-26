@@ -6,11 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw } from "lucide-react";
+import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Battery } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { drinkCategories } from "@/data/drinksData";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { PINT_ML, OZ_ML, SHOT_ML } from "@/lib/drinkConstants";
 
 type DrinkEntry = {
   id: string;
@@ -49,6 +50,71 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const drinks = state.drinks;
   const { toast } = useToast();
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
+
+  // Calculate total pure alcohol needed (from Results calculation)
+  const calculateTotalPureAlcoholNeeded = () => {
+    const { userMetrics, targetBAC, timeDelta } = state;
+    
+    if (!userMetrics.weight || !userMetrics.sex || timeDelta === null) {
+      return null;
+    }
+
+    // Convert weight to grams
+    let weightInGrams: number;
+    if (userMetrics.weightUnit === "kg") {
+      weightInGrams = parseFloat(userMetrics.weight) * 1000;
+    } else {
+      weightInGrams = parseFloat(userMetrics.weight) * 453.592;
+    }
+
+    const R = userMetrics.sex === "male" ? 0.68 : 0.55;
+    const BAC = (targetBAC.min + targetBAC.max) / 2;
+    const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * weightInGrams * R;
+    const pureAlcoholMl = pureAlcoholGrams / 0.789;
+
+    return pureAlcoholMl;
+  };
+
+  // Calculate pure alcohol from drinks
+  const calculatePureAlcoholChosen = () => {
+    return drinks.reduce((total, drink) => {
+      if (!drink.quantity || !drink.drink) return total;
+
+      const quantity = parseFloat(drink.quantity);
+      if (isNaN(quantity)) return total;
+
+      // Convert to ml
+      let volumeMl = 0;
+      switch (drink.unit) {
+        case "pints":
+          volumeMl = quantity * PINT_ML;
+          break;
+        case "oz":
+          volumeMl = quantity * OZ_ML;
+          break;
+        case "shots":
+          volumeMl = quantity * SHOT_ML;
+          break;
+        case "ml":
+          volumeMl = quantity;
+          break;
+      }
+
+      // Get ABV
+      const drinkData = allDrinks.find(d => d.name === drink.drink);
+      const abv = drink.customABV ? parseFloat(drink.customABV) : (drinkData?.abv || 0);
+
+      // Calculate pure alcohol
+      const pureAlcohol = volumeMl * (abv / 100);
+      
+      return total + pureAlcohol;
+    }, 0);
+  };
+
+  const totalPureAlcoholNeeded = calculateTotalPureAlcoholNeeded();
+  const pureAlcoholChosen = calculatePureAlcoholChosen();
+  const remainingPureAlcohol = totalPureAlcoholNeeded ? totalPureAlcoholNeeded - pureAlcoholChosen : null;
+  const progressPercentage = totalPureAlcoholNeeded ? (pureAlcoholChosen / totalPureAlcoholNeeded) * 100 : 0;
 
   const addDrink = () => {
     updateDrinks([
@@ -265,6 +331,67 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
           Add Another Drink
         </Button>
       </div>
+
+      {/* Pure Alcohol Progress Meter */}
+      {totalPureAlcoholNeeded !== null && pureAlcoholChosen > 0 && (
+        <Card className="p-6 space-y-4 bg-gradient-to-br from-green-500/10 to-green-600/10 border-green-500/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Battery className="w-5 h-5 text-green-600" />
+            <h3 className="font-semibold text-lg">Pure Alcohol Progress</h3>
+          </div>
+          
+          {/* Battery/Tank Visual */}
+          <div className="space-y-2">
+            <div className="relative w-full h-12 bg-muted rounded-lg border-2 border-green-600/50 overflow-hidden">
+              {/* Fill */}
+              <div
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500 ease-out animate-fade-in"
+                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+              />
+              
+              {/* Percentage Text */}
+              <div className="absolute inset-0 flex items-center justify-center font-bold text-sm z-10">
+                <span className={cn(
+                  progressPercentage > 50 ? "text-white" : "text-foreground"
+                )}>
+                  {progressPercentage.toFixed(1)}%
+                </span>
+              </div>
+              
+              {/* Battery Terminal */}
+              <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-6 bg-green-600/50 rounded-r" />
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4 text-center text-sm">
+              <div>
+                <p className="text-muted-foreground">Consumed</p>
+                <p className="font-bold text-green-600">{pureAlcoholChosen.toFixed(1)} ml</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Target</p>
+                <p className="font-bold">{totalPureAlcoholNeeded.toFixed(1)} ml</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Remaining</p>
+                <p className={cn(
+                  "font-bold",
+                  remainingPureAlcohol && remainingPureAlcohol < 0 ? "text-red-500" : "text-foreground"
+                )}>
+                  {remainingPureAlcohol !== null ? remainingPureAlcohol.toFixed(1) : "0"} ml
+                </p>
+              </div>
+            </div>
+
+            {/* Warning if over */}
+            {progressPercentage > 100 && (
+              <div className="text-sm text-red-500 font-medium text-center animate-fade-in">
+                ⚠️ You've exceeded your target! Consider drinking water and slowing down.
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Action Buttons */}
       <div className="flex gap-4">
