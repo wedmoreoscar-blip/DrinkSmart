@@ -92,50 +92,58 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
 
           {/* Drink Equivalents */}
           {drinkEquivalents && (
-            <div className="grid lg:grid-cols-[1fr,auto] gap-6 items-start">
-              <Card className="p-6 bg-gradient-to-br from-background to-muted/20 border-primary/10">
-                <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                  This is equivalent to:
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Martini className="w-5 h-5 text-primary" />
+            <div className="space-y-4">
+              <div className="grid lg:grid-cols-[1fr,auto] gap-6 items-start">
+                <Card className="p-6 bg-gradient-to-br from-background to-muted/20 border-primary/10">
+                  <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                    This is equivalent to:
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Martini className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-2xl font-bold text-primary">{drinkEquivalents.shots}</div>
+                        <div className="text-sm text-muted-foreground">shots of vodka @37.5% ABV</div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <div className="text-2xl font-bold text-primary">{drinkEquivalents.shots}</div>
-                      <div className="text-sm text-muted-foreground">shots of vodka @37.5% ABV</div>
+                    <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Beer className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-2xl font-bold text-primary">{drinkEquivalents.pints}</div>
+                        <div className="text-sm text-muted-foreground">pints of beer @5% ABV</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Wine className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-2xl font-bold text-primary">{drinkEquivalents.glasses}</div>
+                        <div className="text-sm text-muted-foreground">glasses of wine @12% ABV</div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Beer className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-2xl font-bold text-primary">{drinkEquivalents.pints}</div>
-                      <div className="text-sm text-muted-foreground">pints of beer @5% ABV</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50 hover:bg-background transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Wine className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-2xl font-bold text-primary">{drinkEquivalents.glasses}</div>
-                      <div className="text-sm text-muted-foreground">glasses of wine @12% ABV</div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
               
-              <Button 
-                onClick={onNavigateToDrinks} 
-                size="lg"
-                className="lg:mt-12 w-full lg:w-auto group"
-              >
-                Add Some Drinks!
-                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
+              <div className="text-xs text-muted-foreground pl-1">
+                <span className="font-medium">Standard measurements:</span> Glass of wine = 175ml, Shot = 30ml, Pint = 568ml
+              </div>
+              
+              <div className="flex justify-center pt-2">
+                <Button 
+                  onClick={onNavigateToDrinks} 
+                  size="lg"
+                  className="w-full sm:w-auto group"
+                >
+                  Add Some Drinks!
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </div>
             </div>
           )}
 
@@ -143,7 +151,7 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
           <Card className="p-6 bg-muted/30 border-muted">
             <div className="flex items-start gap-4">
               <AlertTriangle className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <p className="font-semibold text-sm">Important Safety Reminders</p>
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
@@ -159,11 +167,6 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
                     <span>Stay hydrated and eat food while drinking</span>
                   </li>
                 </ul>
-                <div className="pt-2 border-t border-border/50">
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium">Standard measurements:</span> Glass of wine = 175ml, Shot = 30ml, Pint = 568ml
-                  </p>
-                </div>
               </div>
             </div>
           </Card>
