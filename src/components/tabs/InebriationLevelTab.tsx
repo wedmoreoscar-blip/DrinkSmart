@@ -56,7 +56,14 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   const validateTimes = (start: Date, target: Date) => {
-    if (target <= start) {
+    // If target time appears earlier in the day, treat it as next day
+    const targetAdjusted = new Date(target);
+    if (target.getHours() < start.getHours() || 
+        (target.getHours() === start.getHours() && target.getMinutes() <= start.getMinutes())) {
+      targetAdjusted.setDate(targetAdjusted.getDate() + 1);
+    }
+    
+    if (targetAdjusted <= start) {
       setTimeError("Target time must be after start time");
     } else {
       setTimeError("");
