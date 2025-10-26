@@ -3,15 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Clock } from "lucide-react";
+import { ArrowRight, Clock, Save } from "lucide-react";
 import { buzzLevels } from "@/data/buzzLevels";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "@/hooks/use-toast";
 
 const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
   const { state, updateInebriationLevel, updateDrinkingStartTime, updateDrinkingTargetTime } = useAppContext();
   const [localLevel, setLocalLevel] = useState(state.inebriationLevel);
   const [timeError, setTimeError] = useState<string>("");
+  
+  // Local state for times - defaults to 00:00 if not set
+  const [localStartTime, setLocalStartTime] = useState<Date>(
+    state.drinkingStartTime || new Date(new Date().setHours(0, 0, 0, 0))
+  );
+  const [localTargetTime, setLocalTargetTime] = useState<Date>(
+    state.drinkingTargetTime || new Date(new Date().setHours(0, 0, 0, 0))
+  );
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   const currentDescription = buzzLevels[localLevel - 1];
   
@@ -34,17 +44,19 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   const handleStartTimeChange = (date: Date) => {
-    updateDrinkingStartTime(date);
-    validateTimes(date, state.drinkingTargetTime);
+    setLocalStartTime(date);
+    setHasUnsavedChanges(true);
+    validateTimes(date, localTargetTime);
   };
 
   const handleTargetTimeChange = (date: Date) => {
-    updateDrinkingTargetTime(date);
-    validateTimes(state.drinkingStartTime, date);
+    setLocalTargetTime(date);
+    setHasUnsavedChanges(true);
+    validateTimes(localStartTime, date);
   };
 
-  const validateTimes = (start: Date | null, target: Date | null) => {
-    if (start && target && target <= start) {
+  const validateTimes = (start: Date, target: Date) => {
+    if (target <= start) {
       setTimeError("Target time must be after start time");
     } else {
       setTimeError("");
@@ -53,16 +65,29 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
 
   const handleSetNow = () => {
     const now = new Date();
-    updateDrinkingStartTime(now);
-    validateTimes(now, state.drinkingTargetTime);
+    setLocalStartTime(now);
+    setHasUnsavedChanges(true);
+    validateTimes(now, localTargetTime);
   };
 
-  const formatTime = (date: Date | null) => {
-    if (!date) return "Not set";
+  const handleSaveTimes = () => {
+    if (timeError) return;
+    
+    updateDrinkingStartTime(localStartTime);
+    updateDrinkingTargetTime(localTargetTime);
+    setHasUnsavedChanges(false);
+    
+    toast({
+      title: "Times saved",
+      description: "Your drinking schedule has been saved.",
+    });
+  };
+
+  const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
+      hour: '2-digit', 
       minute: '2-digit', 
-      hour12: true 
+      hour12: false 
     });
   };
 
@@ -145,7 +170,7 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
             
             <div className="flex items-center gap-4">
               <TimePicker
-                value={state.drinkingStartTime}
+                value={localStartTime}
                 onChange={handleStartTimeChange}
               />
               <Button 
@@ -155,11 +180,9 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
               >
                 Now
               </Button>
-              {state.drinkingStartTime && (
-                <span className="text-sm text-muted-foreground">
-                  {formatTime(state.drinkingStartTime)}
-                </span>
-              )}
+              <span className="text-sm text-muted-foreground">
+                {formatTime(localStartTime)}
+              </span>
             </div>
           </div>
 
@@ -177,14 +200,12 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
             
             <div className="flex items-center gap-4">
               <TimePicker
-                value={state.drinkingTargetTime}
+                value={localTargetTime}
                 onChange={handleTargetTimeChange}
               />
-              {state.drinkingTargetTime && (
-                <span className="text-sm text-muted-foreground">
-                  {formatTime(state.drinkingTargetTime)}
-                </span>
-              )}
+              <span className="text-sm text-muted-foreground">
+                {formatTime(localTargetTime)}
+              </span>
             </div>
           </div>
 
@@ -194,6 +215,18 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
               <AlertDescription>{timeError}</AlertDescription>
             </Alert>
           )}
+
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <Button 
+              onClick={handleSaveTimes}
+              disabled={!!timeError || !hasUnsavedChanges}
+              className="gap-2"
+            >
+              <Save className="w-4 h-4" />
+              Save Times {hasUnsavedChanges && "*"}
+            </Button>
+          </div>
         </div>
       </Card>
 
