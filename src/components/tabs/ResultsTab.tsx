@@ -69,15 +69,6 @@ const ResultsTab = () => {
               to reach <span className="font-semibold text-foreground">Buzz Level {state.inebriationLevel} - {currentBuzzLevel?.label}</span>
             </p>
           </div>
-
-          <div className="grid md:grid-cols-1 gap-4 pt-4">
-            <Card className="p-4 bg-background/50">
-              <h3 className="font-semibold mb-2">Time to Target</h3>
-              <p className="text-2xl font-bold text-primary">
-                {state.timeDelta ? `${state.timeDelta.toFixed(1)} hrs` : "N/A"}
-              </p>
-            </Card>
-          </div>
         </Card>
       ) : (
         <Card className="p-12 text-center space-y-6">
