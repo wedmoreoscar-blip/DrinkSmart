@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -297,6 +297,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
     });
   };
+
+  // Auto-recalculate timeline when dependencies change
+  useEffect(() => {
+    calculateDrinkTimeline();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    state.drinks,
+    state.userMetrics.weight,
+    state.userMetrics.sex,
+    state.userMetrics.weightUnit,
+    state.timeDelta,
+    state.drinkingStartTime,
+    state.targetBAC,
+  ]);
 
   return (
     <AppContext.Provider
