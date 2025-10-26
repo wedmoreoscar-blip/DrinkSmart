@@ -14,6 +14,30 @@ type DrinkEntry = {
   mixer?: string;
 };
 
+type DrinkTimelineEntry = {
+  drinkId: string;
+  drinkName: string;
+  unitNumber: number;
+  totalUnits: number;
+  time: Date;
+  pureAlcoholMl: number;
+  percentageOfTarget: number;
+  icon: string;
+  unit: string;
+};
+
+type DrinkCalculation = {
+  drinkId: string;
+  drinkName: string;
+  totalVolumeMl: number;
+  pureAlcoholMl: number;
+  percentageOfTarget: number;
+  timeAllocatedMinutes: number;
+  intervalMinutes: number;
+  quantity: number;
+  unit: string;
+};
+
 type UserMetrics = {
   metricType: MetricType;
   heightUnit: HeightUnit;
@@ -38,6 +62,8 @@ type AppState = {
   drinkingStartTime: Date | null; // when user starts drinking
   drinkingTargetTime: Date | null; // when user wants to reach their buzz
   timeDelta: number | null; // difference between start and target time in hours (float)
+  drinkTimeline: DrinkTimelineEntry[]; // calculated timeline entries
+  drinkCalculations: DrinkCalculation[]; // calculation details for each drink
 };
 
 type AppContextType = {
@@ -50,6 +76,7 @@ type AppContextType = {
   updateDrinkingStartTime: (time: Date | null) => void;
   updateDrinkingTargetTime: (time: Date | null) => void;
   recalculate: () => void;
+  calculateDrinkTimeline: () => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -76,6 +103,8 @@ const initialState: AppState = {
   drinkingStartTime: null,
   drinkingTargetTime: null,
   timeDelta: null,
+  drinkTimeline: [],
+  drinkCalculations: [],
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -150,8 +179,123 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const recalculate = () => {
     // This will trigger recalculation in the Results tab
-    // For now, it's a placeholder - actual calculations will be implemented later
     console.log("Recalculating with current state:", state);
+  };
+
+  const calculateDrinkTimeline = () => {
+    const { userMetrics, targetBAC, timeDelta, drinks, drinkingStartTime } = state;
+    
+    // Check if we have all required data
+    if (!userMetrics.weight || !userMetrics.sex || timeDelta === null || !drinkingStartTime) {
+      setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
+      return;
+    }
+
+    // Import drink data and helpers
+    import("@/data/drinksData").then(({ drinkCategories }) => {
+      import("@/lib/timelineHelpers").then(({ convertToMl, getDrinkIcon, calculateTimeWithMidnight }) => {
+        // Flatten all drinks for lookup
+        const allDrinks = Object.entries(drinkCategories).flatMap(([categoryKey, category]) =>
+          category.options.map(option => ({
+            name: option.name,
+            abv: option.abv,
+            category: categoryKey,
+          }))
+        );
+
+        // Step 1: Calculate total pure alcohol needed
+        let weightInGrams: number;
+        if (userMetrics.weightUnit === "kg") {
+          weightInGrams = parseFloat(userMetrics.weight) * 1000;
+        } else {
+          weightInGrams = parseFloat(userMetrics.weight) * 453.592;
+        }
+
+        const R = userMetrics.sex === "male" ? 0.68 : 0.55;
+        const BAC = (targetBAC.min + targetBAC.max) / 2;
+        const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * weightInGrams * R;
+        const totalPureAlcoholNeeded = pureAlcoholGrams / 0.789;
+
+        const totalTimeDeltaMinutes = timeDelta * 60;
+
+        // Step 2: Process each drink
+        const calculations: DrinkCalculation[] = [];
+        
+        drinks.forEach((drink) => {
+          if (!drink.drink || !drink.quantity) return;
+
+          const quantity = parseFloat(drink.quantity);
+          if (isNaN(quantity) || quantity <= 0) return;
+
+          // Convert to ml
+          const volumeMl = convertToMl(quantity, drink.unit);
+
+          // Get ABV
+          const drinkData = allDrinks.find(d => d.name === drink.drink);
+          const abv = drink.customABV ? parseFloat(drink.customABV) : (drinkData?.abv || 0);
+
+          // Calculate pure alcohol
+          const pureAlcoholMl = volumeMl * (abv / 100);
+
+          // Calculate percentage of target
+          const percentageOfTarget = (pureAlcoholMl / totalPureAlcoholNeeded) * 100;
+
+          // Calculate time allocated
+          const timeAllocatedMinutes = (percentageOfTarget / 100) * totalTimeDeltaMinutes;
+
+          // Calculate interval per unit
+          const intervalMinutes = timeAllocatedMinutes / quantity;
+
+          calculations.push({
+            drinkId: drink.id,
+            drinkName: drink.drink,
+            totalVolumeMl: volumeMl,
+            pureAlcoholMl,
+            percentageOfTarget,
+            timeAllocatedMinutes,
+            intervalMinutes,
+            quantity,
+            unit: drink.unit,
+          });
+        });
+
+        // Step 3: Generate timeline entries
+        const timeline: DrinkTimelineEntry[] = [];
+        let currentTime = new Date(drinkingStartTime);
+
+        calculations.forEach((calc) => {
+          const drinkData = allDrinks.find(d => d.name === calc.drinkName);
+          const category = drinkData?.category || "";
+          const icon = getDrinkIcon(category);
+
+          for (let i = 1; i <= calc.quantity; i++) {
+            timeline.push({
+              drinkId: calc.drinkId,
+              drinkName: calc.drinkName,
+              unitNumber: i,
+              totalUnits: calc.quantity,
+              time: new Date(currentTime),
+              pureAlcoholMl: calc.pureAlcoholMl / calc.quantity,
+              percentageOfTarget: calc.percentageOfTarget / calc.quantity,
+              icon,
+              unit: calc.unit,
+            });
+
+            // Move to next time slot (except for last entry)
+            if (i < calc.quantity || calc !== calculations[calculations.length - 1]) {
+              currentTime = calculateTimeWithMidnight(currentTime, calc.intervalMinutes);
+            }
+          }
+        });
+
+        // Step 4: Store calculations
+        setState((prev) => ({
+          ...prev,
+          drinkCalculations: calculations,
+          drinkTimeline: timeline,
+        }));
+      });
+    });
   };
 
   return (
@@ -166,6 +310,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateDrinkingStartTime,
         updateDrinkingTargetTime,
         recalculate,
+        calculateDrinkTimeline,
       }}
     >
       {children}

@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
-import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight } from "lucide-react";
+import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight, Clock } from "lucide-react";
 import { buzzLevels } from "@/data/buzzLevels";
 import { SHOT_ML, PINT_ML, GLASS_ML, VODKA_ABV, BEER_ABV, WINE_ABV } from "@/lib/drinkConstants";
+import { formatTimeDisplay } from "@/lib/timelineHelpers";
 
 type ResultsTabProps = {
   onNavigateToDrinks: () => void;
@@ -170,6 +171,91 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
               </div>
             </div>
           </Card>
+
+          {/* Timeline Preview */}
+          {state.drinkTimeline.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Your Drinking Schedule
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {state.drinkTimeline.slice(0, 4).map((entry) => (
+                  <div 
+                    key={`${entry.drinkId}-${entry.unitNumber}`}
+                    className="flex items-center gap-3 text-sm"
+                  >
+                    <span className="text-xl">{entry.icon}</span>
+                    <span className="font-semibold min-w-[80px]">
+                      {formatTimeDisplay(entry.time)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
+                      {entry.drinkName}
+                    </span>
+                  </div>
+                ))}
+                {state.drinkTimeline.length > 4 && (
+                  <div className="text-sm text-muted-foreground text-center pt-2">
+                    + {state.drinkTimeline.length - 4} more entries...
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Calculations Table */}
+          {state.drinkCalculations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Drink Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 px-2">Drink</th>
+                        <th className="text-center py-2 px-2">Quantity</th>
+                        <th className="text-center py-2 px-2">Pure Alcohol</th>
+                        <th className="text-center py-2 px-2">% of Tank</th>
+                        <th className="text-center py-2 px-2">Time Allocated</th>
+                        <th className="text-center py-2 px-2">Interval</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {state.drinkCalculations.map((calc, index) => (
+                        <tr key={calc.drinkId} className={index % 2 === 0 ? "bg-muted/30" : ""}>
+                          <td className="py-2 px-2">{calc.drinkName}</td>
+                          <td className="text-center py-2 px-2">{calc.quantity} {calc.unit}</td>
+                          <td className="text-center py-2 px-2">{calc.pureAlcoholMl.toFixed(1)} ml</td>
+                          <td className="text-center py-2 px-2">{calc.percentageOfTarget.toFixed(1)}%</td>
+                          <td className="text-center py-2 px-2">{calc.timeAllocatedMinutes.toFixed(1)} min</td>
+                          <td className="text-center py-2 px-2">{calc.intervalMinutes.toFixed(1)} min</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 font-bold">
+                        <td className="py-2 px-2">Total</td>
+                        <td className="text-center py-2 px-2">—</td>
+                        <td className="text-center py-2 px-2">
+                          {state.drinkCalculations.reduce((sum, calc) => sum + calc.pureAlcoholMl, 0).toFixed(1)} ml
+                        </td>
+                        <td className="text-center py-2 px-2">
+                          {state.drinkCalculations.reduce((sum, calc) => sum + calc.percentageOfTarget, 0).toFixed(1)}%
+                        </td>
+                        <td className="text-center py-2 px-2">
+                          {state.drinkCalculations.reduce((sum, calc) => sum + calc.timeAllocatedMinutes, 0).toFixed(1)} min
+                        </td>
+                        <td className="text-center py-2 px-2">—</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       ) : (
         <Card className="p-12 text-center space-y-6">

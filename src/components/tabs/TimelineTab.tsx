@@ -1,226 +1,238 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Clock, Check } from "lucide-react";
+import { ArrowRight, Clock, Target } from "lucide-react";
+import { formatTimeDisplay, getUnitDisplayText } from "@/lib/timelineHelpers";
 
-const TimelineTab = ({ onNext }: { onNext: () => void }) => {
+type TimelineTabProps = {
+  onNext: () => void;
+};
+
+const TimelineTab = ({ onNext }: TimelineTabProps) => {
   const { state } = useAppContext();
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Update current time every minute
+  // Update current time every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000);
+    }, 10000);
+
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate timeline stages
-  const getTimelineStages = () => {
-    if (!state.drinkingStartTime) return [];
-    
-    const start = new Date(state.drinkingStartTime);
-    const stages = [
-      { 
-        name: "Start", 
-        time: start, 
-        description: "First drink consumed",
-        offsetMinutes: 0
-      },
-      { 
-        name: "Peak Buzz", 
-        time: new Date(start.getTime() + 45 * 60000), 
-        description: "Maximum effects reached",
-        offsetMinutes: 45
-      },
-      { 
-        name: "Sobering Up", 
-        time: new Date(start.getTime() + 120 * 60000), 
-        description: "Effects diminishing",
-        offsetMinutes: 120
-      },
-      { 
-        name: "Recovery", 
-        time: new Date(start.getTime() + 180 * 60000), 
-        description: "Significant recovery",
-        offsetMinutes: 180
-      },
-      { 
-        name: "Sober", 
-        time: new Date(start.getTime() + 300 * 60000), 
-        description: "Back to baseline",
-        offsetMinutes: 300
-      },
-    ];
-    
-    return stages;
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  };
+  const formatTime = (date: Date) => formatTimeDisplay(date);
 
   const getElapsedTime = () => {
-    if (!state.drinkingStartTime) return "0h 0m";
-    const elapsed = currentTime.getTime() - new Date(state.drinkingStartTime).getTime();
-    const hours = Math.floor(elapsed / 3600000);
-    const minutes = Math.floor((elapsed % 3600000) / 60000);
-    return `${hours}h ${minutes}m`;
+    if (!state.drinkingStartTime) return null;
+    
+    const elapsed = currentTime.getTime() - state.drinkingStartTime.getTime();
+    const hours = Math.floor(elapsed / (1000 * 60 * 60));
+    const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   };
 
-  const getCurrentStageIndex = () => {
+  const getTimeUntilTarget = () => {
+    if (!state.drinkingTargetTime) return null;
+    
+    const remaining = state.drinkingTargetTime.getTime() - currentTime.getTime();
+    if (remaining < 0) return "Target reached!";
+    
+    const hours = Math.floor(remaining / (1000 * 60 * 60));
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  const getCurrentEntryIndex = () => {
     if (!state.drinkingStartTime) return -1;
-    const elapsed = currentTime.getTime() - new Date(state.drinkingStartTime).getTime();
-    const minutes = elapsed / 60000;
     
-    if (minutes < 45) return 0;
-    if (minutes < 120) return 1;
-    if (minutes < 180) return 2;
-    if (minutes < 300) return 3;
-    return 4;
+    return state.drinkTimeline.findIndex(entry => entry.time.getTime() > currentTime.getTime()) - 1;
   };
 
-  const getIndicatorPosition = () => {
-    if (!state.drinkingStartTime) return 0;
-    const stages = getTimelineStages();
-    const currentIndex = getCurrentStageIndex();
-    
-    if (currentIndex >= stages.length - 1) return 100;
-    if (currentIndex < 0) return 0;
-    
-    const currentStage = stages[currentIndex];
-    const nextStage = stages[currentIndex + 1];
-    const elapsed = currentTime.getTime() - new Date(state.drinkingStartTime).getTime();
-    const currentMinutes = elapsed / 60000;
-    
-    const stageProgress = (currentMinutes - currentStage.offsetMinutes) / 
-                         (nextStage.offsetMinutes - currentStage.offsetMinutes);
-    
-    const basePosition = (currentIndex / (stages.length - 1)) * 100;
-    const stageSize = (1 / (stages.length - 1)) * 100;
-    
-    return basePosition + (stageProgress * stageSize);
-  };
+  const currentEntryIndex = getCurrentEntryIndex();
 
-  const stages = getTimelineStages();
-  
-  // Show message if no start time set
-  if (!state.drinkingStartTime) {
+  // Empty state
+  if (state.drinkTimeline.length === 0) {
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
-        <Card className="p-8 text-center">
-          <Clock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-2xl font-bold mb-2">Set Your Start Time First</h2>
-          <p className="text-muted-foreground">
-            Please go back to the Target Buzz tab and set your drinking start time to view your timeline.
-          </p>
+        <Card className="p-12 text-center space-y-6">
+          <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+            <Clock className="w-12 h-12 text-primary" />
+          </div>
+          
+          <div className="space-y-3">
+            <h2 className="text-2xl font-bold">No Timeline Yet</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Add drinks in the Drinks tab to see your personalized drinking schedule.
+            </p>
+          </div>
         </Card>
       </div>
     );
   }
-  
-  const currentStageIndex = getCurrentStageIndex();
-  const indicatorPosition = getIndicatorPosition();
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Elapsed Time Header */}
-      <div className="text-center space-y-2">
-        <div className="text-5xl font-bold text-primary font-mono">
-          {getElapsedTime()}
-        </div>
-        <p className="text-muted-foreground">since you started drinking</p>
+      {/* Header Stats */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground mb-1">Current Time</div>
+          <div className="text-2xl font-bold">{formatTime(currentTime)}</div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground mb-1">Time Elapsed</div>
+          <div className="text-2xl font-bold">{getElapsedTime() || "Not started"}</div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground mb-1">Time Until Target</div>
+          <div className="text-2xl font-bold">{getTimeUntilTarget() || "—"}</div>
+        </Card>
       </div>
 
-      {/* Dynamic Timeline */}
-      <Card className="p-6 min-h-[600px] relative">
-        <div className="relative h-[550px]">
-          {/* Timeline Line */}
-          <div className="absolute left-8 top-0 bottom-0 w-1 bg-muted"></div>
-          
-          {/* Moving Indicator */}
-          <div 
-            className="absolute left-6 w-5 h-5 rounded-full bg-primary animate-pulse transition-all duration-1000 ease-linear z-20"
-            style={{ top: `${indicatorPosition}%`, transform: 'translateY(-50%)' }}
-          >
-            <div className="absolute inset-0 rounded-full bg-primary/30 animate-ping"></div>
-          </div>
-
-          {/* Timeline Stages */}
-          <div className="relative space-y-0 h-full flex flex-col justify-between">
-            {stages.map((stage, index) => {
-              const isPast = index < currentStageIndex;
-              const isCurrent = index === currentStageIndex;
-              const isFuture = index > currentStageIndex;
-
+      {/* Timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Your Drinking Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative space-y-6">
+            {/* Vertical line */}
+            <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-primary/20" />
+            
+            {state.drinkTimeline.map((entry, index) => {
+              const isPast = index < currentEntryIndex;
+              const isCurrent = index === currentEntryIndex;
+              const isFuture = index > currentEntryIndex;
+              
               return (
-                <div key={stage.name} className="relative flex items-center gap-6 py-2">
-                  {/* Stage Node */}
-                  <div 
-                    className={`relative z-10 w-6 h-6 rounded-full border-4 transition-all duration-300 ${
-                      isPast 
-                        ? 'bg-muted border-muted' 
-                        : isCurrent 
-                        ? 'bg-primary border-primary scale-125' 
-                        : 'bg-background border-primary'
-                    }`}
-                  >
-                    {isPast && (
-                      <Check className="w-3 h-3 text-muted-foreground absolute inset-0 m-auto" />
+                <div 
+                  key={`${entry.drinkId}-${entry.unitNumber}`}
+                  className="relative flex items-start gap-4 pl-12"
+                >
+                  {/* Timeline dot */}
+                  <div className={`absolute left-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    isPast ? "bg-primary/20" : 
+                    isCurrent ? "bg-primary animate-pulse" : 
+                    "bg-muted border-2 border-primary/30"
+                  }`}>
+                    {isPast ? (
+                      <span className="text-primary">✓</span>
+                    ) : (
+                      <span className="text-2xl">{entry.icon}</span>
                     )}
                   </div>
-
-                  {/* Stage Content */}
-                  <div 
-                    className={`flex-1 transition-all duration-300 ${
-                      isPast ? 'opacity-40' : 'opacity-100'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 
-                          className={`font-semibold transition-all ${
-                            isCurrent ? 'text-xl text-primary' : 'text-lg'
-                          }`}
-                        >
-                          {stage.name}
-                        </h3>
-                        <p 
-                          className={`text-sm text-muted-foreground ${
-                            isCurrent ? 'font-medium' : ''
-                          }`}
-                        >
-                          {stage.description}
-                        </p>
+                  
+                  {/* Content */}
+                  <div className={`flex-1 pb-2 transition-opacity ${
+                    isPast ? "opacity-50" : "opacity-100"
+                  }`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-semibold text-lg">{formatTime(entry.time)}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit)}
                       </div>
-                      <span 
-                        className={`text-sm font-mono ${
-                          isCurrent ? 'text-primary font-bold' : 'text-muted-foreground'
-                        }`}
-                      >
-                        {formatTime(stage.time)}
-                      </span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
+                      {entry.drinkName}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {entry.percentageOfTarget.toFixed(1)}% of target • {entry.pureAlcoholMl.toFixed(1)}ml pure alcohol
                     </div>
                   </div>
                 </div>
               );
             })}
+            
+            {/* Target reached marker */}
+            {state.drinkingTargetTime && (
+              <div className="relative flex items-start gap-4 pl-12">
+                <div className="absolute left-0 w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
+                  <Target className="w-5 h-5 text-white" />
+                </div>
+                
+                <div className="flex-1 pb-2">
+                  <div className="font-semibold text-lg">{formatTime(state.drinkingTargetTime)}</div>
+                  <div className="text-muted-foreground">🎯 Target time reached</div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-
-        <p className="text-xs text-center text-muted-foreground mt-4 pt-4 border-t">
-          Timeline updates automatically based on your start time
-        </p>
+        </CardContent>
       </Card>
 
-      {/* Action Button */}
+      {/* Calculations Summary */}
+      {state.drinkCalculations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Drink Calculations Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-2">Drink</th>
+                    <th className="text-center py-2 px-2">Quantity</th>
+                    <th className="text-center py-2 px-2">Pure Alcohol</th>
+                    <th className="text-center py-2 px-2">% of Tank</th>
+                    <th className="text-center py-2 px-2">Time Allocated</th>
+                    <th className="text-center py-2 px-2">Interval</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.drinkCalculations.map((calc, index) => (
+                    <tr key={calc.drinkId} className={index % 2 === 0 ? "bg-muted/30" : ""}>
+                      <td className="py-2 px-2">{calc.drinkName}</td>
+                      <td className="text-center py-2 px-2">{calc.quantity} {calc.unit}</td>
+                      <td className="text-center py-2 px-2">{calc.pureAlcoholMl.toFixed(1)} ml</td>
+                      <td className="text-center py-2 px-2">{calc.percentageOfTarget.toFixed(1)}%</td>
+                      <td className="text-center py-2 px-2">{calc.timeAllocatedMinutes.toFixed(1)} min</td>
+                      <td className="text-center py-2 px-2">{calc.intervalMinutes.toFixed(1)} min</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 font-bold">
+                    <td className="py-2 px-2">Total</td>
+                    <td className="text-center py-2 px-2">—</td>
+                    <td className="text-center py-2 px-2">
+                      {state.drinkCalculations.reduce((sum, calc) => sum + calc.pureAlcoholMl, 0).toFixed(1)} ml
+                    </td>
+                    <td className="text-center py-2 px-2">
+                      {state.drinkCalculations.reduce((sum, calc) => sum + calc.percentageOfTarget, 0).toFixed(1)}%
+                    </td>
+                    <td className="text-center py-2 px-2">
+                      {state.drinkCalculations.reduce((sum, calc) => sum + calc.timeAllocatedMinutes, 0).toFixed(1)} min
+                    </td>
+                    <td className="text-center py-2 px-2">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Next Button */}
       <div className="flex justify-end">
-        <Button size="lg" onClick={onNext}>
+        <Button
+          size="lg"
+          onClick={onNext}
+          className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+        >
           View Results
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>

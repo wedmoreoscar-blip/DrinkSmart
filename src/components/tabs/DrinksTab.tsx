@@ -46,7 +46,7 @@ const getDefaultUnit = (category: string): "ml" | "oz" | "shots" | "pints" => {
 };
 
 const DrinksTab = ({ onNext }: { onNext: () => void }) => {
-  const { state, updateDrinks, recalculate } = useAppContext();
+  const { state, updateDrinks, recalculate, calculateDrinkTimeline } = useAppContext();
   const drinks = state.drinks;
   const { toast } = useToast();
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
@@ -164,9 +164,10 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
 
   const handleRecalculate = () => {
     recalculate();
+    calculateDrinkTimeline();
     toast({
       title: "Drinks Updated! 🍻",
-      description: "Your drink list has been saved. Let's see where the night takes you!",
+      description: "Your drink schedule has been recalculated!",
     });
   };
 
