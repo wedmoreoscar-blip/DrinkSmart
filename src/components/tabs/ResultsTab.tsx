@@ -131,7 +131,7 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
                 </Card>
               </div>
               
-              <div className="text-xs text-muted-foreground pl-1">
+              <div className="text-sm text-muted-foreground pl-1">
                 <span className="font-medium">Standard measurements:</span> Glass of wine = 175ml, Shot = 30ml, Pint = 568ml
               </div>
               
