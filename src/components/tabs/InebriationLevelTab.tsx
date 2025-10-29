@@ -81,7 +81,13 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
       setTimeWarning("⚠️ Target time is earlier than start time - treating it as next day (crossing midnight).");
     } else {
       diffMinutes = targetTotalMinutes - startTotalMinutes;
-      setTimeWarning("");
+      
+      // Health and safety warning for rapid consumption
+      if (diffMinutes < 40 && localLevel > 4) {
+        setTimeWarning("⚠️ HEALTH WARNING: Reaching buzz level " + localLevel + " in under 40 minutes can be dangerous. Please drink responsibly and consider extending your timeframe.");
+      } else {
+        setTimeWarning("");
+      }
     }
     
     const timeDeltaHours = diffMinutes / 60;
