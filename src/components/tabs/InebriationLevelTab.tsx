@@ -70,20 +70,14 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
     
     if (targetTotalMinutes <= startTotalMinutes) {
       diffMinutes = (24 * 60 - startTotalMinutes) + targetTotalMinutes;
+      // Target time is earlier in the day, so it's treated as next day
+      setTimeWarning("⚠️ Target time is earlier than start time - treating it as next day (crossing midnight).");
     } else {
       diffMinutes = targetTotalMinutes - startTotalMinutes;
+      setTimeWarning("");
     }
     
     const timeDeltaHours = diffMinutes / 60;
-    
-    // Check if time delta exceeds 24 hours (which shouldn't happen with current logic but good to catch)
-    if (timeDeltaHours > 24) {
-      setTimeWarning("⚠️ Time difference is over 24 hours. You may have entered the target time incorrectly.");
-    } else if (timeDeltaHours > 12) {
-      setTimeWarning("⚠️ Time difference is over 12 hours. Please verify your start and target times are correct.");
-    } else {
-      setTimeWarning("");
-    }
     
     // Error check
     if (timeDeltaHours <= 0) {
