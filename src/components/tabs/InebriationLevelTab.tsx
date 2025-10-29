@@ -22,6 +22,7 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
     state.drinkingTargetTime || new Date(new Date().setHours(0, 0, 0, 0))
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [timeWarning, setTimeWarning] = useState<string>("");
   
   const currentDescription = buzzLevels[localLevel - 1];
   
@@ -56,14 +57,36 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   const validateTimes = (start: Date, target: Date) => {
-    // If target time appears earlier in the day, treat it as next day
-    const targetAdjusted = new Date(target);
-    if (target.getHours() < start.getHours() || 
-        (target.getHours() === start.getHours() && target.getMinutes() <= start.getMinutes())) {
-      targetAdjusted.setDate(targetAdjusted.getDate() + 1);
+    // Calculate time delta using the same logic as AppContext
+    const startHour = start.getHours();
+    const startMinutes = start.getMinutes();
+    const targetHour = target.getHours();
+    const targetMinutes = target.getMinutes();
+    
+    const startTotalMinutes = startHour * 60 + startMinutes;
+    const targetTotalMinutes = targetHour * 60 + targetMinutes;
+    
+    let diffMinutes: number;
+    
+    if (targetTotalMinutes <= startTotalMinutes) {
+      diffMinutes = (24 * 60 - startTotalMinutes) + targetTotalMinutes;
+    } else {
+      diffMinutes = targetTotalMinutes - startTotalMinutes;
     }
     
-    if (targetAdjusted <= start) {
+    const timeDeltaHours = diffMinutes / 60;
+    
+    // Check if time delta exceeds 24 hours (which shouldn't happen with current logic but good to catch)
+    if (timeDeltaHours > 24) {
+      setTimeWarning("⚠️ Time difference is over 24 hours. You may have entered the target time incorrectly.");
+    } else if (timeDeltaHours > 12) {
+      setTimeWarning("⚠️ Time difference is over 12 hours. Please verify your start and target times are correct.");
+    } else {
+      setTimeWarning("");
+    }
+    
+    // Error check
+    if (timeDeltaHours <= 0) {
       setTimeError("Target time must be after start time");
     } else {
       setTimeError("");
@@ -278,6 +301,13 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
               </div>
             </div>
           </div>
+
+          {/* Warning Message */}
+          {timeWarning && (
+            <Alert>
+              <AlertDescription>{timeWarning}</AlertDescription>
+            </Alert>
+          )}
 
           {/* Error Message */}
           {timeError && (
