@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Battery } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -416,6 +417,15 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
         </Card>
       )}
 
+      {/* Critical Warning if over 125% */}
+      {progressPercentage > 125 && (
+        <Alert variant="destructive" className="animate-fade-in">
+          <AlertDescription>
+            ⚠️ <strong>CRITICAL:</strong> Your alcohol selection exceeds 125% of your target. This is dangerous! Please go back to "Target Buzz" and decrease your buzz level or increase your timeframe.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Action Buttons */}
       <div className="flex gap-4">
         <Button
@@ -429,6 +439,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
         <Button
           className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
           onClick={onNext}
+          disabled={progressPercentage > 125}
         >
           Next: Timeline 🕐
           <ArrowRight className="w-4 h-4 ml-2" />
