@@ -52,6 +52,9 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const { toast } = useToast();
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
 
+  // Check if buzz level is too high
+  const isExtremeBuzzLevel = state.inebriationLevel >= 9;
+
   // Calculate total pure alcohol needed (from Results calculation)
   const calculateTotalPureAlcoholNeeded = () => {
     const { userMetrics, targetBAC, timeDelta } = state;
@@ -179,6 +182,15 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Warning for extreme buzz levels */}
+      {isExtremeBuzzLevel && (
+        <Alert variant="destructive" className="animate-fade-in">
+          <AlertDescription>
+            ⚠️ <strong>EXTREME DANGER:</strong> Buzz levels 9 and 10 are life-threatening. This app cannot assist with drink planning or timeline creation at these levels. Please return to "Target Buzz" and select a safer level.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="space-y-4">
         {drinks.map((drink, index) => (
           <Card key={drink.id} className="p-6 space-y-4 border-primary/20 hover:border-primary/40 transition-colors">
@@ -328,6 +340,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
           variant="outline"
           className="w-full border-dashed border-2 hover:border-primary hover:bg-primary/5"
           onClick={addDrink}
+          disabled={isExtremeBuzzLevel}
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Another Drink
@@ -439,7 +452,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
         <Button
           className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
           onClick={onNext}
-          disabled={progressPercentage > 125}
+          disabled={progressPercentage > 125 || isExtremeBuzzLevel}
         >
           Next: Timeline 🕐
           <ArrowRight className="w-4 h-4 ml-2" />

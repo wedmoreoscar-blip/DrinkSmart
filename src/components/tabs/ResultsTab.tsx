@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppContext } from "@/contexts/AppContext";
 import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight, Clock } from "lucide-react";
 import { buzzLevels } from "@/data/buzzLevels";
@@ -135,11 +136,21 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
                 <span className="font-medium">Standard measurements:</span> Glass of wine = 175ml, Shot = 30ml, Pint = 568ml
               </div>
               
+              {/* Warning for extreme buzz levels */}
+              {state.inebriationLevel >= 9 && (
+                <Alert variant="destructive" className="animate-fade-in">
+                  <AlertDescription>
+                    ⚠️ <strong>EXTREME DANGER:</strong> Buzz levels 9 and 10 are life-threatening. This app cannot assist with drink planning at these levels. Please reconsider your target buzz level for your safety.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <div className="flex justify-center pt-2">
                 <Button 
                   onClick={onNavigateToDrinks} 
                   size="lg"
                   className="w-full sm:w-auto group"
+                  disabled={state.inebriationLevel >= 9}
                 >
                   Add Some Drinks!
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
