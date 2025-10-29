@@ -310,13 +310,6 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
             </Alert>
           )}
 
-          {/* Error Message */}
-          {timeError && (
-            <Alert variant="destructive">
-              <AlertDescription>{timeError}</AlertDescription>
-            </Alert>
-          )}
-
           {/* Save Button */}
           <div className="flex justify-end">
             <Button 
