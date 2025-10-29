@@ -68,7 +68,14 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
     
     let diffMinutes: number;
     
-    if (targetTotalMinutes <= startTotalMinutes) {
+    // Check if times are exactly the same
+    if (startTotalMinutes === targetTotalMinutes) {
+      setTimeWarning("⚠️ Start and target times are the same. Time difference is 0 hours.");
+      setTimeError("Target time must be after start time");
+      return;
+    }
+    
+    if (targetTotalMinutes < startTotalMinutes) {
       diffMinutes = (24 * 60 - startTotalMinutes) + targetTotalMinutes;
       // Target time is earlier in the day, so it's treated as next day
       setTimeWarning("⚠️ Target time is earlier than start time - treating it as next day (crossing midnight).");
