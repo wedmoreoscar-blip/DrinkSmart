@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAppContext } from "@/contexts/AppContext";
-import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight, Clock } from "lucide-react";
+import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight, Clock, ChevronDown } from "lucide-react";
 import { buzzLevels } from "@/data/buzzLevels";
 import { SHOT_ML, PINT_ML, GLASS_ML, VODKA_ABV, BEER_ABV, WINE_ABV } from "@/lib/drinkConstants";
 import { formatTimeDisplay } from "@/lib/timelineHelpers";
+import { useState } from "react";
 
 type ResultsTabProps = {
   onNavigateToDrinks: () => void;
@@ -13,6 +15,7 @@ type ResultsTabProps = {
 
 const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
   const { state } = useAppContext();
+  const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
 
   // Calculate pure alcohol needed
   const calculateAlcoholNeeded = () => {
@@ -192,27 +195,57 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
                   Your Drinking Schedule
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {state.drinkTimeline.slice(0, 4).map((entry) => (
-                  <div 
-                    key={`${entry.drinkId}-${entry.unitNumber}`}
-                    className="flex items-center gap-3 text-sm"
-                  >
-                    <span className="text-xl">{entry.icon}</span>
-                    <span className="font-semibold min-w-[80px]">
-                      {formatTimeDisplay(entry.time)}
-                    </span>
-                    <span className="text-muted-foreground">
-                      Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
-                      {entry.drinkName}
-                    </span>
+              <CardContent>
+                <Collapsible open={isScheduleExpanded} onOpenChange={setIsScheduleExpanded}>
+                  <div className="space-y-3">
+                    {state.drinkTimeline.slice(0, 4).map((entry) => (
+                      <div 
+                        key={`${entry.drinkId}-${entry.unitNumber}`}
+                        className="flex items-center gap-3 text-sm"
+                      >
+                        <span className="text-xl">{entry.icon}</span>
+                        <span className="font-semibold min-w-[80px]">
+                          {formatTimeDisplay(entry.time)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
+                          {entry.drinkName}
+                        </span>
+                      </div>
+                    ))}
+                    
+                    <CollapsibleContent className="space-y-3">
+                      {state.drinkTimeline.slice(4).map((entry) => (
+                        <div 
+                          key={`${entry.drinkId}-${entry.unitNumber}`}
+                          className="flex items-center gap-3 text-sm"
+                        >
+                          <span className="text-xl">{entry.icon}</span>
+                          <span className="font-semibold min-w-[80px]">
+                            {formatTimeDisplay(entry.time)}
+                          </span>
+                          <span className="text-muted-foreground">
+                            Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
+                            {entry.drinkName}
+                          </span>
+                        </div>
+                      ))}
+                    </CollapsibleContent>
                   </div>
-                ))}
-                {state.drinkTimeline.length > 4 && (
-                  <div className="text-sm text-muted-foreground text-center pt-2">
-                    + {state.drinkTimeline.length - 4} more entries...
-                  </div>
-                )}
+                  
+                  {state.drinkTimeline.length > 4 && (
+                    <CollapsibleTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full mt-3"
+                      >
+                        <ChevronDown className={`w-4 h-4 mr-2 transition-transform ${isScheduleExpanded ? "rotate-180" : ""}`} />
+                        {isScheduleExpanded ? "Show Less" : `Show All ${state.drinkTimeline.length} Entries`}
+                      </Button>
+                    </CollapsibleTrigger>
+                  )}
+                </Collapsible>
               </CardContent>
             </Card>
           )}
