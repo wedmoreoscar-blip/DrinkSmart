@@ -144,23 +144,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const calculateTimeDelta = (startTime: Date | null, targetTime: Date | null): number | null => {
     if (!startTime || !targetTime) return null;
     
-    // Check if we're crossing midnight
     const startHour = startTime.getHours();
     const startMinutes = startTime.getMinutes();
     const targetHour = targetTime.getHours();
     const targetMinutes = targetTime.getMinutes();
     
-    let adjustedTarget = new Date(targetTime);
+    // Convert times to total minutes for easier calculation
+    const startTotalMinutes = startHour * 60 + startMinutes;
+    const targetTotalMinutes = targetHour * 60 + targetMinutes;
     
-    // If target time appears earlier in the day, assume it's the next day
-    if (targetHour < startHour || (targetHour === startHour && targetMinutes <= startMinutes)) {
-      adjustedTarget = new Date(targetTime);
-      adjustedTarget.setDate(adjustedTarget.getDate() + 1);
+    let diffMinutes: number;
+    
+    // If target time is earlier in the day than start time, it's the next day
+    if (targetTotalMinutes <= startTotalMinutes) {
+      // Calculate time to midnight + time from midnight to target
+      diffMinutes = (24 * 60 - startTotalMinutes) + targetTotalMinutes;
+    } else {
+      // Same day calculation
+      diffMinutes = targetTotalMinutes - startTotalMinutes;
     }
     
-    const diffMs = adjustedTarget.getTime() - startTime.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-    return diffHours;
+    return diffMinutes / 60; // Convert to hours
   };
 
   const updateDrinkingStartTime = (time: Date | null) => {
