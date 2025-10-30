@@ -249,7 +249,7 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <h3 className="text-sm font-semibold mb-1">Maintenance - Keep Your Buzz Going</h3>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-base font-bold">
                   {maintenanceMl.toFixed(1)} ml pure alcohol/hour ≈ {maintenanceEquivalents.shots} shots 🥃 / {maintenanceEquivalents.pints} pints 🍺 / {maintenanceEquivalents.glasses} glasses 🍷
                 </p>
               </div>
