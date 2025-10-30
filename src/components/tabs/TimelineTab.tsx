@@ -13,6 +13,59 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
   const { state } = useAppContext();
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Calculate maintenance alcohol per hour
+  const calculateMaintenanceAlcohol = () => {
+    const { userMetrics } = state;
+    
+    if (!userMetrics.weight || !userMetrics.sex) {
+      return null;
+    }
+
+    // Convert weight to grams
+    let weightInGrams: number;
+    if (userMetrics.weightUnit === "kg") {
+      weightInGrams = parseFloat(userMetrics.weight) * 1000;
+    } else {
+      // Convert lbs to grams (1 lb = 453.592 grams)
+      weightInGrams = parseFloat(userMetrics.weight) * 453.592;
+    }
+
+    // Get R value based on sex
+    const R = userMetrics.sex === "male" ? 0.68 : 0.55;
+
+    // Calculate pure alcohol needed per hour for maintenance
+    // Formula: (0.015 / 100) × Weight (grams) × r
+    const pureAlcoholGrams = (0.015 / 100) * weightInGrams * R;
+
+    // Convert to ml (divide by 0.789)
+    const pureAlcoholMl = pureAlcoholGrams / 0.789;
+
+    return pureAlcoholMl;
+  };
+
+  // Calculate drink equivalents for maintenance
+  const calculateMaintenanceEquivalents = (pureAlcoholMl: number) => {
+    const SHOT_ML = 30;
+    const PINT_ML = 568;
+    const GLASS_ML = 175;
+    const VODKA_ABV = 0.375;
+    const BEER_ABV = 0.05;
+    const WINE_ABV = 0.12;
+
+    const shots = (pureAlcoholMl * (1 / VODKA_ABV)) / SHOT_ML;
+    const pints = (pureAlcoholMl * (1 / BEER_ABV)) / PINT_ML;
+    const glasses = (pureAlcoholMl * (1 / WINE_ABV)) / GLASS_ML;
+    
+    return {
+      shots: shots.toFixed(1),
+      pints: pints.toFixed(1),
+      glasses: glasses.toFixed(1),
+    };
+  };
+
+  const maintenanceMl = calculateMaintenanceAlcohol();
+  const maintenanceEquivalents = maintenanceMl ? calculateMaintenanceEquivalents(maintenanceMl) : null;
+
   // Update current time every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -174,6 +227,58 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Maintenance Section */}
+      {state.drinkingTargetTime && maintenanceMl && maintenanceEquivalents && (
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+          <CardHeader>
+            <CardTitle className="text-center">Maintenance - Keep Your Buzz Going</CardTitle>
+            <p className="text-center text-sm text-muted-foreground">
+              To maintain your current buzz level, have approximately:
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary mb-2">
+                {maintenanceMl.toFixed(1)} ml
+              </div>
+              <div className="text-sm text-muted-foreground">
+                of pure alcohol per hour
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t">
+              <div className="text-sm font-medium text-center mb-4">Drink equivalents per hour:</div>
+              
+              <div className="grid gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50">
+                  <div className="text-2xl">🥃</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-primary">{maintenanceEquivalents.shots}</div>
+                    <div className="text-xs text-muted-foreground">shots of vodka @37.5% ABV</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50">
+                  <div className="text-2xl">🍺</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-primary">{maintenanceEquivalents.pints}</div>
+                    <div className="text-xs text-muted-foreground">pints of beer @5% ABV</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50">
+                  <div className="text-2xl">🍷</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-primary">{maintenanceEquivalents.glasses}</div>
+                    <div className="text-xs text-muted-foreground">glasses of wine @12% ABV</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Calculations Summary */}
       {state.drinkCalculations.length > 0 && (
