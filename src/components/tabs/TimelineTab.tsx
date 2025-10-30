@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, Clock, Target } from "lucide-react";
 import { formatTimeDisplay, getUnitDisplayText } from "@/lib/timelineHelpers";
@@ -65,6 +66,9 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
 
   const maintenanceMl = calculateMaintenanceAlcohol();
   const maintenanceEquivalents = maintenanceMl ? calculateMaintenanceEquivalents(maintenanceMl) : null;
+
+  // Calculate time delta in hours for display
+  const timeDeltaHours = state.timeDelta || 0;
 
   // Update current time every 10 seconds
   useEffect(() => {
@@ -135,6 +139,16 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Adjustment Notice */}
+      {state.isTargetAdjusted && state.adjustedTargetMl && (
+        <Alert className="border-blue-500/30 bg-blue-500/10">
+          <AlertDescription>
+            📊 <strong>Adjusted Timeline:</strong> This timeline distributes your {state.adjustedTargetMl.toFixed(1)}ml 
+            of selected drinks across your {timeDeltaHours.toFixed(1)}-hour timeframe for optimal pacing.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header Stats */}
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="p-4">

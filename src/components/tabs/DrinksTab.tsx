@@ -437,6 +437,16 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
         </Card>
       )}
 
+      {/* Adjustment Info */}
+      {progressPercentage > 100 && progressPercentage <= 125 && state.adjustedTargetMl && (
+        <Alert className="animate-fade-in border-blue-500/30 bg-blue-500/10">
+          <AlertDescription>
+            ℹ️ <strong>Timeline Auto-Adjusted:</strong> Your drinks will be distributed based on {state.adjustedTargetMl.toFixed(1)}ml 
+            (your actual selection) rather than the original {totalPureAlcoholNeeded?.toFixed(1)}ml target, ensuring all drinks fit within your timeframe.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Critical Warning if over 125% */}
       {progressPercentage > 125 && (
         <Alert variant="destructive" className="animate-fade-in">

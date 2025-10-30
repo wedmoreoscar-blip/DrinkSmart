@@ -64,6 +64,8 @@ type AppState = {
   timeDelta: number | null; // difference between start and target time in hours (float)
   drinkTimeline: DrinkTimelineEntry[]; // calculated timeline entries
   drinkCalculations: DrinkCalculation[]; // calculation details for each drink
+  adjustedTargetMl: number | null; // adjusted target when drinks exceed 100%
+  isTargetAdjusted: boolean; // whether target was adjusted
 };
 
 type AppContextType = {
@@ -105,6 +107,8 @@ const initialState: AppState = {
   timeDelta: null,
   drinkTimeline: [],
   drinkCalculations: [],
+  adjustedTargetMl: null,
+  isTargetAdjusted: false,
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -222,7 +226,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const totalTimeDeltaMinutes = timeDelta * 60;
 
-        // Step 2: Process each drink
+        // Step 2: Process each drink (first pass to calculate totals)
         const calculations: DrinkCalculation[] = [];
         
         drinks.forEach((drink) => {
@@ -241,26 +245,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           // Calculate pure alcohol
           const pureAlcoholMl = volumeMl * (abv / 100);
 
-          // Calculate percentage of target
-          const percentageOfTarget = (pureAlcoholMl / totalPureAlcoholNeeded) * 100;
-
-          // Calculate time allocated
-          const timeAllocatedMinutes = (percentageOfTarget / 100) * totalTimeDeltaMinutes;
-
-          // Calculate interval per unit
-          const intervalMinutes = timeAllocatedMinutes / quantity;
-
           calculations.push({
             drinkId: drink.id,
             drinkName: drink.drink,
             totalVolumeMl: volumeMl,
             pureAlcoholMl,
-            percentageOfTarget,
-            timeAllocatedMinutes,
-            intervalMinutes,
+            percentageOfTarget: 0, // Will be calculated after adjustment
+            timeAllocatedMinutes: 0, // Will be calculated after adjustment
+            intervalMinutes: 0, // Will be calculated after adjustment
             quantity,
             unit: drink.unit,
           });
+        });
+
+        // Step 3: Calculate adjustment if needed
+        const totalPureAlcoholFromDrinks = calculations.reduce((sum, calc) => sum + calc.pureAlcoholMl, 0);
+        const progressPercentage = totalPureAlcoholNeeded > 0 
+          ? (totalPureAlcoholFromDrinks / totalPureAlcoholNeeded) * 100 
+          : 0;
+
+        const adjustedTarget = progressPercentage > 100 
+          ? (progressPercentage / 100) * totalPureAlcoholNeeded 
+          : totalPureAlcoholNeeded;
+
+        const isTargetAdjusted = progressPercentage > 100;
+
+        // Step 4: Recalculate percentages and times with adjusted target
+        calculations.forEach((calc) => {
+          calc.percentageOfTarget = (calc.pureAlcoholMl / adjustedTarget) * 100;
+          calc.timeAllocatedMinutes = (calc.percentageOfTarget / 100) * totalTimeDeltaMinutes;
+          calc.intervalMinutes = calc.timeAllocatedMinutes / calc.quantity;
         });
 
         // Step 3: Generate timeline entries
@@ -292,11 +306,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }
         });
 
-        // Step 4: Store calculations
+        // Step 5: Store calculations
         setState((prev) => ({
           ...prev,
           drinkCalculations: calculations,
           drinkTimeline: timeline,
+          adjustedTargetMl: isTargetAdjusted ? adjustedTarget : null,
+          isTargetAdjusted: isTargetAdjusted,
         }));
       });
     });

@@ -84,10 +84,20 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
             
             <div className="space-y-3">
               <h2 className="text-3xl font-bold text-primary">
-                {alcoholNeeded.ml.toFixed(1)} ml
+                {state.isTargetAdjusted && state.adjustedTargetMl ? (
+                  <>
+                    <span className="line-through text-muted-foreground text-2xl">
+                      {alcoholNeeded.ml.toFixed(1)} ml
+                    </span>
+                    {" → "}
+                    <span className="text-primary">{state.adjustedTargetMl.toFixed(1)} ml</span>
+                  </>
+                ) : (
+                  `${alcoholNeeded.ml.toFixed(1)} ml`
+                )}
               </h2>
               <p className="text-lg font-medium">
-                of pure alcohol/ethanol needed
+                of pure alcohol/ethanol {state.isTargetAdjusted ? "(adjusted for your selection)" : "needed"}
               </p>
               <p className="text-muted-foreground">
                 to reach <span className="font-semibold text-foreground">Buzz Level {state.inebriationLevel} - {currentBuzzLevel?.label}</span>
