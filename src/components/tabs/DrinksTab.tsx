@@ -438,7 +438,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
       )}
 
       {/* Adjustment Info */}
-      {progressPercentage > 100 && progressPercentage <= 125 && state.adjustedTargetMl && (
+      {progressPercentage > 100 && progressPercentage <= 120 && state.adjustedTargetMl && (
         <Alert className="animate-fade-in border-blue-500/30 bg-blue-500/10">
           <AlertDescription>
             ℹ️ <strong>Timeline Auto-Adjusted:</strong> Your drinks will be distributed based on {state.adjustedTargetMl.toFixed(1)}ml 
@@ -447,11 +447,11 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
         </Alert>
       )}
 
-      {/* Critical Warning if over 125% */}
-      {progressPercentage > 125 && (
+      {/* Critical Warning if over 120% */}
+      {progressPercentage > 120 && (
         <Alert variant="destructive" className="animate-fade-in">
           <AlertDescription>
-            ⚠️ <strong>CRITICAL:</strong> Your alcohol selection exceeds 125% of your target. Please either increase your desired buzz level or increase your timeframe.
+            ⚠️ <strong>CRITICAL:</strong> Your alcohol selection exceeds 120% of your target. Please either increase your desired buzz level or increase your timeframe.
           </AlertDescription>
         </Alert>
       )}
@@ -469,7 +469,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
         <Button
           className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
           onClick={onNext}
-          disabled={progressPercentage > 125 || isExtremeBuzzLevel}
+          disabled={progressPercentage > 120 || isExtremeBuzzLevel}
         >
           Next: Timeline 🕐
           <ArrowRight className="w-4 h-4 ml-2" />
