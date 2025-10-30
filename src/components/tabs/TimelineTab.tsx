@@ -242,104 +242,17 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
         </CardContent>
       </Card>
 
-      {/* Maintenance Section */}
+      {/* Maintenance Section - Compact */}
       {state.drinkingTargetTime && maintenanceMl && maintenanceEquivalents && (
         <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-          <CardHeader>
-            <CardTitle className="text-center">Maintenance - Keep Your Buzz Going</CardTitle>
-            <p className="text-center text-sm text-muted-foreground">
-              To maintain your current buzz level, have approximately:
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-2">
-                {maintenanceMl.toFixed(1)} ml
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold mb-1">Maintenance - Keep Your Buzz Going</h3>
+                <p className="text-xs text-muted-foreground">
+                  {maintenanceMl.toFixed(1)} ml pure alcohol/hour ≈ {maintenanceEquivalents.shots} shots 🥃 / {maintenanceEquivalents.pints} pints 🍺 / {maintenanceEquivalents.glasses} glasses 🍷
+                </p>
               </div>
-              <div className="text-sm text-muted-foreground">
-                of pure alcohol per hour
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-4 border-t">
-              <div className="text-sm font-medium text-center mb-4">Drink equivalents per hour:</div>
-              
-              <div className="grid gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50">
-                  <div className="text-2xl">🥃</div>
-                  <div className="flex-1">
-                    <div className="font-bold text-primary">{maintenanceEquivalents.shots}</div>
-                    <div className="text-xs text-muted-foreground">shots of vodka @37.5% ABV</div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50">
-                  <div className="text-2xl">🍺</div>
-                  <div className="flex-1">
-                    <div className="font-bold text-primary">{maintenanceEquivalents.pints}</div>
-                    <div className="text-xs text-muted-foreground">pints of beer @5% ABV</div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50">
-                  <div className="text-2xl">🍷</div>
-                  <div className="flex-1">
-                    <div className="font-bold text-primary">{maintenanceEquivalents.glasses}</div>
-                    <div className="text-xs text-muted-foreground">glasses of wine @12% ABV</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Calculations Summary */}
-      {state.drinkCalculations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Drink Calculations Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-2">Drink</th>
-                    <th className="text-center py-2 px-2">Quantity</th>
-                    <th className="text-center py-2 px-2">Pure Alcohol</th>
-                    <th className="text-center py-2 px-2">% of Tank</th>
-                    <th className="text-center py-2 px-2">Time Allocated</th>
-                    <th className="text-center py-2 px-2">Interval</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.drinkCalculations.map((calc, index) => (
-                    <tr key={calc.drinkId} className={index % 2 === 0 ? "bg-muted/30" : ""}>
-                      <td className="py-2 px-2">{calc.drinkName}</td>
-                      <td className="text-center py-2 px-2">{calc.quantity} {calc.unit}</td>
-                      <td className="text-center py-2 px-2">{calc.pureAlcoholMl.toFixed(1)} ml</td>
-                      <td className="text-center py-2 px-2">{calc.percentageOfTarget.toFixed(1)}%</td>
-                      <td className="text-center py-2 px-2">{calc.timeAllocatedMinutes.toFixed(1)} min</td>
-                      <td className="text-center py-2 px-2">{calc.intervalMinutes.toFixed(1)} min</td>
-                    </tr>
-                  ))}
-                  <tr className="border-t-2 font-bold">
-                    <td className="py-2 px-2">Total</td>
-                    <td className="text-center py-2 px-2">—</td>
-                    <td className="text-center py-2 px-2">
-                      {state.drinkCalculations.reduce((sum, calc) => sum + calc.pureAlcoholMl, 0).toFixed(1)} ml
-                    </td>
-                    <td className="text-center py-2 px-2">
-                      {state.drinkCalculations.reduce((sum, calc) => sum + calc.percentageOfTarget, 0).toFixed(1)}%
-                    </td>
-                    <td className="text-center py-2 px-2">
-                      {state.drinkCalculations.reduce((sum, calc) => sum + calc.timeAllocatedMinutes, 0).toFixed(1)} min
-                    </td>
-                    <td className="text-center py-2 px-2">—</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </CardContent>
         </Card>
