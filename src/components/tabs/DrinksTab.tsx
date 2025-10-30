@@ -441,7 +441,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
       {progressPercentage > 125 && (
         <Alert variant="destructive" className="animate-fade-in">
           <AlertDescription>
-            ⚠️ <strong>CRITICAL:</strong> Your alcohol selection exceeds 125% of your target. This is dangerous! Please go back to "Target Buzz" and decrease your buzz level or increase your timeframe.
+            ⚠️ <strong>CRITICAL:</strong> Your alcohol selection exceeds 125% of your target. Please either increase your desired buzz level or increase your timeframe.
           </AlertDescription>
         </Alert>
       )}
