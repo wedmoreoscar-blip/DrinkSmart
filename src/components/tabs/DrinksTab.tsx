@@ -426,6 +426,13 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                 ⚠️ You've exceeded your target! Consider drinking water and slowing down.
               </div>
             )}
+
+            {/* Warning if under target */}
+            {progressPercentage < 97.5 && progressPercentage > 0 && (
+              <div className="text-sm text-amber-600 font-medium text-center animate-fade-in">
+                ℹ️ Note: Your current selection is below target. You may not reach your desired buzz level.
+              </div>
+            )}
           </div>
         </Card>
       )}
