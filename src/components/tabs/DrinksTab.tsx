@@ -22,6 +22,8 @@ type DrinkEntry = {
   quantity: string;
   unit: "ml" | "oz" | "shots" | "pints";
   mixer?: string;
+  isCustom?: boolean;
+  customName?: string;
 };
 
 type FlattenedDrink = {
@@ -82,7 +84,9 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   // Calculate pure alcohol from drinks
   const calculatePureAlcoholChosen = () => {
     return drinks.reduce((total, drink) => {
-      if (!drink.quantity || !drink.drink) return total;
+      if (!drink.quantity) return total;
+      if (!drink.isCustom && !drink.drink) return total;
+      if (drink.isCustom && (!drink.customName || !drink.customABV)) return total;
 
       const quantity = parseFloat(drink.quantity);
       if (isNaN(quantity)) return total;
@@ -105,8 +109,13 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
       }
 
       // Get ABV
-      const drinkData = allDrinks.find(d => d.name === drink.drink);
-      const abv = drink.customABV ? parseFloat(drink.customABV) : (drinkData?.abv || 0);
+      let abv = 0;
+      if (drink.isCustom) {
+        abv = parseFloat(drink.customABV || "0");
+      } else {
+        const drinkData = allDrinks.find(d => d.name === drink.drink);
+        abv = drinkData?.abv || 0;
+      }
 
       // Calculate pure alcohol
       const pureAlcohol = volumeMl * (abv / 100);
@@ -123,7 +132,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const addDrink = () => {
     updateDrinks([
       ...drinks,
-      { id: Date.now().toString(), category: "", drink: "", quantity: "", unit: "ml" },
+      { id: Date.now().toString(), category: "", drink: "", quantity: "", unit: "ml", isCustom: false },
     ]);
   };
 
@@ -137,7 +146,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
     updateDrinks(
       drinks.map((d) =>
         d.id === id 
-          ? { id: d.id, category: "", drink: "", quantity: "", unit: "ml", mixer: "" } 
+          ? { id: d.id, category: "", drink: "", quantity: "", unit: "ml", mixer: "", isCustom: false, customName: "", customABV: "" } 
           : d
       )
     );
@@ -178,6 +187,16 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const getDrinkABV = (drinkName: string) => {
     const drink = allDrinks.find(d => d.name === drinkName);
     return drink ? drink.abv : null;
+  };
+
+  const toggleCustomMode = (id: string) => {
+    updateDrinks(
+      drinks.map((d) =>
+        d.id === id 
+          ? { ...d, isCustom: !d.isCustom, drink: "", customName: "", customABV: "", category: "" } 
+          : d
+      )
+    );
   };
 
   return (
@@ -222,76 +241,99 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              {/* Drink Search */}
+              {/* Drink Selection Mode Toggle */}
               <div className="space-y-2 md:col-span-2">
-                <Label>Search for a drink</Label>
-                <Popover 
-                  open={openPopovers[drink.id]} 
-                  onOpenChange={(open) => setOpenPopovers({ ...openPopovers, [drink.id]: open })}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={openPopovers[drink.id]}
-                      className="w-full justify-between"
-                    >
-                      {drink.drink ? (
-                        <span>
-                          {drink.drink} 
-                          <span className="text-xs text-muted-foreground ml-2">
-                            ({getDrinkABV(drink.drink)}% ABV)
-                          </span>
-                        </span>
-                      ) : (
-                        "Search for a drink..."
-                      )}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Type drink name (e.g., mal, beer, vodka)..." />
-                      <CommandList>
-                        <CommandEmpty>No drinks found.</CommandEmpty>
-                        <CommandGroup>
-                          {allDrinks.map((drinkOption) => (
-                            <CommandItem
-                              key={drinkOption.name}
-                              value={drinkOption.name}
-                              onSelect={() => selectDrink(drink.id, drinkOption.name)}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  drink.drink === drinkOption.name ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <span>{drinkOption.name}</span>
-                              <span className="ml-auto text-xs text-muted-foreground">
-                                {drinkOption.abv}% ABV
-                              </span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Custom ABV */}
-              {drink.category === "custom" && (
-                <div className="space-y-2">
-                  <Label>Custom ABV %</Label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 5"
-                    value={drink.customABV || ""}
-                    onChange={(e) => updateDrink(drink.id, "customABV", e.target.value)}
-                  />
+                <div className="flex items-center justify-between mb-2">
+                  <Label>{drink.isCustom ? "Custom Drink" : "Search for a drink"}</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleCustomMode(drink.id)}
+                    className="text-xs h-7"
+                  >
+                    {drink.isCustom ? "Switch to Search" : "Create Custom"}
+                  </Button>
                 </div>
-              )}
+
+                {!drink.isCustom ? (
+                  /* Drink Search */
+                  <Popover 
+                    open={openPopovers[drink.id]} 
+                    onOpenChange={(open) => setOpenPopovers({ ...openPopovers, [drink.id]: open })}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openPopovers[drink.id]}
+                        className="w-full justify-between"
+                      >
+                        {drink.drink ? (
+                          <span>
+                            {drink.drink} 
+                            <span className="text-xs text-muted-foreground ml-2">
+                              ({getDrinkABV(drink.drink)}% ABV)
+                            </span>
+                          </span>
+                        ) : (
+                          "Search for a drink..."
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Type drink name (e.g., mal, beer, vodka)..." />
+                        <CommandList>
+                          <CommandEmpty>No drinks found.</CommandEmpty>
+                          <CommandGroup>
+                            {allDrinks.map((drinkOption) => (
+                              <CommandItem
+                                key={drinkOption.name}
+                                value={drinkOption.name}
+                                onSelect={() => selectDrink(drink.id, drinkOption.name)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    drink.drink === drinkOption.name ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <span>{drinkOption.name}</span>
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                  {drinkOption.abv}% ABV
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  /* Custom Drink Inputs */
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Drink Name</Label>
+                      <Input
+                        type="text"
+                        placeholder="e.g., My Special Cocktail"
+                        value={drink.customName || ""}
+                        onChange={(e) => updateDrink(drink.id, "customName", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>ABV %</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 5"
+                        value={drink.customABV || ""}
+                        onChange={(e) => updateDrink(drink.id, "customABV", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Quantity */}
               <div className="space-y-2">
