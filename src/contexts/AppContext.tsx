@@ -12,6 +12,8 @@ type DrinkEntry = {
   quantity: string;
   unit: "ml" | "oz" | "shots" | "pints";
   mixer?: string;
+  isCustom?: boolean;
+  customName?: string;
 };
 
 type DrinkTimelineEntry = {
@@ -98,7 +100,7 @@ const initialState: AppState = {
   },
   inebriationLevel: 3,
   targetBAC: { min: 0.06, max: 0.09 }, // Default to level 3 (Tipsy)
-  drinks: [{ id: "1", category: "", drink: "", quantity: "", unit: "ml" }],
+  drinks: [{ id: "1", category: "", drink: "", quantity: "", unit: "ml", isCustom: false }],
   startTime: 0,
   isTimerRunning: false,
   startDateTime: null,
