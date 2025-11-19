@@ -128,6 +128,7 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
     toast({
       title: "Times saved",
       description: "Your drinking schedule has been saved.",
+      duration: 3000,
     });
   };
 
