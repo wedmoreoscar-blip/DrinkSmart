@@ -185,6 +185,20 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
               const isCurrent = index === currentEntryIndex;
               const isFuture = index > currentEntryIndex;
               
+              // Get duration for this drink from calculations
+              const drinkCalc = state.drinkCalculations.find(calc => calc.drinkId === entry.drinkId);
+              const durationMinutes = drinkCalc?.timeAllocatedMinutes || 0;
+              const isVolumeBased = entry.unit === "ml" || entry.unit === "oz";
+              
+              // Format duration
+              const formatDuration = (minutes: number) => {
+                const hrs = Math.floor(minutes / 60);
+                const mins = Math.round(minutes % 60);
+                if (hrs > 0 && mins > 0) return `${hrs}h ${mins}m`;
+                if (hrs > 0) return `${hrs}h`;
+                return `${mins}m`;
+              };
+              
               return (
                 <div 
                   key={`${entry.drinkId}-${entry.unitNumber}`}
@@ -216,6 +230,9 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
                     <div className="text-muted-foreground">
                       Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
                       {entry.drinkName}
+                      {isVolumeBased && durationMinutes > 0 && (
+                        <span className="font-semibold"> over {formatDuration(durationMinutes)}</span>
+                      )}
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
                       {entry.percentageOfTarget.toFixed(1)}% of target • {entry.pureAlcoholMl.toFixed(1)}ml pure alcohol
