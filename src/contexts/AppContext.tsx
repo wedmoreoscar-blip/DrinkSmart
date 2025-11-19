@@ -84,6 +84,7 @@ type AppContextType = {
   updateDrinkingTargetTime: (time: Date | null) => void;
   recalculate: () => void;
   calculateDrinkTimeline: () => void;
+  reorderTimelineEntries: (oldIndex: number, newIndex: number) => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -193,6 +194,52 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const recalculate = () => {
     // This will trigger recalculation in the Results tab
     console.log("Recalculating with current state:", state);
+  };
+
+  const reorderTimelineEntries = (oldIndex: number, newIndex: number) => {
+    setState((prev) => {
+      // Create a new array with reordered entries
+      const newTimeline = [...prev.drinkTimeline];
+      const [movedEntry] = newTimeline.splice(oldIndex, 1);
+      newTimeline.splice(newIndex, 0, movedEntry);
+
+      // Recalculate timestamps based on new order
+      const { timeDelta, drinkingStartTime } = prev;
+      if (!timeDelta || !drinkingStartTime || newTimeline.length === 0) {
+        return { ...prev, drinkTimeline: newTimeline };
+      }
+
+      const totalTimeDeltaMinutes = timeDelta * 60;
+      
+      // Calculate time allocation for each drink based on its percentage
+      const timelineDrinkIds = [...new Set(newTimeline.map(entry => entry.drinkId))];
+      const drinkPercentages = new Map<string, number>();
+      timelineDrinkIds.forEach(drinkId => {
+        const firstEntry = newTimeline.find(e => e.drinkId === drinkId);
+        if (firstEntry) {
+          const totalUnits = newTimeline.filter(e => e.drinkId === drinkId).length;
+          drinkPercentages.set(drinkId, firstEntry.percentageOfTarget * totalUnits);
+        }
+      });
+
+      // Assign times based on percentages
+      let cumulativeTime = 0;
+      const updatedTimeline = newTimeline.map((entry, index) => {
+        const drinkId = entry.drinkId;
+        const percentage = entry.percentageOfTarget;
+        const timeForThisUnit = (percentage / 100) * totalTimeDeltaMinutes;
+        
+        const entryTime = new Date(drinkingStartTime.getTime() + cumulativeTime * 60 * 1000);
+        cumulativeTime += timeForThisUnit;
+
+        return {
+          ...entry,
+          time: entryTime,
+        };
+      });
+
+      return { ...prev, drinkTimeline: updatedTimeline };
+    });
   };
 
   const calculateDrinkTimeline = () => {
@@ -367,6 +414,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateDrinkingTargetTime,
         recalculate,
         calculateDrinkTimeline,
+        reorderTimelineEntries,
       }}
     >
       {children}

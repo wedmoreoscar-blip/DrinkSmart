@@ -5,14 +5,61 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, Clock, Target } from "lucide-react";
 import { formatTimeDisplay, getUnitDisplayText } from "@/lib/timelineHelpers";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableTimelineItem } from "./SortableTimelineItem";
+import { getWeightInGrams } from "@/lib/unitConversions";
 
 type TimelineTabProps = {
   onNext: () => void;
 };
 
 const TimelineTab = ({ onNext }: TimelineTabProps) => {
-  const { state } = useAppContext();
+  const { state, reorderTimelineEntries } = useAppContext();
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Setup drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = state.drinkTimeline.findIndex(
+        (entry) => `${entry.drinkId}-${entry.unitNumber}` === active.id
+      );
+      const newIndex = state.drinkTimeline.findIndex(
+        (entry) => `${entry.drinkId}-${entry.unitNumber}` === over.id
+      );
+
+      // Only allow reordering if both items are in the future
+      const currentEntryIndex = getCurrentEntryIndex();
+      if (oldIndex > currentEntryIndex && newIndex > currentEntryIndex) {
+        reorderTimelineEntries(oldIndex, newIndex);
+      }
+    }
+  };
 
   // Calculate maintenance alcohol per hour
   const calculateMaintenanceAlcohol = () => {
@@ -23,13 +70,8 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
     }
 
     // Convert weight to grams
-    let weightInGrams: number;
-    if (userMetrics.weightUnit === "kg") {
-      weightInGrams = parseFloat(userMetrics.weight) * 1000;
-    } else {
-      // Convert lbs to grams (1 lb = 453.592 grams)
-      weightInGrams = parseFloat(userMetrics.weight) * 453.592;
-    }
+    const weightInGrams = getWeightInGrams(userMetrics.weight, userMetrics.weightUnit);
+    if (!weightInGrams) return null;
 
     // Get R value based on sex
     const R = userMetrics.sex === "male" ? 0.68 : 0.55;
@@ -176,93 +218,74 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative space-y-6">
-            {/* Vertical line */}
-            <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-primary/20" />
-            
-            {state.drinkTimeline.map((entry, index) => {
-              const isPast = index < currentEntryIndex;
-              const isCurrent = index === currentEntryIndex;
-              const isFuture = index > currentEntryIndex;
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="relative space-y-6">
+              {/* Vertical line */}
+              <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-primary/20" />
               
-              // Calculate duration based on time between this entry and the next
-              const nextEntry = state.drinkTimeline[index + 1];
-              const durationMinutes = nextEntry 
-                ? Math.round((nextEntry.time.getTime() - entry.time.getTime()) / (1000 * 60))
-                : 0;
-              const isVolumeBased = entry.unit === "ml" || entry.unit === "oz" || entry.unit === "pints" || entry.unit === "glass";
+              <SortableContext
+                items={state.drinkTimeline.map(
+                  (entry) => `${entry.drinkId}-${entry.unitNumber}`
+                )}
+                strategy={verticalListSortingStrategy}
+              >
+                {state.drinkTimeline.map((entry, index) => {
+                  const isPast = index < currentEntryIndex;
+                  const isCurrent = index === currentEntryIndex;
+                  const isFuture = index > currentEntryIndex;
+                  
+                  // Calculate duration based on time between this entry and the next
+                  const nextEntry = state.drinkTimeline[index + 1];
+                  const durationMinutes = nextEntry 
+                    ? Math.round((nextEntry.time.getTime() - entry.time.getTime()) / (1000 * 60))
+                    : 0;
+                  const isVolumeBased = entry.unit === "ml" || entry.unit === "oz" || entry.unit === "pints" || entry.unit === "glass";
+                  
+                  // Format duration
+                  const formatDuration = (minutes: number) => {
+                    const hrs = Math.floor(minutes / 60);
+                    const mins = Math.round(minutes % 60);
+                    if (hrs > 0 && mins > 0) return `${hrs}h ${mins}m`;
+                    if (hrs > 0) return `${hrs}h`;
+                    return `${mins}m`;
+                  };
+                  
+                  return (
+                    <SortableTimelineItem
+                      key={`${entry.drinkId}-${entry.unitNumber}`}
+                      entry={entry}
+                      index={index}
+                      isPast={isPast}
+                      isCurrent={isCurrent}
+                      isFuture={isFuture}
+                      durationMinutes={durationMinutes}
+                      isVolumeBased={isVolumeBased}
+                      isDraggable={isFuture}
+                      formatDuration={formatDuration}
+                    />
+                  );
+                })}
+              </SortableContext>
               
-              // Format duration
-              const formatDuration = (minutes: number) => {
-                const hrs = Math.floor(minutes / 60);
-                const mins = Math.round(minutes % 60);
-                if (hrs > 0 && mins > 0) return `${hrs}h ${mins}m`;
-                if (hrs > 0) return `${hrs}h`;
-                return `${mins}m`;
-              };
-              
-              return (
-                <div key={`${entry.drinkId}-${entry.unitNumber}`}>
-                  <div className="relative flex items-start gap-4 pl-12">
-                    {/* Timeline dot */}
-                    <div className={`absolute left-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                      isPast ? "bg-primary/20" : 
-                      isCurrent ? "bg-primary animate-pulse" : 
-                      "bg-muted border-2 border-primary/30"
-                    }`}>
-                      {isPast ? (
-                        <span className="text-primary">✓</span>
-                      ) : (
-                        <span className="text-2xl">{entry.icon}</span>
-                      )}
-                    </div>
-                    
-                    {/* Content */}
-                    <div className={`flex-1 pb-2 transition-opacity ${
-                      isPast ? "opacity-50" : "opacity-100"
-                    }`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="font-semibold text-lg">{formatTime(entry.time)}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit)}
-                        </div>
-                      </div>
-                      <div className="text-muted-foreground">
-                        Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
-                        {entry.drinkName}
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {entry.percentageOfTarget.toFixed(1)}% of target • {entry.pureAlcoholMl.toFixed(1)}ml pure alcohol
-                      </div>
-                    </div>
+              {/* Target reached marker */}
+              {state.drinkingTargetTime && (
+                <div className="relative flex items-start gap-4 pl-12">
+                  <div className="absolute left-0 w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-white" />
                   </div>
                   
-                  {/* Duration text between entries */}
-                  {isVolumeBased && durationMinutes > 0 && (
-                    <div className="relative pl-12 py-2">
-                      <div className="text-sm text-muted-foreground font-medium italic">
-                        ⏱️ Consume over {formatDuration(durationMinutes)}
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex-1 pb-2">
+                    <div className="font-semibold text-lg">{formatTime(state.drinkingTargetTime)}</div>
+                    <div className="text-muted-foreground">🎯 Target time reached</div>
+                  </div>
                 </div>
-              );
-            })}
-            
-            {/* Target reached marker */}
-            {state.drinkingTargetTime && (
-              <div className="relative flex items-start gap-4 pl-12">
-                <div className="absolute left-0 w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
-                  <Target className="w-5 h-5 text-white" />
-                </div>
-                
-                <div className="flex-1 pb-2">
-                  <div className="font-semibold text-lg">{formatTime(state.drinkingTargetTime)}</div>
-                  <div className="text-muted-foreground">🎯 Target time reached</div>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          </DndContext>
         </CardContent>
       </Card>
 
