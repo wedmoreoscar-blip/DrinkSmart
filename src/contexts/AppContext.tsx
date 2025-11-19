@@ -10,7 +10,7 @@ type DrinkEntry = {
   drink: string;
   customABV?: string;
   quantity: string;
-  unit: "ml" | "oz" | "shots" | "pints";
+  unit: "ml" | "oz" | "shots" | "pints" | "glass";
   mixer?: string;
   isCustom?: boolean;
   customName?: string;

@@ -20,7 +20,7 @@ type DrinkEntry = {
   drink: string;
   customABV?: string;
   quantity: string;
-  unit: "ml" | "oz" | "shots" | "pints";
+  unit: "ml" | "oz" | "shots" | "pints" | "glass";
   mixer?: string;
   isCustom?: boolean;
   customName?: string;
@@ -42,8 +42,9 @@ const allDrinks: FlattenedDrink[] = Object.entries(drinkCategories).flatMap(([ca
 );
 
 // Determine default unit based on category
-const getDefaultUnit = (category: string): "ml" | "oz" | "shots" | "pints" => {
+const getDefaultUnit = (category: string): "ml" | "oz" | "shots" | "pints" | "glass" => {
   if (category.includes("beer") || category.includes("cider")) return "pints";
+  if (category.includes("wine")) return "glass";
   if (category === "shots") return "shots";
   return "ml";
 };
@@ -102,6 +103,9 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
           break;
         case "shots":
           volumeMl = quantity * SHOT_ML;
+          break;
+        case "glass":
+          volumeMl = quantity * 175; // GLASS_ML
           break;
         case "ml":
           volumeMl = quantity;
@@ -349,7 +353,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                   />
                   <Select
                     value={drink.unit}
-                    onValueChange={(value: "ml" | "oz" | "shots" | "pints") => 
+                    onValueChange={(value: "ml" | "oz" | "shots" | "pints" | "glass") => 
                       updateDrink(drink.id, "unit", value)
                     }
                   >
@@ -360,6 +364,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                       <SelectItem value="ml">ml</SelectItem>
                       <SelectItem value="oz">oz</SelectItem>
                       <SelectItem value="shots">shots</SelectItem>
+                      <SelectItem value="glass">glass</SelectItem>
                       <SelectItem value="pints">pints</SelectItem>
                     </SelectContent>
                   </Select>
