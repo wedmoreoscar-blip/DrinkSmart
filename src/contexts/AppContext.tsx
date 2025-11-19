@@ -232,7 +232,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const calculations: DrinkCalculation[] = [];
         
         drinks.forEach((drink) => {
-          if (!drink.drink || !drink.quantity) return;
+          if (!drink.quantity) return;
+          if (!drink.isCustom && !drink.drink) return;
+          if (drink.isCustom && (!drink.customName || !drink.customABV)) return;
 
           const quantity = parseFloat(drink.quantity);
           if (isNaN(quantity) || quantity <= 0) return;
@@ -241,21 +243,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const volumeMl = convertToMl(quantity, drink.unit);
 
           // Get ABV
-          const drinkData = allDrinks.find(d => d.name === drink.drink);
-          const abv = drink.customABV ? parseFloat(drink.customABV) : (drinkData?.abv || 0);
+          let abv = 0;
+          if (drink.isCustom) {
+            abv = parseFloat(drink.customABV || "0");
+          } else {
+            const drinkData = allDrinks.find(d => d.name === drink.drink);
+            abv = drinkData?.abv || 0;
+          }
 
           // Calculate pure alcohol
           const pureAlcoholMl = volumeMl * (abv / 100);
 
+          // Determine timeline quantity (how many separate drinks to show)
+          // For ml/oz: treat as 1 drink regardless of volume
+          // For shots/pints: treat as separate drinks
+          const timelineQuantity = (drink.unit === "ml" || drink.unit === "oz") ? 1 : quantity;
+
           calculations.push({
             drinkId: drink.id,
-            drinkName: drink.drink,
+            drinkName: drink.isCustom ? (drink.customName || "Custom Drink") : drink.drink || "",
             totalVolumeMl: volumeMl,
             pureAlcoholMl,
             percentageOfTarget: 0, // Will be calculated after adjustment
             timeAllocatedMinutes: 0, // Will be calculated after adjustment
             intervalMinutes: 0, // Will be calculated after adjustment
-            quantity,
+            quantity: timelineQuantity,
             unit: drink.unit,
           });
         });
@@ -284,14 +296,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let currentTime = new Date(drinkingStartTime);
 
         calculations.forEach((calc) => {
+          const drinks = state.drinks.find(d => d.id === calc.drinkId);
           const drinkData = allDrinks.find(d => d.name === calc.drinkName);
           const category = drinkData?.category || "";
           const icon = getDrinkIcon(category);
 
           for (let i = 1; i <= calc.quantity; i++) {
+            // For ml/oz, show the full volume; for shots/pints show unit number
+            const displayName = (calc.unit === "ml" || calc.unit === "oz") 
+              ? `${calc.totalVolumeMl.toFixed(0)}${calc.unit} ${calc.drinkName}`
+              : calc.drinkName;
+
             timeline.push({
               drinkId: calc.drinkId,
-              drinkName: calc.drinkName,
+              drinkName: displayName,
               unitNumber: i,
               totalUnits: calc.quantity,
               time: new Date(currentTime),
