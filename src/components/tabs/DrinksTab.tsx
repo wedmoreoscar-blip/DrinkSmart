@@ -22,6 +22,8 @@ type DrinkEntry = {
   quantity: string;
   unit: "ml" | "oz" | "shots" | "pints" | "glass";
   mixer?: string;
+  mixerQuantity?: string;
+  mixerUnit?: "ml" | "oz" | "shots" | "pints" | "glass";
   isCustom?: boolean;
   customName?: string;
 };
@@ -374,11 +376,41 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
               {/* Mixer */}
               <div className="space-y-2 md:col-span-2">
                 <Label>Mixer/Dilution (optional)</Label>
-                <Input
-                  placeholder="e.g., 200ml Coke, lemonade, etc."
-                  value={drink.mixer || ""}
-                  onChange={(e) => updateDrink(drink.id, "mixer", e.target.value)}
-                />
+                <div className="space-y-2">
+                  <Input
+                    placeholder="e.g., Coke, lemonade, tonic water"
+                    value={drink.mixer || ""}
+                    onChange={(e) => updateDrink(drink.id, "mixer", e.target.value)}
+                  />
+                  {drink.mixer && (
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={drink.mixerQuantity || ""}
+                        onChange={(e) => updateDrink(drink.id, "mixerQuantity", e.target.value)}
+                        className="flex-1"
+                      />
+                      <Select
+                        value={drink.mixerUnit || "ml"}
+                        onValueChange={(value: "ml" | "oz" | "shots" | "pints" | "glass") => 
+                          updateDrink(drink.id, "mixerUnit", value)
+                        }
+                      >
+                        <SelectTrigger className="w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50">
+                          <SelectItem value="ml">ml</SelectItem>
+                          <SelectItem value="oz">oz</SelectItem>
+                          <SelectItem value="shots">shots</SelectItem>
+                          <SelectItem value="glass">glass</SelectItem>
+                          <SelectItem value="pints">pints</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </Card>
