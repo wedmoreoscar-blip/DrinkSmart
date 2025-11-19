@@ -313,35 +313,23 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                   </Popover>
                 ) : (
                   /* Custom Drink Inputs */
-                  <div className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Drink Name</Label>
-                        <Input
-                          type="text"
-                          placeholder="e.g., My Special Cocktail"
-                          value={drink.customName || ""}
-                          onChange={(e) => updateDrink(drink.id, "customName", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>ABV %</Label>
-                        <Input
-                          type="number"
-                          placeholder="e.g., 5"
-                          value={drink.customABV || ""}
-                          onChange={(e) => updateDrink(drink.id, "customABV", e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Mixer - only for custom drinks */}
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Mixer/Dilution (optional)</Label>
+                      <Label>Drink Name</Label>
                       <Input
-                        placeholder="e.g., 200ml Coke, lemonade, etc."
-                        value={drink.mixer || ""}
-                        onChange={(e) => updateDrink(drink.id, "mixer", e.target.value)}
+                        type="text"
+                        placeholder="e.g., My Special Cocktail"
+                        value={drink.customName || ""}
+                        onChange={(e) => updateDrink(drink.id, "customName", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>ABV %</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 5"
+                        value={drink.customABV || ""}
+                        onChange={(e) => updateDrink(drink.id, "customABV", e.target.value)}
                       />
                     </div>
                   </div>
@@ -378,6 +366,15 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                 </div>
               </div>
 
+              {/* Mixer */}
+              <div className="space-y-2 md:col-span-2">
+                <Label>Mixer/Dilution (optional)</Label>
+                <Input
+                  placeholder="e.g., 200ml Coke, lemonade, etc."
+                  value={drink.mixer || ""}
+                  onChange={(e) => updateDrink(drink.id, "mixer", e.target.value)}
+                />
+              </div>
             </div>
           </Card>
         ))}
