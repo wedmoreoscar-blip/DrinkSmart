@@ -202,44 +202,49 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
               };
               
               return (
-                <div 
-                  key={`${entry.drinkId}-${entry.unitNumber}`}
-                  className="relative flex items-start gap-4 pl-12"
-                >
-                  {/* Timeline dot */}
-                  <div className={`absolute left-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    isPast ? "bg-primary/20" : 
-                    isCurrent ? "bg-primary animate-pulse" : 
-                    "bg-muted border-2 border-primary/30"
-                  }`}>
-                    {isPast ? (
-                      <span className="text-primary">✓</span>
-                    ) : (
-                      <span className="text-2xl">{entry.icon}</span>
-                    )}
-                  </div>
-                  
-                  {/* Content */}
-                  <div className={`flex-1 pb-2 transition-opacity ${
-                    isPast ? "opacity-50" : "opacity-100"
-                  }`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="font-semibold text-lg">{formatTime(entry.time)}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit)}
-                      </div>
-                    </div>
-                    <div className="text-muted-foreground">
-                      Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
-                      {entry.drinkName}
-                      {isVolumeBased && durationMinutes > 0 && (
-                        <span className="font-semibold"> over {formatDuration(durationMinutes)}</span>
+                <div key={`${entry.drinkId}-${entry.unitNumber}`}>
+                  <div className="relative flex items-start gap-4 pl-12">
+                    {/* Timeline dot */}
+                    <div className={`absolute left-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                      isPast ? "bg-primary/20" : 
+                      isCurrent ? "bg-primary animate-pulse" : 
+                      "bg-muted border-2 border-primary/30"
+                    }`}>
+                      {isPast ? (
+                        <span className="text-primary">✓</span>
+                      ) : (
+                        <span className="text-2xl">{entry.icon}</span>
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {entry.percentageOfTarget.toFixed(1)}% of target • {entry.pureAlcoholMl.toFixed(1)}ml pure alcohol
+                    
+                    {/* Content */}
+                    <div className={`flex-1 pb-2 transition-opacity ${
+                      isPast ? "opacity-50" : "opacity-100"
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="font-semibold text-lg">{formatTime(entry.time)}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit)}
+                        </div>
+                      </div>
+                      <div className="text-muted-foreground">
+                        Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
+                        {entry.drinkName}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {entry.percentageOfTarget.toFixed(1)}% of target • {entry.pureAlcoholMl.toFixed(1)}ml pure alcohol
+                      </div>
                     </div>
                   </div>
+                  
+                  {/* Duration text between entries */}
+                  {isVolumeBased && durationMinutes > 0 && (
+                    <div className="relative pl-12 py-2">
+                      <div className="text-sm text-muted-foreground font-medium italic">
+                        ⏱️ Consume over {formatDuration(durationMinutes)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
