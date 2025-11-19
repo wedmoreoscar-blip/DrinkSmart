@@ -181,6 +181,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
     toast({
       title: "Drinks Updated! 🍻",
       description: "Your drink schedule has been recalculated!",
+      duration: 3000,
     });
   };
 
