@@ -7,6 +7,7 @@ import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight, Clock, Chevron
 import { buzzLevels } from "@/data/buzzLevels";
 import { SHOT_ML, PINT_ML, GLASS_ML, VODKA_ABV, BEER_ABV, WINE_ABV } from "@/lib/drinkConstants";
 import { formatTimeDisplay } from "@/lib/timelineHelpers";
+import { getWeightInGrams } from "@/lib/unitConversions";
 import { useState } from "react";
 
 type ResultsTabProps = {
@@ -27,12 +28,9 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
     }
 
     // Convert weight to grams
-    let weightInGrams: number;
-    if (userMetrics.weightUnit === "kg") {
-      weightInGrams = parseFloat(userMetrics.weight) * 1000;
-    } else {
-      // Convert lbs to grams (1 lb = 453.592 grams)
-      weightInGrams = parseFloat(userMetrics.weight) * 453.592;
+    const weightInGrams = getWeightInGrams(userMetrics.weight, userMetrics.weightUnit);
+    if (!weightInGrams) {
+      return null;
     }
 
     // Get R value based on sex
