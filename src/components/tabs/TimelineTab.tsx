@@ -185,9 +185,11 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
               const isCurrent = index === currentEntryIndex;
               const isFuture = index > currentEntryIndex;
               
-              // Get duration for this drink from calculations
-              const drinkCalc = state.drinkCalculations.find(calc => calc.drinkId === entry.drinkId);
-              const durationMinutes = drinkCalc?.timeAllocatedMinutes || 0;
+              // Calculate duration based on time between this entry and the next
+              const nextEntry = state.drinkTimeline[index + 1];
+              const durationMinutes = nextEntry 
+                ? Math.round((nextEntry.time.getTime() - entry.time.getTime()) / (1000 * 60))
+                : 0;
               const isVolumeBased = entry.unit === "ml" || entry.unit === "oz" || entry.unit === "pints";
               
               // Format duration
