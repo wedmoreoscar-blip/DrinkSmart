@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { getWeightInGrams } from "@/lib/unitConversions";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -216,11 +217,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         );
 
         // Step 1: Calculate total pure alcohol needed
-        let weightInGrams: number;
-        if (userMetrics.weightUnit === "kg") {
-          weightInGrams = parseFloat(userMetrics.weight) * 1000;
-        } else {
-          weightInGrams = parseFloat(userMetrics.weight) * 453.592;
+        const weightInGrams = getWeightInGrams(userMetrics.weight, userMetrics.weightUnit);
+        if (!weightInGrams) {
+          setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
+          return;
         }
 
         const R = userMetrics.sex === "male" ? 0.68 : 0.55;
