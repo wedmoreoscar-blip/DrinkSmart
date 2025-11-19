@@ -374,7 +374,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
               </div>
 
               {/* Mixer */}
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label>Mixer/Dilution (optional)</Label>
                 <div className="space-y-2">
                   <Input
