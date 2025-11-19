@@ -188,7 +188,7 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
               // Get duration for this drink from calculations
               const drinkCalc = state.drinkCalculations.find(calc => calc.drinkId === entry.drinkId);
               const durationMinutes = drinkCalc?.timeAllocatedMinutes || 0;
-              const isVolumeBased = entry.unit === "ml" || entry.unit === "oz";
+              const isVolumeBased = entry.unit === "ml" || entry.unit === "oz" || entry.unit === "pints";
               
               // Format duration
               const formatDuration = (minutes: number) => {
