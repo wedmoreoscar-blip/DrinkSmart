@@ -12,6 +12,8 @@ type DrinkEntry = {
   quantity: string;
   unit: "ml" | "oz" | "shots" | "pints" | "glass";
   mixer?: string;
+  mixerQuantity?: string;
+  mixerUnit?: "ml" | "oz" | "shots" | "pints" | "glass";
   isCustom?: boolean;
   customName?: string;
 };
