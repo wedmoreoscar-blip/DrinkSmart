@@ -211,6 +211,7 @@ const InebriationLevelTab = ({ onNext }: { onNext: () => void }) => {
                 toast({
                   title: "Buzz level updated",
                   description: `Your target buzz level has been set to ${localLevel}.`,
+                  duration: 3000,
                 });
               }}
               variant="outline"

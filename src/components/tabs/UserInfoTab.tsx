@@ -21,6 +21,7 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
     toast({
       title: "Metrics Updated! 🎉",
       description: "Your info has been saved. Let's party responsibly!",
+      duration: 3000,
     });
   };
 
