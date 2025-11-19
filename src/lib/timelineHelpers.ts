@@ -11,6 +11,8 @@ export const convertToMl = (quantity: number, unit: string): number => {
       return quantity * OZ_ML;
     case "shots":
       return quantity * SHOT_ML;
+    case "glass":
+      return quantity * 175; // GLASS_ML
     case "ml":
       return quantity;
     default:
@@ -57,6 +59,7 @@ export const getUnitDisplayText = (unitNumber: number, totalUnits: number, unit:
   const unitMap: Record<string, string> = {
     "shots": "shot",
     "pints": "pint",
+    "glass": "glass",
     "ml": "ml",
     "oz": "oz"
   };
