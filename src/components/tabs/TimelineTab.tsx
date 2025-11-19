@@ -190,7 +190,7 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
               const durationMinutes = nextEntry 
                 ? Math.round((nextEntry.time.getTime() - entry.time.getTime()) / (1000 * 60))
                 : 0;
-              const isVolumeBased = entry.unit === "ml" || entry.unit === "oz" || entry.unit === "pints";
+              const isVolumeBased = entry.unit === "ml" || entry.unit === "oz" || entry.unit === "pints" || entry.unit === "glass";
               
               // Format duration
               const formatDuration = (minutes: number) => {
