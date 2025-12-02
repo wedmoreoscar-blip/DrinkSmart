@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { getWeightInGrams } from "@/lib/unitConversions";
+import { getWeightInKg, getHeightInCm, calculateWatsonTBW } from "@/lib/unitConversions";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -263,16 +263,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }))
         );
 
-        // Step 1: Calculate total pure alcohol needed
-        const weightInGrams = getWeightInGrams(userMetrics.weight, userMetrics.weightUnit);
-        if (!weightInGrams) {
+        // Step 1: Calculate total pure alcohol needed using Watson TBW formula
+        const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
+        const heightCm = getHeightInCm(
+          userMetrics.heightCm,
+          userMetrics.heightFt,
+          userMetrics.heightIn,
+          userMetrics.heightUnit
+        );
+        const age = parseFloat(userMetrics.age);
+
+        if (!weightKg || !heightCm || isNaN(age) || !userMetrics.sex) {
           setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
           return;
         }
 
-        const R = userMetrics.sex === "male" ? 0.68 : 0.55;
+        // Calculate Total Body Water using Watson formula (returns grams)
+        const tbwGrams = calculateWatsonTBW(age, heightCm, weightKg, userMetrics.sex);
+
         const BAC = (targetBAC.min + targetBAC.max) / 2;
-        const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * weightInGrams * R;
+        // Formula: pure alcohol (g) = (BAC/100 + (0.00015 × timeDelta)) × TBW_grams
+        const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * tbwGrams;
         const totalPureAlcoholNeeded = pureAlcoholGrams / 0.789;
 
         const totalTimeDeltaMinutes = timeDelta * 60;
@@ -394,8 +405,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [
     state.drinks,
     state.userMetrics.weight,
-    state.userMetrics.sex,
     state.userMetrics.weightUnit,
+    state.userMetrics.heightCm,
+    state.userMetrics.heightFt,
+    state.userMetrics.heightIn,
+    state.userMetrics.heightUnit,
+    state.userMetrics.age,
+    state.userMetrics.sex,
     state.timeDelta,
     state.drinkingStartTime,
     state.targetBAC,
