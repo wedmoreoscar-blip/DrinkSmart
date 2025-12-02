@@ -7,7 +7,7 @@ import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight, Clock, Chevron
 import { buzzLevels } from "@/data/buzzLevels";
 import { SHOT_ML, PINT_ML, GLASS_ML, VODKA_ABV, BEER_ABV, WINE_ABV } from "@/lib/drinkConstants";
 import { formatTimeDisplay } from "@/lib/timelineHelpers";
-import { getWeightInKg, getHeightInCm, calculateWatsonTBW } from "@/lib/unitConversions";
+import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { useState } from "react";
 
 type ResultsTabProps = {
@@ -18,12 +18,12 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
   const { state } = useAppContext();
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
 
-  // Calculate pure alcohol needed using Watson TBW formula
+  // Calculate pure alcohol needed using appropriate TBW formula
   const calculateAlcoholNeeded = () => {
     const { userMetrics, targetBAC, timeDelta } = state;
     
-    // Check if we have all required data (now includes age and height)
-    if (!userMetrics.weight || !userMetrics.sex || !userMetrics.age || timeDelta === null) {
+    // Check if we have basic required data
+    if (!userMetrics.weight || timeDelta === null) {
       return null;
     }
 
@@ -31,21 +31,25 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
     const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
     if (!weightKg) return null;
 
-    // Get height in cm
+    // Get height in cm (needed for Watson, not for FFM)
     const heightCm = getHeightInCm(
       userMetrics.heightCm,
       userMetrics.heightFt,
       userMetrics.heightIn,
       userMetrics.heightUnit
     );
-    if (!heightCm) return null;
 
-    // Parse age
-    const age = parseFloat(userMetrics.age);
-    if (isNaN(age)) return null;
+    // Calculate Total Body Water using appropriate method (FFM or Watson)
+    const tbwGrams = getTBWGrams({
+      metricType: userMetrics.metricType,
+      bodyFat: userMetrics.bodyFat,
+      age: userMetrics.age,
+      heightCm,
+      weightKg,
+      sex: userMetrics.sex,
+    });
 
-    // Calculate Total Body Water using Watson formula (returns grams)
-    const tbwGrams = calculateWatsonTBW(age, heightCm, weightKg, userMetrics.sex);
+    if (!tbwGrams) return null;
 
     // Use average BAC from target range
     const BAC = (targetBAC.min + targetBAC.max) / 2;
@@ -329,7 +333,7 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
           <div className="space-y-3">
             <h2 className="text-2xl font-bold">Complete Your Profile</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Please fill in your user information (age, height, weight, and sex) and set your drinking timeline 
+              Please fill in your user information (weight and body fat % for FFM mode, OR height, weight, age, and sex for BMI mode) and set your drinking timeline 
               to see personalized alcohol calculations.
             </p>
           </div>
