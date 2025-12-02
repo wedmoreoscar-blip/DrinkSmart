@@ -6,13 +6,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Battery } from "lucide-react";
+import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Battery, Bookmark } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { drinkCategories } from "@/data/drinksData";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { PINT_ML, OZ_ML, SHOT_ML } from "@/lib/drinkConstants";
+import { useSavedDrinks } from "@/hooks/useSavedDrinks";
 
 type DrinkEntry = {
   id: string;
@@ -56,9 +58,21 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const drinks = state.drinks;
   const { toast } = useToast();
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
+  const [saveDrinkCheckboxes, setSaveDrinkCheckboxes] = useState<Record<string, boolean>>({});
+  const { savedDrinks, saveDrink, isLoggedIn } = useSavedDrinks();
 
   // Check if buzz level is too high
   const isExtremeBuzzLevel = state.inebriationLevel >= 9;
+
+  // Combine establishment drinks with saved custom drinks for search
+  const allDrinksWithSaved = [
+    ...allDrinks,
+    ...savedDrinks.map(sd => ({
+      name: sd.drink_name,
+      abv: sd.abv,
+      category: "saved",
+    })),
+  ];
 
   // Calculate total pure alcohol needed (from Results calculation)
   const calculateTotalPureAlcoholNeeded = () => {
@@ -167,16 +181,35 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   const selectDrink = (drinkId: string, drinkName: string) => {
-    const selectedDrink = allDrinks.find(d => d.name === drinkName);
+    const selectedDrink = allDrinksWithSaved.find(d => d.name === drinkName);
     if (selectedDrink) {
       const defaultUnit = getDefaultUnit(selectedDrink.category);
-      updateDrinks(
-        drinks.map((d) =>
-          d.id === drinkId 
-            ? { ...d, drink: drinkName, category: selectedDrink.category, unit: defaultUnit } 
-            : d
-        )
-      );
+      // If it's a saved drink, set it as custom with pre-filled values
+      if (selectedDrink.category === "saved") {
+        updateDrinks(
+          drinks.map((d) =>
+            d.id === drinkId 
+              ? { 
+                  ...d, 
+                  drink: "", 
+                  category: "saved",
+                  unit: defaultUnit,
+                  isCustom: true,
+                  customName: drinkName,
+                  customABV: selectedDrink.abv.toString(),
+                } 
+              : d
+          )
+        );
+      } else {
+        updateDrinks(
+          drinks.map((d) =>
+            d.id === drinkId 
+              ? { ...d, drink: drinkName, category: selectedDrink.category, unit: defaultUnit } 
+              : d
+          )
+        );
+      }
       setOpenPopovers({ ...openPopovers, [drinkId]: false });
     }
   };
@@ -192,7 +225,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   const getDrinkABV = (drinkName: string) => {
-    const drink = allDrinks.find(d => d.name === drinkName);
+    const drink = allDrinksWithSaved.find(d => d.name === drinkName);
     return drink ? drink.abv : null;
   };
 
@@ -293,7 +326,25 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                         <CommandInput placeholder="Type drink name (e.g., mal, beer, vodka)..." />
                         <CommandList>
                           <CommandEmpty>No drinks found.</CommandEmpty>
-                          <CommandGroup>
+                          {/* Saved Drinks Group */}
+                          {savedDrinks.length > 0 && (
+                            <CommandGroup heading="⭐ Your Saved Drinks">
+                              {savedDrinks.map((savedDrink) => (
+                                <CommandItem
+                                  key={`saved-${savedDrink.id}`}
+                                  value={savedDrink.drink_name}
+                                  onSelect={() => selectDrink(drink.id, savedDrink.drink_name)}
+                                >
+                                  <Bookmark className="mr-2 h-4 w-4 text-primary" />
+                                  <span>{savedDrink.drink_name}</span>
+                                  <span className="ml-auto text-xs text-muted-foreground">
+                                    {savedDrink.abv}% ABV
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                          <CommandGroup heading="Establishment Drinks">
                             {allDrinks.map((drinkOption) => (
                               <CommandItem
                                 key={drinkOption.name}
@@ -319,25 +370,54 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                   </Popover>
                 ) : (
                   /* Custom Drink Inputs */
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Drink Name</Label>
-                      <Input
-                        type="text"
-                        placeholder="e.g., My Special Cocktail"
-                        value={drink.customName || ""}
-                        onChange={(e) => updateDrink(drink.id, "customName", e.target.value)}
-                      />
+                  <div className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Drink Name</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g., My Special Cocktail"
+                          value={drink.customName || ""}
+                          onChange={(e) => updateDrink(drink.id, "customName", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>ABV %</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 5"
+                          value={drink.customABV || ""}
+                          onChange={(e) => updateDrink(drink.id, "customABV", e.target.value)}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>ABV %</Label>
-                      <Input
-                        type="number"
-                        placeholder="e.g., 5"
-                        value={drink.customABV || ""}
-                        onChange={(e) => updateDrink(drink.id, "customABV", e.target.value)}
-                      />
-                    </div>
+                    {/* Save drink checkbox */}
+                    {isLoggedIn && drink.customName && drink.customABV && (
+                      <div className="flex items-center space-x-2 pt-2 border-t border-border/50">
+                        <Checkbox
+                          id={`save-drink-${drink.id}`}
+                          checked={saveDrinkCheckboxes[drink.id] || false}
+                          onCheckedChange={(checked) => {
+                            setSaveDrinkCheckboxes(prev => ({ ...prev, [drink.id]: !!checked }));
+                            if (checked && drink.customName && drink.customABV) {
+                              saveDrink(drink.customName, parseFloat(drink.customABV));
+                            }
+                          }}
+                        />
+                        <Label 
+                          htmlFor={`save-drink-${drink.id}`} 
+                          className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                        >
+                          <Bookmark className="h-4 w-4" />
+                          Save this drink to my account
+                        </Label>
+                      </div>
+                    )}
+                    {!isLoggedIn && drink.customName && drink.customABV && (
+                      <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
+                        Sign in to save custom drinks for future use
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

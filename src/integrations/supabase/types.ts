@@ -97,6 +97,30 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_custom_drinks: {
+        Row: {
+          abv: number
+          created_at: string
+          drink_name: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          abv: number
+          created_at?: string
+          drink_name: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          abv?: number
+          created_at?: string
+          drink_name?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_drinks: {
         Row: {
           category: string
