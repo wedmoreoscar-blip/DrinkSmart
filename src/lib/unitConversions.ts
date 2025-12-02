@@ -149,3 +149,61 @@ export const calculateWatsonTBW = (
   // Convert liters to grams (1 liter of water = 1000 grams)
   return tbwLiters * 1000;
 };
+
+/**
+ * Calculate Total Body Water using the FFM (Fat-Free Mass) method
+ * Based on body composition - only requires weight and body fat percentage
+ * 
+ * Formula:
+ * - Lean Body Mass (LBM) = (1 - bodyFat%) × weight
+ * - Water in lean tissue = LBM × 0.73 (lean tissue is ~73% water)
+ * - Water in fat tissue = bodyFat% × weight × 0.1 (fat tissue is ~10% water)
+ * - TBW = Water in lean + Water in fat
+ * 
+ * @param bodyFatPercentage - Body fat percentage (e.g., 15 for 15%)
+ * @param weightKg - Weight in kilograms
+ * @returns Total Body Water in grams
+ */
+export const calculateFFMTBW = (
+  bodyFatPercentage: number,
+  weightKg: number
+): number => {
+  const bodyFatDecimal = bodyFatPercentage / 100;
+  const leanBodyMassKg = (1 - bodyFatDecimal) * weightKg;
+  const waterInLeanKg = leanBodyMassKg * 0.73;
+  const waterInFatKg = bodyFatDecimal * weightKg * 0.1;
+  const tbwKg = waterInLeanKg + waterInFatKg;
+  return tbwKg * 1000; // Convert to grams
+};
+
+/**
+ * Get Total Body Water in grams using the appropriate method
+ * - FFM mode (requires: weight, body fat %)
+ * - Watson/BMI mode (requires: height, weight, age, sex)
+ */
+export const getTBWGrams = (params: {
+  metricType: "bmi" | "ffmi";
+  bodyFat: string;
+  age: string;
+  heightCm: number | null;
+  weightKg: number;
+  sex: "male" | "female" | "";
+}): number | null => {
+  const { metricType, bodyFat, age, heightCm, weightKg, sex } = params;
+  
+  // FFM mode: only needs weight + body fat percentage
+  if (metricType === "ffmi" && bodyFat) {
+    const bodyFatPercentage = parseFloat(bodyFat);
+    if (!isNaN(bodyFatPercentage) && bodyFatPercentage > 0 && bodyFatPercentage < 100) {
+      return calculateFFMTBW(bodyFatPercentage, weightKg);
+    }
+  }
+  
+  // Watson mode: requires height + weight + age + sex
+  const parsedAge = parseFloat(age);
+  if (isNaN(parsedAge) || !sex || !heightCm) {
+    return null;
+  }
+  
+  return calculateWatsonTBW(parsedAge, heightCm, weightKg, sex as "male" | "female");
+};

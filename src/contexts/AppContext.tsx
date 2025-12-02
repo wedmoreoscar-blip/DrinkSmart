@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { getWeightInKg, getHeightInCm, calculateWatsonTBW } from "@/lib/unitConversions";
+import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -245,8 +245,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const calculateDrinkTimeline = () => {
     const { userMetrics, targetBAC, timeDelta, drinks, drinkingStartTime } = state;
     
-    // Check if we have all required data
-    if (!userMetrics.weight || !userMetrics.sex || timeDelta === null || !drinkingStartTime) {
+    // Check if we have required data (different requirements for FFM vs BMI mode)
+    if (!userMetrics.weight || timeDelta === null || !drinkingStartTime) {
       setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
       return;
     }
@@ -263,7 +263,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }))
         );
 
-        // Step 1: Calculate total pure alcohol needed using Watson TBW formula
+        // Step 1: Calculate total pure alcohol needed using appropriate TBW formula
         const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
         const heightCm = getHeightInCm(
           userMetrics.heightCm,
@@ -271,15 +271,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           userMetrics.heightIn,
           userMetrics.heightUnit
         );
-        const age = parseFloat(userMetrics.age);
 
-        if (!weightKg || !heightCm || isNaN(age) || !userMetrics.sex) {
+        if (!weightKg) {
           setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
           return;
         }
 
-        // Calculate Total Body Water using Watson formula (returns grams)
-        const tbwGrams = calculateWatsonTBW(age, heightCm, weightKg, userMetrics.sex);
+        // Calculate Total Body Water using appropriate method (FFM or Watson)
+        const tbwGrams = getTBWGrams({
+          metricType: userMetrics.metricType,
+          bodyFat: userMetrics.bodyFat,
+          age: userMetrics.age,
+          heightCm,
+          weightKg,
+          sex: userMetrics.sex,
+        });
+
+        if (!tbwGrams) {
+          setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
+          return;
+        }
 
         const BAC = (targetBAC.min + targetBAC.max) / 2;
         // Formula: pure alcohol (g) = (BAC/100 + (0.00015 × timeDelta)) × TBW_grams
@@ -412,6 +423,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     state.userMetrics.heightUnit,
     state.userMetrics.age,
     state.userMetrics.sex,
+    state.userMetrics.metricType,
+    state.userMetrics.bodyFat,
     state.timeDelta,
     state.drinkingStartTime,
     state.targetBAC,
