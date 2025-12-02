@@ -7,7 +7,7 @@ import { AlertTriangle, Droplet, Beer, Wine, Martini, ArrowRight, Clock, Chevron
 import { buzzLevels } from "@/data/buzzLevels";
 import { SHOT_ML, PINT_ML, GLASS_ML, VODKA_ABV, BEER_ABV, WINE_ABV } from "@/lib/drinkConstants";
 import { formatTimeDisplay } from "@/lib/timelineHelpers";
-import { getWeightInGrams } from "@/lib/unitConversions";
+import { getWeightInKg, getHeightInCm, calculateWatsonTBW } from "@/lib/unitConversions";
 import { useState } from "react";
 
 type ResultsTabProps = {
@@ -18,30 +18,41 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
   const { state } = useAppContext();
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
 
-  // Calculate pure alcohol needed
+  // Calculate pure alcohol needed using Watson TBW formula
   const calculateAlcoholNeeded = () => {
     const { userMetrics, targetBAC, timeDelta } = state;
     
-    // Check if we have all required data
-    if (!userMetrics.weight || !userMetrics.sex || timeDelta === null) {
+    // Check if we have all required data (now includes age and height)
+    if (!userMetrics.weight || !userMetrics.sex || !userMetrics.age || timeDelta === null) {
       return null;
     }
 
-    // Convert weight to grams
-    const weightInGrams = getWeightInGrams(userMetrics.weight, userMetrics.weightUnit);
-    if (!weightInGrams) {
-      return null;
-    }
+    // Get weight in kg
+    const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
+    if (!weightKg) return null;
 
-    // Get R value based on sex
-    const R = userMetrics.sex === "male" ? 0.68 : 0.55;
+    // Get height in cm
+    const heightCm = getHeightInCm(
+      userMetrics.heightCm,
+      userMetrics.heightFt,
+      userMetrics.heightIn,
+      userMetrics.heightUnit
+    );
+    if (!heightCm) return null;
+
+    // Parse age
+    const age = parseFloat(userMetrics.age);
+    if (isNaN(age)) return null;
+
+    // Calculate Total Body Water using Watson formula (returns grams)
+    const tbwGrams = calculateWatsonTBW(age, heightCm, weightKg, userMetrics.sex);
 
     // Use average BAC from target range
     const BAC = (targetBAC.min + targetBAC.max) / 2;
 
-    // Calculate pure alcohol in grams
-    // Formula: (BAC/100 + (0.00015*time_delta)) * (WEIGHT in grams) * R
-    const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * weightInGrams * R;
+    // Calculate pure alcohol in grams using Watson TBW
+    // Formula: (BAC/100 + (0.00015 × timeDelta)) × TBW_grams
+    const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * tbwGrams;
 
     // Convert to ml (divide by 0.789)
     const pureAlcoholMl = pureAlcoholGrams / 0.789;
@@ -318,7 +329,7 @@ const ResultsTab = ({ onNavigateToDrinks }: ResultsTabProps) => {
           <div className="space-y-3">
             <h2 className="text-2xl font-bold">Complete Your Profile</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Please fill in your user information (weight and sex) and set your drinking timeline 
+              Please fill in your user information (age, height, weight, and sex) and set your drinking timeline 
               to see personalized alcohol calculations.
             </p>
           </div>
