@@ -59,6 +59,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const { toast } = useToast();
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
   const [saveDrinkCheckboxes, setSaveDrinkCheckboxes] = useState<Record<string, boolean>>({});
+  const [filledFromSaved, setFilledFromSaved] = useState<Record<string, boolean>>({});
   const { savedDrinks, saveDrink, isLoggedIn } = useSavedDrinks();
 
   // Check if buzz level is too high
@@ -390,6 +391,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                                     : d
                                 )
                               );
+                              setFilledFromSaved(prev => ({ ...prev, [drink.id]: true }));
                             }
                           }}
                         >
@@ -413,7 +415,10 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                           type="text"
                           placeholder="e.g., My Special Cocktail"
                           value={drink.customName || ""}
-                          onChange={(e) => updateDrink(drink.id, "customName", e.target.value)}
+                          onChange={(e) => {
+                            updateDrink(drink.id, "customName", e.target.value);
+                            setFilledFromSaved(prev => ({ ...prev, [drink.id]: false }));
+                          }}
                         />
                       </div>
                       <div className="space-y-2">
@@ -422,12 +427,15 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                           type="number"
                           placeholder="e.g., 5"
                           value={drink.customABV || ""}
-                          onChange={(e) => updateDrink(drink.id, "customABV", e.target.value)}
+                          onChange={(e) => {
+                            updateDrink(drink.id, "customABV", e.target.value);
+                            setFilledFromSaved(prev => ({ ...prev, [drink.id]: false }));
+                          }}
                         />
                       </div>
                     </div>
                     {/* Save drink checkbox */}
-                    {isLoggedIn && drink.customName && drink.customABV && (
+                    {isLoggedIn && drink.customName && drink.customABV && !filledFromSaved[drink.id] && (
                       <div className="flex items-center space-x-2 pt-2 border-t border-border/50">
                         <Checkbox
                           id={`save-drink-${drink.id}`}
