@@ -41,6 +41,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_drinks: {
+        Row: {
+          category: string
+          created_at: string
+          custom_abv: string | null
+          custom_name: string | null
+          drink: string
+          id: string
+          is_custom: boolean | null
+          mixer: string | null
+          mixer_quantity: string | null
+          mixer_unit: string | null
+          quantity: string
+          sort_order: number | null
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          custom_abv?: string | null
+          custom_name?: string | null
+          drink: string
+          id?: string
+          is_custom?: boolean | null
+          mixer?: string | null
+          mixer_quantity?: string | null
+          mixer_unit?: string | null
+          quantity: string
+          sort_order?: number | null
+          unit?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          custom_abv?: string | null
+          custom_name?: string | null
+          drink?: string
+          id?: string
+          is_custom?: boolean | null
+          mixer?: string | null
+          mixer_quantity?: string | null
+          mixer_unit?: string | null
+          quantity?: string
+          sort_order?: number | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
