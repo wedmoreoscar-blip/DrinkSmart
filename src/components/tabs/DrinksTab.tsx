@@ -371,6 +371,41 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                 ) : (
                   /* Custom Drink Inputs */
                   <div className="space-y-4">
+                    {/* Select from saved drinks */}
+                    {isLoggedIn && savedDrinks.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Bookmark className="h-4 w-4 text-primary" />
+                          Select from saved drinks
+                        </Label>
+                        <Select
+                          value=""
+                          onValueChange={(drinkId) => {
+                            const selected = savedDrinks.find(d => d.id === drinkId);
+                            if (selected) {
+                              updateDrinks(
+                                drinks.map((d) =>
+                                  d.id === drink.id 
+                                    ? { ...d, customName: selected.drink_name, customABV: selected.abv.toString() } 
+                                    : d
+                                )
+                              );
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a saved drink..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            {savedDrinks.map((savedDrink) => (
+                              <SelectItem key={savedDrink.id} value={savedDrink.id}>
+                                {savedDrink.drink_name} ({savedDrink.abv}% ABV)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Drink Name</Label>
