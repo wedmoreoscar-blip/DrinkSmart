@@ -38,7 +38,7 @@ const Dashboard = () => {
                 </SheetHeader>
                 <div className="mt-6 space-y-2">
                   <button 
-                    onClick={() => navigate("/auth")}
+                    onClick={() => navigate("/account")}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors"
                   >
                     <User className="h-5 w-5 text-muted-foreground" />
