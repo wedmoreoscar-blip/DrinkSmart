@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AppProvider } from "@/contexts/AppContext";
 import UserInfoTab from "@/components/tabs/UserInfoTab";
@@ -18,6 +19,7 @@ import { Settings, User, Monitor } from "lucide-react";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("target-buzz");
+  const navigate = useNavigate();
 
   return (
     <AppProvider>
@@ -35,7 +37,10 @@ const Dashboard = () => {
                   <SheetTitle>Settings</SheetTitle>
                 </SheetHeader>
                 <div className="mt-6 space-y-2">
-                  <button className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors">
+                  <button 
+                    onClick={() => navigate("/auth")}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors"
+                  >
                     <User className="h-5 w-5 text-muted-foreground" />
                     <span>Account</span>
                   </button>
