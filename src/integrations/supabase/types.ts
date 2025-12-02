@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      establishment_drinks: {
+        Row: {
+          abv: number
+          category: string
+          category_label: string
+          created_at: string
+          drink_name: string
+          establishment_id: string
+          id: string
+        }
+        Insert: {
+          abv: number
+          category: string
+          category_label: string
+          created_at?: string
+          drink_name: string
+          establishment_id: string
+          id?: string
+        }
+        Update: {
+          abv?: number
+          category?: string
+          category_label?: string
+          created_at?: string
+          drink_name?: string
+          establishment_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_drinks_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      establishments: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
