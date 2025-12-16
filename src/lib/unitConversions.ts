@@ -192,18 +192,28 @@ export const getTBWGrams = (params: {
   const { metricType, bodyFat, age, heightCm, weightKg, sex } = params;
   
   // FFM mode: only needs weight + body fat percentage
-  if (metricType === "ffmi" && bodyFat) {
+  if (metricType === "ffmi") {
     const bodyFatPercentage = parseFloat(bodyFat);
     if (!isNaN(bodyFatPercentage) && bodyFatPercentage > 0 && bodyFatPercentage < 100) {
       return calculateFFMTBW(bodyFatPercentage, weightKg);
     }
-  }
-  
-  // Watson mode: requires height + weight + age + sex
-  const parsedAge = parseFloat(age);
-  if (isNaN(parsedAge) || !sex || !heightCm) {
+    // If FFM mode but invalid body fat, return null (don't fall through to Watson)
     return null;
   }
   
-  return calculateWatsonTBW(parsedAge, heightCm, weightKg, sex as "male" | "female");
+  // BMI/Watson mode: requires height + weight + age + sex
+  const parsedAge = parseFloat(age);
+  if (isNaN(parsedAge) || parsedAge <= 0) {
+    return null;
+  }
+  
+  if (!sex || (sex !== "male" && sex !== "female")) {
+    return null;
+  }
+  
+  if (!heightCm || heightCm <= 0) {
+    return null;
+  }
+  
+  return calculateWatsonTBW(parsedAge, heightCm, weightKg, sex);
 };
