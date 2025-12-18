@@ -44,7 +44,7 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
         <div className="flex items-center justify-between">
           <div>
             <Label htmlFor="metric-toggle" className="text-lg font-semibold">
-              {metricType === "bmi" ? "Using BMI" : "Using FFMI"}
+              {metricType === "bmi" ? "Using BMI" : "Using FFM"}
             </Label>
             <p className="text-sm text-muted-foreground mt-1">
               {metricType === "bmi" 
