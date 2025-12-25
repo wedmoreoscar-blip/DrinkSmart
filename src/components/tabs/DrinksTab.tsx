@@ -14,6 +14,7 @@ import { drinkCategories } from "@/data/drinksData";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { PINT_ML, OZ_ML, SHOT_ML } from "@/lib/drinkConstants";
+import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { useSavedDrinks } from "@/hooks/useSavedDrinks";
 
 type DrinkEntry = {
@@ -75,25 +76,47 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
     })),
   ];
 
-  // Calculate total pure alcohol needed (from Results calculation)
+  // Calculate total pure alcohol needed using Watson TBW formula (matching ResultsTab)
   const calculateTotalPureAlcoholNeeded = () => {
     const { userMetrics, targetBAC, timeDelta } = state;
     
-    if (!userMetrics.weight || !userMetrics.sex || timeDelta === null) {
+    // Check if we have basic required data
+    if (!userMetrics.weight || timeDelta === null) {
       return null;
     }
 
-    // Convert weight to grams
-    let weightInGrams: number;
-    if (userMetrics.weightUnit === "kg") {
-      weightInGrams = parseFloat(userMetrics.weight) * 1000;
-    } else {
-      weightInGrams = parseFloat(userMetrics.weight) * 453.592;
-    }
+    // Get weight in kg
+    const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
+    if (!weightKg) return null;
 
-    const R = userMetrics.sex === "male" ? 0.68 : 0.55;
+    // Get height in cm (needed for Watson, not for FFM)
+    const heightCm = getHeightInCm(
+      userMetrics.heightCm,
+      userMetrics.heightFt,
+      userMetrics.heightIn,
+      userMetrics.heightUnit
+    );
+
+    // Calculate Total Body Water using appropriate method (FFM or Watson)
+    const tbwGrams = getTBWGrams({
+      metricType: userMetrics.metricType,
+      bodyFat: userMetrics.bodyFat,
+      age: userMetrics.age,
+      heightCm,
+      weightKg,
+      sex: userMetrics.sex,
+    });
+
+    if (!tbwGrams) return null;
+
+    // Use average BAC from target range
     const BAC = (targetBAC.min + targetBAC.max) / 2;
-    const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * weightInGrams * R;
+
+    // Calculate pure alcohol in grams using Watson TBW
+    // Formula: (BAC/100 + (0.00015 × timeDelta)) × TBW_grams
+    const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * tbwGrams;
+
+    // Convert to ml (divide by 0.789)
     const pureAlcoholMl = pureAlcoholGrams / 0.789;
 
     return pureAlcoholMl;
