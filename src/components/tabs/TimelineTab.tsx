@@ -322,12 +322,12 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
               {/* Moving progress indicator */}
               {progressInfo.hasStarted && !progressInfo.isComplete && (
                 <div 
-                  className="absolute left-0 w-10 h-10 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center z-20 transition-all duration-1000 ease-linear animate-pulse"
+                  className="absolute left-[3px] w-[34px] h-[34px] rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center z-20 transition-all duration-1000 ease-linear animate-pulse"
                   style={{ 
                     top: `calc(${progressInfo.percentage}% - 4px)`,
                   }}
                 >
-                  <Play className="w-4 h-4 text-primary-foreground fill-current ml-0.5" />
+                  <div className="w-2 h-2 rounded-full bg-primary-foreground" />
                 </div>
               )}
               
