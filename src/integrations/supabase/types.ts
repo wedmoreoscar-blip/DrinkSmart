@@ -23,6 +23,7 @@ export type Database = {
           drink_name: string
           establishment_id: string
           id: string
+          user_id: string | null
         }
         Insert: {
           abv: number
@@ -32,6 +33,7 @@ export type Database = {
           drink_name: string
           establishment_id: string
           id?: string
+          user_id?: string | null
         }
         Update: {
           abv?: number
@@ -41,6 +43,7 @@ export type Database = {
           drink_name?: string
           establishment_id?: string
           id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -57,16 +60,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          user_id?: string | null
         }
         Relationships: []
       }
