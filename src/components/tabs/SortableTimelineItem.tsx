@@ -61,14 +61,14 @@ export const SortableTimelineItem = ({
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <div className="relative flex items-start gap-4 pl-12">
-        {/* Timeline dot */}
-        <div className={`absolute left-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-          isPast ? "bg-primary/20" : 
-          isCurrent ? "bg-primary animate-pulse" : 
-          "bg-muted border-2 border-primary/30"
+        {/* Timeline dot - z-10 ensures it's above the progress line */}
+        <div className={`absolute left-0 w-10 h-10 rounded-full flex items-center justify-center transition-all z-10 ${
+          isPast ? "bg-primary text-primary-foreground shadow-md" : 
+          isCurrent ? "bg-primary animate-pulse shadow-lg shadow-primary/40" : 
+          "bg-background border-2 border-primary/30"
         }`}>
           {isPast ? (
-            <span className="text-primary">✓</span>
+            <span className="text-primary-foreground font-bold text-lg">✓</span>
           ) : (
             <span className="text-2xl">{entry.icon}</span>
           )}

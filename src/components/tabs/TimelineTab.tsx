@@ -306,13 +306,13 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
             onDragEnd={handleDragEnd}
           >
             <div className="relative space-y-6">
-              {/* Vertical line (background) */}
-              <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-primary/20" />
+              {/* Vertical line (background) - z-0 keeps it behind dots */}
+              <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-primary/20 z-0" />
               
-              {/* Progress line (filled portion) */}
+              {/* Progress line (filled portion) - z-0 keeps it behind dots */}
               {progressInfo.hasStarted && !progressInfo.isComplete && (
                 <div 
-                  className="absolute left-[19px] top-4 w-0.5 bg-primary transition-all duration-1000 ease-linear"
+                  className="absolute left-[19px] top-4 w-0.5 bg-primary z-0 transition-all duration-1000 ease-linear"
                   style={{ 
                     height: `calc(${progressInfo.percentage}% - 16px)`,
                   }}
