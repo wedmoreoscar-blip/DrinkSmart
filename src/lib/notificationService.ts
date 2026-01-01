@@ -10,6 +10,9 @@ export type DrinkNotification = {
   totalUnits: number;
 };
 
+// Track if listeners have been registered to prevent duplicates
+let listenersRegistered = false;
+
 /**
  * Check if running on a native platform (iOS/Android)
  */
@@ -70,6 +73,21 @@ export const cancelAllDrinkNotifications = async (): Promise<void> => {
 };
 
 /**
+ * Generate a stable numeric ID from a string
+ * Uses a simple hash function to create consistent IDs
+ */
+const generateStableId = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  // Ensure positive ID between 1 and 2147483647 (max 32-bit signed int)
+  return Math.abs(hash % 2147483646) + 1;
+};
+
+/**
  * Schedule drink notifications for all future timeline entries
  */
 export const scheduleDrinkNotifications = async (
@@ -100,21 +118,24 @@ export const scheduleDrinkNotifications = async (
       return true;
     }
     
-    // Schedule new notifications
+    // Schedule new notifications with stable IDs
     await LocalNotifications.schedule({
-      notifications: futureNotifications.map((notification, index) => {
+      notifications: futureNotifications.map((notification) => {
         const unitText = notification.totalUnits > 1 
           ? ` (${notification.unitNumber}/${notification.totalUnits})`
           : '';
         
+        // Generate stable ID from drinkId + unitNumber
+        const stableId = generateStableId(`${notification.id}`);
+        
         return {
-          id: index + 1, // IDs start at 1
+          id: stableId,
           title: "Time to Drink! 🍻",
           body: `${notification.icon} ${notification.drinkName}${unitText}`,
           schedule: { at: notification.time },
           sound: 'default',
-          smallIcon: 'ic_stat_icon_config_sample',
-          largeIcon: 'ic_launcher',
+          // Use undefined to let the system use defaults
+          // This avoids referencing icons that may not exist
         };
       })
     });
@@ -129,10 +150,16 @@ export const scheduleDrinkNotifications = async (
 
 /**
  * Register notification action listeners
+ * Returns a cleanup function to remove listeners
  */
-export const registerNotificationListeners = async (): Promise<void> => {
+export const registerNotificationListeners = async (): Promise<() => void> => {
   if (!isNativePlatform()) {
-    return;
+    return () => {};
+  }
+  
+  // Prevent duplicate listener registration
+  if (listenersRegistered) {
+    return () => {};
   }
   
   try {
@@ -143,7 +170,16 @@ export const registerNotificationListeners = async (): Promise<void> => {
     await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
       console.log('Notification action performed:', action);
     });
+    
+    listenersRegistered = true;
+    
+    // Return cleanup function
+    return () => {
+      LocalNotifications.removeAllListeners();
+      listenersRegistered = false;
+    };
   } catch (error) {
     console.error('Error registering notification listeners:', error);
+    return () => {};
   }
 };

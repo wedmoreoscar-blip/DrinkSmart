@@ -139,12 +139,9 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
     }
   }, [notificationsEnabled, state.drinkTimeline, scheduleFromTimeline]);
 
-  // Handle notification toggle
+  // Handle notification toggle - useEffect handles scheduling, so no duplicate call here
   const handleNotificationToggle = async (enabled: boolean) => {
-    const success = await toggleNotifications(enabled);
-    if (success && enabled && state.drinkTimeline.length > 0) {
-      scheduleFromTimeline(state.drinkTimeline);
-    }
+    await toggleNotifications(enabled);
   };
 
   const formatTime = (date: Date) => formatTimeDisplay(date);

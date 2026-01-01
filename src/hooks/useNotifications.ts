@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   isNativePlatform,
   checkNotificationPermissions,
@@ -11,11 +11,14 @@ import {
 
 type PermissionState = 'unknown' | 'granted' | 'denied' | 'prompt' | 'not-available';
 
+const NOTIFICATIONS_STORAGE_KEY = 'drink-notifications-enabled';
+
 export const useNotifications = () => {
   const [isNative, setIsNative] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<PermissionState>('unknown');
   const [isLoading, setIsLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   // Check platform and permissions on mount
   useEffect(() => {
@@ -28,18 +31,36 @@ export const useNotifications = () => {
         return;
       }
       
-      // Register listeners
-      await registerNotificationListeners();
+      // Register listeners and store cleanup function
+      const cleanup = await registerNotificationListeners();
+      cleanupRef.current = cleanup;
       
       // Check current permission status
       const status = await checkNotificationPermissions();
       if (status) {
-        setPermissionStatus(status.display as PermissionState);
-        setNotificationsEnabled(status.display === 'granted');
+        const displayStatus = status.display as PermissionState;
+        setPermissionStatus(displayStatus);
+        
+        // Only enable notifications if:
+        // 1. Permissions are granted AND
+        // 2. User previously enabled them (stored in localStorage)
+        const storedPreference = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+        const userPreviouslyEnabled = storedPreference === 'true';
+        
+        if (displayStatus === 'granted' && userPreviouslyEnabled) {
+          setNotificationsEnabled(true);
+        }
       }
     };
     
     init();
+    
+    // Cleanup listeners on unmount
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+      }
+    };
   }, []);
 
   // Request permissions
@@ -54,7 +75,10 @@ export const useNotifications = () => {
       if (status) {
         setPermissionStatus(status.display as PermissionState);
         const granted = status.display === 'granted';
-        setNotificationsEnabled(granted);
+        if (granted) {
+          setNotificationsEnabled(true);
+          localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, 'true');
+        }
         return granted;
       }
       return false;
@@ -106,12 +130,15 @@ export const useNotifications = () => {
         if (!granted) {
           return false;
         }
+      } else {
+        setNotificationsEnabled(true);
+        localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, 'true');
       }
-      setNotificationsEnabled(true);
       return true;
     } else {
       await cancelAll();
       setNotificationsEnabled(false);
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, 'false');
       return true;
     }
   }, [permissionStatus, requestPermission, cancelAll]);
