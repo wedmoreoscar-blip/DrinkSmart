@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Battery, Bookmark, ChevronDown, ChevronRight, Store, Clock } from "lucide-react";
+import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Battery, Bookmark, ChevronDown, ChevronRight, Store, Clock, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useState, useMemo } from "react";
@@ -31,6 +31,7 @@ type DrinkEntry = {
   mixerUnit?: "ml" | "oz" | "shots" | "pints" | "glass";
   isCustom?: boolean;
   customName?: string;
+  pricePerUnit?: number | null;
 };
 
 type FlattenedDrink = {
@@ -41,6 +42,9 @@ type FlattenedDrink = {
   establishmentId?: string;
   establishmentName?: string;
   isSessionOnly?: boolean;
+  price?: number | null;
+  volume?: number | null;
+  volumeUnit?: string | null;
 };
 
 // Determine default unit based on category
@@ -238,6 +242,19 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const remainingPureAlcohol = totalPureAlcoholNeeded ? totalPureAlcoholNeeded - pureAlcoholChosen : null;
   const progressPercentage = totalPureAlcoholNeeded ? (pureAlcoholChosen / totalPureAlcoholNeeded) * 100 : 0;
 
+  // Calculate estimated cost
+  const estimatedCost = drinks.reduce((total, drink) => {
+    if (drink.pricePerUnit != null && drink.quantity) {
+      const qty = parseFloat(drink.quantity);
+      if (!isNaN(qty)) {
+        return total + drink.pricePerUnit * qty;
+      }
+    }
+    return total;
+  }, 0);
+  const hasPricedDrinks = drinks.some(d => d.pricePerUnit != null);
+  const hasMissingPrices = drinks.some(d => d.drink && d.pricePerUnit == null);
+
   const addDrink = () => {
     updateDrinks([
       ...drinks,
@@ -269,7 +286,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
     );
   };
 
-  const selectDrink = (drinkId: string, drinkName: string, abv: number, category: string) => {
+  const selectDrink = (drinkId: string, drinkName: string, abv: number, category: string, price?: number | null) => {
     const defaultUnit = getDefaultUnit(category);
     
     // If it's a saved drink, set it as custom with pre-filled values
@@ -285,6 +302,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                 isCustom: true,
                 customName: drinkName,
                 customABV: abv.toString(),
+                pricePerUnit: null,
               } 
             : d
         )
@@ -293,7 +311,14 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
       updateDrinks(
         drinks.map((d) =>
           d.id === drinkId 
-            ? { ...d, drink: drinkName, category, unit: defaultUnit, customABV: abv.toString() } 
+            ? { 
+                ...d, 
+                drink: drinkName, 
+                category, 
+                unit: defaultUnit, 
+                customABV: abv.toString(),
+                pricePerUnit: price ?? null,
+              } 
             : d
         )
       );
@@ -420,7 +445,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                         <CommandItem
                           key={`${establishment.id}-${estDrink.id}`}
                           value={`${establishment.name} ${categoryLabel} ${estDrink.drink_name}`}
-                          onSelect={() => selectDrink(drinkId, estDrink.drink_name, estDrink.abv, estDrink.category)}
+                          onSelect={() => selectDrink(drinkId, estDrink.drink_name, estDrink.abv, estDrink.category, estDrink.price)}
                           className="cursor-pointer"
                         >
                           <Check
@@ -430,7 +455,10 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                             )}
                           />
                           <span>{estDrink.drink_name}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">
+                          <span className="ml-auto text-xs text-muted-foreground flex items-center gap-2">
+                            {estDrink.price != null && (
+                              <span className="text-green-600">£{estDrink.price.toFixed(2)}</span>
+                            )}
                             {estDrink.abv}% ABV
                           </span>
                         </CommandItem>
@@ -780,6 +808,24 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
             <span>Log in to save custom drinks and establishments for future sessions.</span>
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Estimated Cost Card */}
+      {hasPricedDrinks && estimatedCost > 0 && (
+        <Card className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-600/10 border-green-500/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-600" />
+              <span className="font-semibold">Estimated Cost</span>
+            </div>
+            <span className="text-2xl font-bold text-green-600">£{estimatedCost.toFixed(2)}</span>
+          </div>
+          {hasMissingPrices && (
+            <p className="text-xs text-muted-foreground mt-2">
+              ⓘ Some drinks don't have price data
+            </p>
+          )}
+        </Card>
       )}
 
       {/* Pure Alcohol Progress Meter */}

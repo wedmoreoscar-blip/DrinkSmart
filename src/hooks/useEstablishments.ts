@@ -15,6 +15,9 @@ export type EstablishmentDrink = {
   abv: number;
   category: string;
   category_label: string;
+  price: number | null;
+  volume: number | null;
+  volume_unit: string | null;
 };
 
 export const useEstablishments = () => {
@@ -116,6 +119,10 @@ export const useEstablishments = () => {
       ...drink,
       id: `session-drink-${Date.now()}-${index}`,
       establishment_id: sessionEstId,
+      // Ensure price, volume, volume_unit are included
+      price: drink.price ?? null,
+      volume: drink.volume ?? null,
+      volume_unit: drink.volume_unit ?? null,
     }));
 
     setSessionEstablishments(prev => [...prev, newEstablishment]);
@@ -140,6 +147,9 @@ export const useEstablishments = () => {
       establishmentId: d.establishment_id,
       establishmentName: establishments.find(e => e.id === d.establishment_id)?.name || "Unknown",
       isSessionOnly: false,
+      price: d.price,
+      volume: d.volume,
+      volumeUnit: d.volume_unit,
     }));
 
     const sessionDrinks = sessionEstablishmentDrinks.map(d => ({
@@ -150,6 +160,9 @@ export const useEstablishments = () => {
       establishmentId: d.establishment_id,
       establishmentName: sessionEstablishments.find(e => e.id === d.establishment_id)?.name || "Unknown",
       isSessionOnly: true,
+      price: d.price,
+      volume: d.volume,
+      volumeUnit: d.volume_unit,
     }));
 
     return [...dbDrinks, ...sessionDrinks];

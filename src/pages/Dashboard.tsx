@@ -7,6 +7,7 @@ import InebriationLevelTab from "@/components/tabs/InebriationLevelTab";
 import DrinksTab from "@/components/tabs/DrinksTab";
 import TimelineTab from "@/components/tabs/TimelineTab";
 import ResultsTab from "@/components/tabs/ResultsTab";
+import MenuScannerTab from "@/components/tabs/MenuScannerTab";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -62,10 +63,11 @@ const Dashboard = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
+            <TabsList className="grid w-full grid-cols-6 mb-6">
               <TabsTrigger value="target-buzz">Target Buzz</TabsTrigger>
               <TabsTrigger value="user-info">User Info</TabsTrigger>
               <TabsTrigger value="results">Results</TabsTrigger>
+              <TabsTrigger value="menu-scanner">Menu Scanner</TabsTrigger>
               <TabsTrigger value="drinks">Drinks</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
             </TabsList>
@@ -79,7 +81,11 @@ const Dashboard = () => {
             </TabsContent>
 
             <TabsContent value="results">
-              <ResultsTab onNavigateToDrinks={() => setActiveTab("drinks")} />
+              <ResultsTab onNavigateToDrinks={() => setActiveTab("menu-scanner")} />
+            </TabsContent>
+
+            <TabsContent value="menu-scanner">
+              <MenuScannerTab onNext={() => setActiveTab("drinks")} />
             </TabsContent>
 
             <TabsContent value="drinks">
