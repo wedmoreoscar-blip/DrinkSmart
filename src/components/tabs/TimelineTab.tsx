@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Clock, Target } from "lucide-react";
+import { ArrowRight, Clock, Target, Bell, BellOff } from "lucide-react";
 import { formatTimeDisplay, getUnitDisplayText } from "@/lib/timelineHelpers";
+import { useNotifications } from "@/hooks/useNotifications";
 import {
   DndContext,
   closestCenter,
@@ -29,6 +31,15 @@ type TimelineTabProps = {
 const TimelineTab = ({ onNext }: TimelineTabProps) => {
   const { state, reorderTimelineEntries } = useAppContext();
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Notification hook
+  const {
+    isNative,
+    notificationsEnabled,
+    isLoading: notificationsLoading,
+    toggleNotifications,
+    scheduleFromTimeline,
+  } = useNotifications();
 
   // Setup drag and drop sensors
   const sensors = useSensors(
@@ -121,6 +132,21 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Schedule notifications when timeline changes and notifications are enabled
+  useEffect(() => {
+    if (notificationsEnabled && state.drinkTimeline.length > 0) {
+      scheduleFromTimeline(state.drinkTimeline);
+    }
+  }, [notificationsEnabled, state.drinkTimeline, scheduleFromTimeline]);
+
+  // Handle notification toggle
+  const handleNotificationToggle = async (enabled: boolean) => {
+    const success = await toggleNotifications(enabled);
+    if (success && enabled && state.drinkTimeline.length > 0) {
+      scheduleFromTimeline(state.drinkTimeline);
+    }
+  };
+
   const formatTime = (date: Date) => formatTimeDisplay(date);
 
   const getElapsedTime = () => {
@@ -208,6 +234,32 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
           <div className="text-2xl font-bold">{getTimeUntilTarget() || "—"}</div>
         </Card>
       </div>
+
+      {/* Notification Toggle - Only show on native platforms */}
+      {isNative && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {notificationsEnabled ? (
+                <Bell className="w-5 h-5 text-primary" />
+              ) : (
+                <BellOff className="w-5 h-5 text-muted-foreground" />
+              )}
+              <div>
+                <div className="font-medium">Drink Reminders</div>
+                <div className="text-sm text-muted-foreground">
+                  Get notified when it's time for your next drink
+                </div>
+              </div>
+            </div>
+            <Switch
+              checked={notificationsEnabled}
+              onCheckedChange={handleNotificationToggle}
+              disabled={notificationsLoading}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* Timeline */}
       <Card>
