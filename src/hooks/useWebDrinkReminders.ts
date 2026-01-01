@@ -38,13 +38,13 @@ export const useWebDrinkReminders = (
       const entryTime = entry.time.getTime();
       const timeDiff = now.getTime() - entryTime;
 
-      // Check if we're within the notification window (trigger slightly early so the center of 
-      // the moving indicator aligns with the drink icon when the toast appears)
-      // We trigger 500ms early to account for the visual offset of the pulsing indicator
-      const triggerOffset = 500; // ms early
+      // Check if we're within the notification window (trigger early so the center of 
+      // the moving indicator aligns with the drink icon center when the toast appears)
+      // We trigger 1500ms early to account for the visual positioning of the pulsing indicator
+      const triggerOffset = 1500; // ms early
       if (
         timeDiff >= -triggerOffset &&
-        timeDiff < 2000 &&
+        timeDiff < 500 &&
         !notifiedTimesRef.current.has(entryTime)
       ) {
         notifiedTimesRef.current.add(entryTime);
