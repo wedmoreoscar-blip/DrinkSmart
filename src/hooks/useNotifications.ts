@@ -13,6 +13,24 @@ type PermissionState = 'unknown' | 'granted' | 'denied' | 'prompt' | 'not-availa
 
 const NOTIFICATIONS_STORAGE_KEY = 'drink-notifications-enabled';
 
+const safeStorageGet = (key: string): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeStorageSet = (key: string, value: string): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore (e.g., storage disabled)
+  }
+};
+
 export const useNotifications = () => {
   const [isNative, setIsNative] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<PermissionState>('unknown');
@@ -22,41 +40,46 @@ export const useNotifications = () => {
 
   // Check platform and permissions on mount
   useEffect(() => {
+    let cancelled = false;
+
     const init = async () => {
       const native = isNativePlatform();
+      if (cancelled) return;
       setIsNative(native);
-      
+
       if (!native) {
         setPermissionStatus('not-available');
         return;
       }
-      
-      // Register listeners and store cleanup function
+
+      // Register listeners (handle fast unmount race)
       const cleanup = await registerNotificationListeners();
+      if (cancelled) {
+        cleanup();
+        return;
+      }
       cleanupRef.current = cleanup;
-      
+
       // Check current permission status
       const status = await checkNotificationPermissions();
+      if (cancelled) return;
+
       if (status) {
         const displayStatus = status.display as PermissionState;
         setPermissionStatus(displayStatus);
-        
-        // Only enable notifications if:
-        // 1. Permissions are granted AND
-        // 2. User previously enabled them (stored in localStorage)
-        const storedPreference = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-        const userPreviouslyEnabled = storedPreference === 'true';
-        
+
+        // Only enable notifications if permissions are granted AND user previously enabled them.
+        const userPreviouslyEnabled = safeStorageGet(NOTIFICATIONS_STORAGE_KEY) === 'true';
         if (displayStatus === 'granted' && userPreviouslyEnabled) {
           setNotificationsEnabled(true);
         }
       }
     };
-    
+
     init();
-    
-    // Cleanup listeners on unmount
+
     return () => {
+      cancelled = true;
       if (cleanupRef.current) {
         cleanupRef.current();
       }
@@ -65,83 +88,83 @@ export const useNotifications = () => {
 
   // Request permissions
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (!isNative) {
-      return false;
-    }
-    
+    if (!isNative) return false;
+
     setIsLoading(true);
     try {
       const status = await requestNotificationPermissions();
-      if (status) {
-        setPermissionStatus(status.display as PermissionState);
-        const granted = status.display === 'granted';
-        if (granted) {
-          setNotificationsEnabled(true);
-          localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, 'true');
-        }
-        return granted;
+      if (!status) return false;
+
+      setPermissionStatus(status.display as PermissionState);
+      const granted = status.display === 'granted';
+
+      if (granted) {
+        setNotificationsEnabled(true);
+        safeStorageSet(NOTIFICATIONS_STORAGE_KEY, 'true');
       }
-      return false;
+
+      return granted;
     } finally {
       setIsLoading(false);
     }
   }, [isNative]);
 
   // Schedule notifications from timeline
-  const scheduleFromTimeline = useCallback(async (
-    timeline: Array<{
-      drinkId: string;
-      drinkName: string;
-      time: Date;
-      icon: string;
-      unitNumber: number;
-      totalUnits: number;
-    }>
-  ): Promise<boolean> => {
-    if (!isNative || !notificationsEnabled) {
-      return false;
-    }
-    
-    const notifications: DrinkNotification[] = timeline.map(entry => ({
-      id: `${entry.drinkId}-${entry.unitNumber}`,
-      drinkName: entry.drinkName,
-      time: entry.time,
-      icon: entry.icon,
-      unitNumber: entry.unitNumber,
-      totalUnits: entry.totalUnits,
-    }));
-    
-    return scheduleDrinkNotifications(notifications);
-  }, [isNative, notificationsEnabled]);
+  const scheduleFromTimeline = useCallback(
+    async (
+      timeline: Array<{
+        drinkId: string;
+        drinkName: string;
+        time: Date;
+        icon: string;
+        unitNumber: number;
+        totalUnits: number;
+      }>
+    ): Promise<boolean> => {
+      if (!isNative || !notificationsEnabled) return false;
+
+      const notifications: DrinkNotification[] = timeline.map((entry) => ({
+        id: `${entry.drinkId}-${entry.unitNumber}`,
+        drinkName: entry.drinkName,
+        time: entry.time,
+        icon: entry.icon,
+        unitNumber: entry.unitNumber,
+        totalUnits: entry.totalUnits,
+      }));
+
+      return scheduleDrinkNotifications(notifications);
+    },
+    [isNative, notificationsEnabled]
+  );
 
   // Cancel all notifications
   const cancelAll = useCallback(async (): Promise<void> => {
-    if (!isNative) {
-      return;
-    }
+    if (!isNative) return;
     await cancelAllDrinkNotifications();
   }, [isNative]);
 
   // Toggle notifications
-  const toggleNotifications = useCallback(async (enabled: boolean): Promise<boolean> => {
-    if (enabled) {
-      if (permissionStatus !== 'granted') {
-        const granted = await requestPermission();
-        if (!granted) {
-          return false;
+  const toggleNotifications = useCallback(
+    async (enabled: boolean): Promise<boolean> => {
+      if (enabled) {
+        if (permissionStatus !== 'granted') {
+          const granted = await requestPermission();
+          if (!granted) return false;
+          return true;
         }
-      } else {
+
         setNotificationsEnabled(true);
-        localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, 'true');
+        safeStorageSet(NOTIFICATIONS_STORAGE_KEY, 'true');
+        return true;
       }
-      return true;
-    } else {
+
       await cancelAll();
       setNotificationsEnabled(false);
-      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, 'false');
+      safeStorageSet(NOTIFICATIONS_STORAGE_KEY, 'false');
       return true;
-    }
-  }, [permissionStatus, requestPermission, cancelAll]);
+    },
+    [permissionStatus, requestPermission, cancelAll]
+  );
 
   return {
     isNative,

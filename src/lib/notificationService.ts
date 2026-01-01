@@ -1,8 +1,8 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { LocalNotifications, PermissionStatus } from '@capacitor/local-notifications';
 
 export type DrinkNotification = {
-  id: string;
+  id: string; // stable string identifier (we derive numeric IDs from this)
   drinkName: string;
   time: Date;
   icon: string;
@@ -10,8 +10,10 @@ export type DrinkNotification = {
   totalUnits: number;
 };
 
-// Track if listeners have been registered to prevent duplicates
-let listenersRegistered = false;
+// Listener reference counting so we don't double-register or accidentally remove
+// listeners while another part of the app still relies on them.
+let listenerRefCount = 0;
+let listenerHandles: PluginListenerHandle[] = [];
 
 /**
  * Check if running on a native platform (iOS/Android)
@@ -24,10 +26,8 @@ export const isNativePlatform = (): boolean => {
  * Check current notification permissions
  */
 export const checkNotificationPermissions = async (): Promise<PermissionStatus | null> => {
-  if (!isNativePlatform()) {
-    return null;
-  }
-  
+  if (!isNativePlatform()) return null;
+
   try {
     return await LocalNotifications.checkPermissions();
   } catch (error) {
@@ -40,10 +40,8 @@ export const checkNotificationPermissions = async (): Promise<PermissionStatus |
  * Request notification permissions from the user
  */
 export const requestNotificationPermissions = async (): Promise<PermissionStatus | null> => {
-  if (!isNativePlatform()) {
-    return null;
-  }
-  
+  if (!isNativePlatform()) return null;
+
   try {
     return await LocalNotifications.requestPermissions();
   } catch (error) {
@@ -56,15 +54,13 @@ export const requestNotificationPermissions = async (): Promise<PermissionStatus
  * Cancel all pending drink notifications
  */
 export const cancelAllDrinkNotifications = async (): Promise<void> => {
-  if (!isNativePlatform()) {
-    return;
-  }
-  
+  if (!isNativePlatform()) return;
+
   try {
     const pending = await LocalNotifications.getPending();
     if (pending.notifications.length > 0) {
       await LocalNotifications.cancel({
-        notifications: pending.notifications.map(n => ({ id: n.id }))
+        notifications: pending.notifications.map((n) => ({ id: n.id })),
       });
     }
   } catch (error) {
@@ -73,73 +69,62 @@ export const cancelAllDrinkNotifications = async (): Promise<void> => {
 };
 
 /**
- * Generate a stable numeric ID from a string
- * Uses a simple hash function to create consistent IDs
+ * Generate a stable numeric ID from a string.
+ * Capacitor LocalNotifications requires numeric IDs.
  */
 const generateStableId = (str: string): number => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0; // 32-bit
   }
-  // Ensure positive ID between 1 and 2147483647 (max 32-bit signed int)
-  return Math.abs(hash % 2147483646) + 1;
+
+  // Ensure positive, non-zero, within signed 32-bit range
+  return (Math.abs(hash) % 2147483646) + 1;
 };
 
 /**
  * Schedule drink notifications for all future timeline entries
  */
-export const scheduleDrinkNotifications = async (
-  notifications: DrinkNotification[]
-): Promise<boolean> => {
+export const scheduleDrinkNotifications = async (notifications: DrinkNotification[]): Promise<boolean> => {
   if (!isNativePlatform()) {
     console.log('Not on native platform, skipping notifications');
     return false;
   }
-  
+
   try {
-    // First check permissions
     const permission = await checkNotificationPermissions();
     if (permission?.display !== 'granted') {
       console.log('Notification permissions not granted');
       return false;
     }
-    
+
     // Cancel existing notifications first
     await cancelAllDrinkNotifications();
-    
-    // Filter to only future notifications
+
     const now = new Date();
-    const futureNotifications = notifications.filter(n => n.time > now);
-    
+    const futureNotifications = notifications.filter((n) => n.time > now);
+
     if (futureNotifications.length === 0) {
       console.log('No future notifications to schedule');
       return true;
     }
-    
-    // Schedule new notifications with stable IDs
+
     await LocalNotifications.schedule({
-      notifications: futureNotifications.map((notification) => {
-        const unitText = notification.totalUnits > 1 
-          ? ` (${notification.unitNumber}/${notification.totalUnits})`
-          : '';
-        
-        // Generate stable ID from drinkId + unitNumber
-        const stableId = generateStableId(`${notification.id}`);
-        
+      notifications: futureNotifications.map((n) => {
+        const unitText = n.totalUnits > 1 ? ` (${n.unitNumber}/${n.totalUnits})` : '';
+
         return {
-          id: stableId,
-          title: "Time to Drink! 🍻",
-          body: `${notification.icon} ${notification.drinkName}${unitText}`,
-          schedule: { at: notification.time },
+          id: generateStableId(n.id),
+          title: 'Time to Drink! 🍻',
+          body: `${n.icon} ${n.drinkName}${unitText}`,
+          schedule: { at: n.time },
           sound: 'default',
-          // Use undefined to let the system use defaults
-          // This avoids referencing icons that may not exist
+          // Avoid custom Android icon refs that may not exist in the native project.
         };
-      })
+      }),
     });
-    
+
     console.log(`Scheduled ${futureNotifications.length} drink notifications`);
     return true;
   } catch (error) {
@@ -149,37 +134,42 @@ export const scheduleDrinkNotifications = async (
 };
 
 /**
- * Register notification action listeners
- * Returns a cleanup function to remove listeners
+ * Register notification action listeners.
+ * Returns a cleanup function.
  */
 export const registerNotificationListeners = async (): Promise<() => void> => {
-  if (!isNativePlatform()) {
-    return () => {};
+  if (!isNativePlatform()) return () => {};
+
+  listenerRefCount += 1;
+
+  // Already registered by another consumer; just decrement on cleanup.
+  if (listenerRefCount > 1) {
+    return () => {
+      listenerRefCount = Math.max(0, listenerRefCount - 1);
+    };
   }
-  
-  // Prevent duplicate listener registration
-  if (listenersRegistered) {
-    return () => {};
-  }
-  
+
   try {
-    await LocalNotifications.addListener('localNotificationReceived', (notification) => {
+    const receivedHandle = await LocalNotifications.addListener('localNotificationReceived', (notification) => {
       console.log('Notification received:', notification);
     });
-    
-    await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+
+    const actionHandle = await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
       console.log('Notification action performed:', action);
     });
-    
-    listenersRegistered = true;
-    
-    // Return cleanup function
+
+    listenerHandles = [receivedHandle, actionHandle];
+
     return () => {
-      LocalNotifications.removeAllListeners();
-      listenersRegistered = false;
+      listenerRefCount = Math.max(0, listenerRefCount - 1);
+      if (listenerRefCount === 0) {
+        listenerHandles.forEach((h) => h.remove());
+        listenerHandles = [];
+      }
     };
   } catch (error) {
     console.error('Error registering notification listeners:', error);
+    listenerRefCount = Math.max(0, listenerRefCount - 1);
     return () => {};
   }
 };
