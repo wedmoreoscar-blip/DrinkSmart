@@ -78,28 +78,58 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age: number | null
           avatar_url: string | null
+          body_fat: number | null
           created_at: string
+          height_cm: number | null
+          height_ft: number | null
+          height_in: number | null
+          height_unit: string | null
           id: string
+          metric_type: string | null
+          sex: string | null
           updated_at: string
           user_id: string
           username: string
+          weight: number | null
+          weight_unit: string | null
         }
         Insert: {
+          age?: number | null
           avatar_url?: string | null
+          body_fat?: number | null
           created_at?: string
+          height_cm?: number | null
+          height_ft?: number | null
+          height_in?: number | null
+          height_unit?: string | null
           id?: string
+          metric_type?: string | null
+          sex?: string | null
           updated_at?: string
           user_id: string
           username: string
+          weight?: number | null
+          weight_unit?: string | null
         }
         Update: {
+          age?: number | null
           avatar_url?: string | null
+          body_fat?: number | null
           created_at?: string
+          height_cm?: number | null
+          height_ft?: number | null
+          height_in?: number | null
+          height_unit?: string | null
           id?: string
+          metric_type?: string | null
+          sex?: string | null
           updated_at?: string
           user_id?: string
           username?: string
+          weight?: number | null
+          weight_unit?: string | null
         }
         Relationships: []
       }
