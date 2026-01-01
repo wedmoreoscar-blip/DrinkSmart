@@ -17,6 +17,7 @@ type DrinkEntry = {
   mixerUnit?: "ml" | "oz" | "shots" | "pints" | "glass";
   isCustom?: boolean;
   customName?: string;
+  pricePerUnit?: number | null;
 };
 
 type DrinkTimelineEntry = {
