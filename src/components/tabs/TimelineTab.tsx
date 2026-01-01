@@ -181,10 +181,13 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
     return `${minutes}m`;
   };
 
+  // Returns index of entry that the live indicator has FULLY passed (for showing tick)
+  // We add 2000ms delay so the tick appears only after the indicator fully passes over
   const getCurrentEntryIndex = () => {
     if (!state.drinkingStartTime) return -1;
     
-    return state.drinkTimeline.findIndex(entry => entry.time.getTime() > currentTime.getTime()) - 1;
+    const passedDelayMs = 2000; // Time after drink event for indicator to fully pass
+    return state.drinkTimeline.findIndex(entry => entry.time.getTime() + passedDelayMs > currentTime.getTime()) - 1;
   };
 
   const currentEntryIndex = getCurrentEntryIndex();
