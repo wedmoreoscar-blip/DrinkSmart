@@ -12,11 +12,12 @@ import { useAppContext } from "@/contexts/AppContext";
 import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Battery, Bookmark, ChevronDown, ChevronRight, Store, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PINT_ML, OZ_ML, SHOT_ML } from "@/lib/drinkConstants";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { useSavedDrinks } from "@/hooks/useSavedDrinks";
 import { useEstablishments } from "@/hooks/useEstablishments";
+import { DrinkFilterPopover, DrinkFilters } from "@/components/DrinkFilterPopover";
 
 type DrinkEntry = {
   id: string;
@@ -36,6 +37,7 @@ type FlattenedDrink = {
   name: string;
   abv: number;
   category: string;
+  categoryLabel?: string;
   establishmentId?: string;
   establishmentName?: string;
   isSessionOnly?: boolean;
@@ -57,6 +59,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   const [saveDrinkCheckboxes, setSaveDrinkCheckboxes] = useState<Record<string, boolean>>({});
   const [filledFromSaved, setFilledFromSaved] = useState<Record<string, boolean>>({});
   const [expandedEstablishments, setExpandedEstablishments] = useState<Record<string, boolean>>({});
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   
   const { savedDrinks, saveDrink, isLoggedIn } = useSavedDrinks();
   const { 
@@ -80,11 +83,49 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
   // Get user establishments (if logged in)
   const userEstablishments = getUserEstablishments();
 
+  // Extract all unique categories from establishment drinks for filtering
+  const availableCategories = useMemo(() => {
+    const categories = new Set<string>();
+    establishmentDrinks.forEach((d) => {
+      if (d.categoryLabel) {
+        categories.add(d.categoryLabel);
+      }
+    });
+    return Array.from(categories).sort();
+  }, [establishmentDrinks]);
+
+  // Initialize filters with all categories selected
+  const [filters, setFilters] = useState<DrinkFilters>(() => ({
+    abvRange: { min: 0, max: 100 },
+    selectedCategories: availableCategories,
+  }));
+
+  // Update selected categories when availableCategories changes (initial load)
+  useMemo(() => {
+    if (filters.selectedCategories.length === 0 && availableCategories.length > 0) {
+      setFilters((prev) => ({
+        ...prev,
+        selectedCategories: availableCategories,
+      }));
+    }
+  }, [availableCategories]);
+
+  // Filter function for drinks
+  const filterDrink = (abv: number, categoryLabel?: string) => {
+    const abvInRange = abv >= filters.abvRange.min && abv <= filters.abvRange.max;
+    const categoryMatches = 
+      filters.selectedCategories.length === 0 || 
+      filters.selectedCategories.length === availableCategories.length ||
+      (categoryLabel && filters.selectedCategories.includes(categoryLabel));
+    return abvInRange && categoryMatches;
+  };
+
   // Combine all drinks for searching
   const allDrinks: FlattenedDrink[] = establishmentDrinks.map(d => ({
     name: d.name,
     abv: d.abv,
     category: d.category,
+    categoryLabel: d.categoryLabel,
     establishmentId: d.establishmentId,
     establishmentName: d.establishmentName,
     isSessionOnly: d.isSessionOnly,
@@ -292,10 +333,38 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
     }));
   };
 
-  // Render establishment section for the command list
+  const toggleCategory = (categoryKey: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryKey]: !prev[categoryKey],
+    }));
+  };
+
+  // Render establishment section with categorized drinks for the command list
   const renderEstablishmentSection = (establishment: { id: string; name: string; isSessionOnly?: boolean }, drinkId: string, currentDrink: DrinkEntry) => {
     const estDrinks = getEstablishmentDrinks(establishment.id);
     const isExpanded = expandedEstablishments[establishment.id] ?? false;
+    
+    // Group drinks by category_label and apply filters
+    const drinksByCategory = estDrinks.reduce((acc, drink) => {
+      // Apply filters
+      if (!filterDrink(drink.abv, drink.category_label)) {
+        return acc;
+      }
+      
+      const categoryLabel = drink.category_label || "Other";
+      if (!acc[categoryLabel]) {
+        acc[categoryLabel] = [];
+      }
+      acc[categoryLabel].push(drink);
+      return acc;
+    }, {} as Record<string, typeof estDrinks>);
+
+    const categoryLabels = Object.keys(drinksByCategory).sort();
+    const totalFilteredDrinks = Object.values(drinksByCategory).reduce((sum, drinks) => sum + drinks.length, 0);
+    
+    // Don't render if no drinks match filters
+    if (totalFilteredDrinks === 0) return null;
     
     return (
       <div key={establishment.id} className="border-b border-border/30 last:border-b-0">
@@ -313,6 +382,7 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                 Session
               </span>
             )}
+            <span className="text-xs text-muted-foreground">({totalFilteredDrinks})</span>
           </div>
           {isExpanded ? (
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -321,26 +391,55 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
           )}
         </button>
         {isExpanded && (
-          <div className="pl-4 pb-2">
-            {estDrinks.map((estDrink) => (
-              <CommandItem
-                key={`${establishment.id}-${estDrink.id}`}
-                value={`${establishment.name} ${estDrink.drink_name}`}
-                onSelect={() => selectDrink(drinkId, estDrink.drink_name, estDrink.abv, estDrink.category)}
-                className="cursor-pointer"
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    currentDrink.drink === estDrink.drink_name ? "opacity-100" : "opacity-0"
+          <div className="pl-2 pb-2">
+            {categoryLabels.map((categoryLabel) => {
+              const categoryKey = `${establishment.id}-${categoryLabel}`;
+              const isCategoryExpanded = expandedCategories[categoryKey] ?? false;
+              const categoryDrinks = drinksByCategory[categoryLabel];
+              
+              return (
+                <div key={categoryKey} className="border-l-2 border-border/30 ml-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(categoryKey)}
+                    className="flex items-center justify-between w-full px-2 py-1.5 hover:bg-accent/30 transition-colors text-left"
+                  >
+                    <span className="text-sm text-muted-foreground font-medium">{categoryLabel}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">({categoryDrinks.length})</span>
+                      {isCategoryExpanded ? (
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </div>
+                  </button>
+                  {isCategoryExpanded && (
+                    <div className="pl-2">
+                      {categoryDrinks.map((estDrink) => (
+                        <CommandItem
+                          key={`${establishment.id}-${estDrink.id}`}
+                          value={`${establishment.name} ${categoryLabel} ${estDrink.drink_name}`}
+                          onSelect={() => selectDrink(drinkId, estDrink.drink_name, estDrink.abv, estDrink.category)}
+                          className="cursor-pointer"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              currentDrink.drink === estDrink.drink_name ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <span>{estDrink.drink_name}</span>
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            {estDrink.abv}% ABV
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </div>
                   )}
-                />
-                <span>{estDrink.drink_name}</span>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {estDrink.abv}% ABV
-                </span>
-              </CommandItem>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -405,34 +504,35 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
 
                 {!drink.isCustom ? (
                   /* Drink Search */
-                  <Popover 
-                    open={openPopovers[drink.id]} 
-                    onOpenChange={(open) => setOpenPopovers({ ...openPopovers, [drink.id]: open })}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={openPopovers[drink.id]}
-                        className="w-full justify-between"
-                      >
-                        {drink.drink ? (
-                          <span>
-                            {drink.drink} 
-                            <span className="text-xs text-muted-foreground ml-2">
-                              ({getDrinkABV(drink.drink)}% ABV)
+                  <div className="flex gap-2">
+                    <Popover 
+                      open={openPopovers[drink.id]} 
+                      onOpenChange={(open) => setOpenPopovers({ ...openPopovers, [drink.id]: open })}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openPopovers[drink.id]}
+                          className="w-full justify-between"
+                        >
+                          {drink.drink ? (
+                            <span>
+                              {drink.drink} 
+                              <span className="text-xs text-muted-foreground ml-2">
+                                ({getDrinkABV(drink.drink)}% ABV)
+                              </span>
                             </span>
-                          </span>
-                        ) : (
-                          "Search for a drink..."
-                        )}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0 max-h-[400px] overflow-y-auto" align="start">
-                      <Command>
-                        <CommandInput placeholder="Type drink name..." />
-                        <CommandList>
+                          ) : (
+                            "Search for a drink..."
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0 max-h-[400px] overflow-y-auto" align="start">
+                        <Command>
+                          <CommandInput placeholder="Type drink name..." />
+                          <CommandList>
                           <CommandEmpty>No drinks found.</CommandEmpty>
                           
                           {/* Saved Custom Drinks - Only for logged in users */}
@@ -485,6 +585,12 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                       </Command>
                     </PopoverContent>
                   </Popover>
+                  <DrinkFilterPopover
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    availableCategories={availableCategories}
+                  />
+                  </div>
                 ) : (
                   /* Custom Drink Inputs */
                   <div className="space-y-4">
