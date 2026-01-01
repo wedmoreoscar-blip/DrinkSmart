@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,8 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, RefreshCw, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { ArrowRight, RefreshCw, ChevronDown, ChevronUp, Info, Save, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUserMetrics } from "@/hooks/useUserMetrics";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
   const { state, updateUserMetrics, recalculate } = useAppContext();
@@ -15,14 +17,81 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
   const { toast } = useToast();
   const { metricType, heightUnit, weightUnit, heightCm, heightFt, heightIn, weight, bodyFat, age, sex } = userMetrics;
   const [isFFMIHelpOpen, setIsFFMIHelpOpen] = useState(false);
+  const [hasLoadedSavedMetrics, setHasLoadedSavedMetrics] = useState(false);
+  
+  const { isLoggedIn, savedMetrics, saveMetrics, loading } = useUserMetrics();
 
-  const handleRecalculate = () => {
+  // Auto-fill metrics from saved data when user is logged in
+  useEffect(() => {
+    if (isLoggedIn && savedMetrics && !hasLoadedSavedMetrics && !loading) {
+      // Only auto-fill if current metrics are empty
+      const hasCurrentMetrics = weight || heightCm || heightFt;
+      
+      if (!hasCurrentMetrics) {
+        updateUserMetrics({
+          metricType: savedMetrics.metricType,
+          heightUnit: savedMetrics.heightUnit,
+          weightUnit: savedMetrics.weightUnit,
+          heightCm: savedMetrics.heightCm,
+          heightFt: savedMetrics.heightFt,
+          heightIn: savedMetrics.heightIn,
+          weight: savedMetrics.weight,
+          bodyFat: savedMetrics.bodyFat,
+          age: savedMetrics.age,
+          sex: savedMetrics.sex,
+        });
+        
+        toast({
+          title: "Welcome back! 👋",
+          description: "Your saved metrics have been loaded.",
+          duration: 3000,
+        });
+      }
+      setHasLoadedSavedMetrics(true);
+    }
+  }, [isLoggedIn, savedMetrics, loading, hasLoadedSavedMetrics, weight, heightCm, heightFt, updateUserMetrics, toast]);
+
+  const handleRecalculate = async () => {
+    // Determine if FFM should be used (when both BMI and FFM data is available)
+    const hasFFMData = bodyFat && parseFloat(bodyFat) > 0;
+    const hasBMIData = weight && age && sex;
+    
+    // If both are available, automatically switch to FFM as it's more accurate
+    if (hasFFMData && hasBMIData && metricType === "bmi") {
+      updateUserMetrics({ metricType: "ffmi" });
+    }
+
     recalculate();
-    toast({
-      title: "Metrics Updated! 🎉",
-      description: "Your info has been saved. Let's party responsibly!",
-      duration: 3000,
-    });
+    
+    // Save metrics if logged in
+    if (isLoggedIn) {
+      const success = await saveMetrics({
+        metricType: hasFFMData && hasBMIData ? "ffmi" : metricType,
+        heightUnit,
+        weightUnit,
+        heightCm,
+        heightFt,
+        heightIn,
+        weight,
+        bodyFat,
+        age,
+        sex,
+      });
+      
+      if (success) {
+        toast({
+          title: "Metrics Saved! 🎉",
+          description: "Your info has been saved to your account. Let's party responsibly!",
+          duration: 3000,
+        });
+      }
+    } else {
+      toast({
+        title: "Metrics Updated! 🎉",
+        description: "Your info has been saved for this session. Sign in to save permanently!",
+        duration: 3000,
+      });
+    }
   };
 
   return (
@@ -39,6 +108,23 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
         </p>
       </div>
 
+      {/* Login status indicator */}
+      {isLoggedIn ? (
+        <Alert className="border-green-500/30 bg-green-500/10">
+          <AlertDescription className="flex items-center gap-2">
+            <User className="h-4 w-4 text-green-600" />
+            <span className="text-green-700">Logged in - your metrics will be saved to your account.</span>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Alert className="border-amber-500/30 bg-amber-500/10">
+          <AlertDescription className="flex items-center gap-2">
+            <User className="h-4 w-4 text-amber-600" />
+            <span className="text-amber-700">Not logged in - metrics will only be saved for this session.</span>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Toggle between BMI and FFMI */}
       <Card className="p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="flex items-center justify-between">
@@ -49,7 +135,7 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
             <p className="text-sm text-muted-foreground mt-1">
               {metricType === "bmi" 
                 ? "Standard body mass calculation" 
-                : "Advanced fitness calculation"}
+                : "Advanced fitness calculation (more accurate)"}
             </p>
           </div>
           <Button
@@ -188,7 +274,7 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
             <SelectTrigger>
               <SelectValue placeholder="Select your sex" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background z-50">
               <SelectItem value="male">Male</SelectItem>
               <SelectItem value="female">Female</SelectItem>
             </SelectContent>
@@ -285,8 +371,17 @@ const UserInfoTab = ({ onNext }: { onNext: () => void }) => {
           className="flex-1"
           onClick={handleRecalculate}
         >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Update Metrics
+          {isLoggedIn ? (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Save & Update
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Update Metrics
+            </>
+          )}
         </Button>
         <Button
           className="flex-1"
