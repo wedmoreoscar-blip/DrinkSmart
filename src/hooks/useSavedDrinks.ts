@@ -7,10 +7,12 @@ export type SavedDrink = {
   drink_name: string;
   abv: number;
   created_at: string;
+  isSessionOnly?: boolean;
 };
 
 export const useSavedDrinks = () => {
   const [savedDrinks, setSavedDrinks] = useState<SavedDrink[]>([]);
+  const [sessionDrinks, setSessionDrinks] = useState<SavedDrink[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -114,6 +116,17 @@ export const useSavedDrinks = () => {
   };
 
   const deleteDrink = async (drinkId: string) => {
+    // Check if it's a session drink
+    if (drinkId.startsWith('session-')) {
+      setSessionDrinks(prev => prev.filter(d => d.id !== drinkId));
+      toast({
+        title: "Drink removed",
+        description: "The drink has been removed.",
+        duration: 3000,
+      });
+      return true;
+    }
+
     const { error } = await supabase
       .from("saved_custom_drinks")
       .delete()
@@ -139,12 +152,37 @@ export const useSavedDrinks = () => {
     return true;
   };
 
+  // Add a session-only drink (for guests)
+  const addSessionDrink = (drinkName: string, abv: number) => {
+    const newDrink: SavedDrink = {
+      id: `session-${Date.now()}`,
+      drink_name: drinkName,
+      abv,
+      created_at: new Date().toISOString(),
+      isSessionOnly: true,
+    };
+    setSessionDrinks(prev => [...prev, newDrink]);
+    return newDrink.id;
+  };
+
+  // Clear session drinks
+  const clearSessionDrinks = () => {
+    setSessionDrinks([]);
+  };
+
+  // Combine saved drinks and session drinks for logged-in users
+  // For guests, only session drinks are available
+  const allSavedDrinks = userId ? savedDrinks : [];
+
   return {
-    savedDrinks,
+    savedDrinks: allSavedDrinks,
+    sessionDrinks,
     loading,
     isLoggedIn: !!userId,
     saveDrink,
     deleteDrink,
+    addSessionDrink,
+    clearSessionDrinks,
     refetch: fetchSavedDrinks,
   };
 };
