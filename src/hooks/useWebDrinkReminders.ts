@@ -38,10 +38,11 @@ export const useWebDrinkReminders = (
       const entryTime = entry.time.getTime();
       const timeDiff = now.getTime() - entryTime;
 
-      // Check if this drink time has passed (within last 2 seconds) and hasn't been notified
+      // Fire notification when the indicator is at or just reaching the entry
+      // -500ms to +1500ms window: fires as the indicator aligns with the entry icon
       if (
-        timeDiff >= 0 &&
-        timeDiff < 2000 &&
+        timeDiff >= -500 &&
+        timeDiff < 1500 &&
         !notifiedTimesRef.current.has(entryTime)
       ) {
         notifiedTimesRef.current.add(entryTime);
