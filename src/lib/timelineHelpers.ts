@@ -45,11 +45,11 @@ export const formatTimeDisplay = (date: Date): string => {
 
 /**
  * Calculate time with midnight crossing support
+ * Uses milliseconds for sub-minute precision (e.g., 25 drinks in 10 minutes = 24 seconds each)
  */
 export const calculateTimeWithMidnight = (startTime: Date, minutesToAdd: number): Date => {
-  const newTime = new Date(startTime);
-  newTime.setMinutes(newTime.getMinutes() + minutesToAdd);
-  return newTime;
+  const millisecondsToAdd = minutesToAdd * 60 * 1000;
+  return new Date(startTime.getTime() + millisecondsToAdd);
 };
 
 /**
