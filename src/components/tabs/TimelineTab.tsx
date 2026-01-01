@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Clock, Target, Bell, BellOff } from "lucide-react";
-import { formatTimeDisplay, getUnitDisplayText } from "@/lib/timelineHelpers";
+import { ArrowRight, Clock, Target, Bell, BellOff, Play } from "lucide-react";
+import { formatTimeDisplay } from "@/lib/timelineHelpers";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useWebDrinkReminders } from "@/hooks/useWebDrinkReminders";
 import {
   DndContext,
   closestCenter,
@@ -31,8 +32,12 @@ type TimelineTabProps = {
 const TimelineTab = ({ onNext }: TimelineTabProps) => {
   const { state, reorderTimelineEntries } = useAppContext();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [webRemindersEnabled, setWebRemindersEnabled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('web-drink-reminders') === 'true';
+  });
   
-  // Notification hook
+  // Native notification hook
   const {
     isNative,
     notificationsEnabled,
@@ -40,6 +45,9 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
     toggleNotifications,
     scheduleFromTimeline,
   } = useNotifications();
+
+  // Web toast reminders (only when not on native platform)
+  useWebDrinkReminders(state.drinkTimeline, !isNative && webRemindersEnabled);
 
   // Setup drag and drop sensors
   const sensors = useSensors(
@@ -80,24 +88,16 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
       return null;
     }
 
-    // Convert weight to grams
     const weightInGrams = getWeightInGrams(userMetrics.weight, userMetrics.weightUnit);
     if (!weightInGrams) return null;
 
-    // Get R value based on sex
     const R = userMetrics.sex === "male" ? 0.68 : 0.55;
-
-    // Calculate pure alcohol needed per hour for maintenance
-    // Formula: (0.015 / 100) × Weight (grams) × r
     const pureAlcoholGrams = (0.015 / 100) * weightInGrams * R;
-
-    // Convert to ml (divide by 0.789)
     const pureAlcoholMl = pureAlcoholGrams / 0.789;
 
     return pureAlcoholMl;
   };
 
-  // Calculate drink equivalents for maintenance
   const calculateMaintenanceEquivalents = (pureAlcoholMl: number) => {
     const SHOT_ML = 30;
     const PINT_ML = 568;
@@ -120,28 +120,33 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
   const maintenanceMl = calculateMaintenanceAlcohol();
   const maintenanceEquivalents = maintenanceMl ? calculateMaintenanceEquivalents(maintenanceMl) : null;
 
-  // Calculate time delta in hours for display
   const timeDeltaHours = state.timeDelta || 0;
 
-  // Update current time every 10 seconds
+  // Update current time every second for smooth progress indicator
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 10000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
 
-  // Schedule notifications when timeline changes and notifications are enabled
+  // Schedule native notifications when timeline changes
   useEffect(() => {
     if (notificationsEnabled && state.drinkTimeline.length > 0) {
       scheduleFromTimeline(state.drinkTimeline);
     }
   }, [notificationsEnabled, state.drinkTimeline, scheduleFromTimeline]);
 
-  // Handle notification toggle - useEffect handles scheduling, so no duplicate call here
+  // Handle native notification toggle
   const handleNotificationToggle = async (enabled: boolean) => {
     await toggleNotifications(enabled);
+  };
+
+  // Handle web reminders toggle
+  const handleWebRemindersToggle = (enabled: boolean) => {
+    setWebRemindersEnabled(enabled);
+    localStorage.setItem('web-drink-reminders', enabled ? 'true' : 'false');
   };
 
   const formatTime = (date: Date) => formatTimeDisplay(date);
@@ -150,6 +155,8 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
     if (!state.drinkingStartTime) return null;
     
     const elapsed = currentTime.getTime() - state.drinkingStartTime.getTime();
+    if (elapsed < 0) return null;
+    
     const hours = Math.floor(elapsed / (1000 * 60 * 60));
     const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
     
@@ -181,6 +188,31 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
   };
 
   const currentEntryIndex = getCurrentEntryIndex();
+
+  // Calculate progress indicator position (0 to 100)
+  const progressInfo = useMemo(() => {
+    if (!state.drinkingStartTime || !state.drinkingTargetTime) {
+      return { percentage: 0, isComplete: false, hasStarted: false };
+    }
+
+    const startMs = state.drinkingStartTime.getTime();
+    const targetMs = state.drinkingTargetTime.getTime();
+    const nowMs = currentTime.getTime();
+
+    if (nowMs < startMs) {
+      return { percentage: 0, isComplete: false, hasStarted: false };
+    }
+
+    if (nowMs >= targetMs) {
+      return { percentage: 100, isComplete: true, hasStarted: true };
+    }
+
+    const totalDuration = targetMs - startMs;
+    const elapsed = nowMs - startMs;
+    const percentage = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+
+    return { percentage, isComplete: false, hasStarted: true };
+  }, [state.drinkingStartTime, state.drinkingTargetTime, currentTime]);
 
   // Empty state
   if (state.drinkTimeline.length === 0) {
@@ -232,31 +264,32 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
         </Card>
       </div>
 
-      {/* Notification Toggle - Only show on native platforms */}
-      {isNative && (
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {notificationsEnabled ? (
-                <Bell className="w-5 h-5 text-primary" />
-              ) : (
-                <BellOff className="w-5 h-5 text-muted-foreground" />
-              )}
-              <div>
-                <div className="font-medium">Drink Reminders</div>
-                <div className="text-sm text-muted-foreground">
-                  Get notified when it's time for your next drink
-                </div>
+      {/* Notification Toggle - Show appropriate version based on platform */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {(isNative ? notificationsEnabled : webRemindersEnabled) ? (
+              <Bell className="w-5 h-5 text-primary" />
+            ) : (
+              <BellOff className="w-5 h-5 text-muted-foreground" />
+            )}
+            <div>
+              <div className="font-medium">Drink Reminders</div>
+              <div className="text-sm text-muted-foreground">
+                {isNative 
+                  ? "Get notified when it's time for your next drink"
+                  : "Get toast alerts when it's time for your next drink"
+                }
               </div>
             </div>
-            <Switch
-              checked={notificationsEnabled}
-              onCheckedChange={handleNotificationToggle}
-              disabled={notificationsLoading}
-            />
           </div>
-        </Card>
-      )}
+          <Switch
+            checked={isNative ? notificationsEnabled : webRemindersEnabled}
+            onCheckedChange={isNative ? handleNotificationToggle : handleWebRemindersToggle}
+            disabled={isNative && notificationsLoading}
+          />
+        </div>
+      </Card>
 
       {/* Timeline */}
       <Card>
@@ -273,8 +306,30 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
             onDragEnd={handleDragEnd}
           >
             <div className="relative space-y-6">
-              {/* Vertical line */}
+              {/* Vertical line (background) */}
               <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-primary/20" />
+              
+              {/* Progress line (filled portion) */}
+              {progressInfo.hasStarted && !progressInfo.isComplete && (
+                <div 
+                  className="absolute left-[19px] top-4 w-0.5 bg-primary transition-all duration-1000 ease-linear"
+                  style={{ 
+                    height: `calc(${progressInfo.percentage}% - 16px)`,
+                  }}
+                />
+              )}
+
+              {/* Moving progress indicator */}
+              {progressInfo.hasStarted && !progressInfo.isComplete && (
+                <div 
+                  className="absolute left-0 w-10 h-10 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center z-20 transition-all duration-1000 ease-linear animate-pulse"
+                  style={{ 
+                    top: `calc(${progressInfo.percentage}% - 4px)`,
+                  }}
+                >
+                  <Play className="w-4 h-4 text-primary-foreground fill-current ml-0.5" />
+                </div>
+              )}
               
               <SortableContext
                 items={state.drinkTimeline.map(
@@ -283,19 +338,21 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
                 strategy={verticalListSortingStrategy}
               >
                 {state.drinkTimeline.map((entry, index) => {
-                  const isPast = index < currentEntryIndex;
+                  const isPast = index <= currentEntryIndex;
                   const isCurrent = index === currentEntryIndex;
                   const isFuture = index > currentEntryIndex;
                   
-                  // Calculate duration based on time between this entry and the next
                   const nextEntry = state.drinkTimeline[index + 1];
                   const durationMinutes = nextEntry 
                     ? Math.round((nextEntry.time.getTime() - entry.time.getTime()) / (1000 * 60))
                     : 0;
                   const isVolumeBased = entry.unit === "ml" || entry.unit === "oz" || entry.unit === "pints" || entry.unit === "glass";
                   
-                  // Format duration
                   const formatDuration = (minutes: number) => {
+                    if (minutes < 1) {
+                      const seconds = Math.round(minutes * 60);
+                      return `${seconds}s`;
+                    }
                     const hrs = Math.floor(minutes / 60);
                     const mins = Math.round(minutes % 60);
                     if (hrs > 0 && mins > 0) return `${hrs}h ${mins}m`;
@@ -323,13 +380,23 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
               {/* Target reached marker */}
               {state.drinkingTargetTime && (
                 <div className="relative flex items-start gap-4 pl-12">
-                  <div className="absolute left-0 w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
-                    <Target className="w-5 h-5 text-white" />
+                  <div className={`absolute left-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
+                    progressInfo.isComplete 
+                      ? 'bg-green-500 scale-110 shadow-lg shadow-green-500/30' 
+                      : 'bg-muted'
+                  }`}>
+                    <Target className={`w-5 h-5 transition-colors ${
+                      progressInfo.isComplete ? 'text-white' : 'text-muted-foreground'
+                    }`} />
                   </div>
                   
                   <div className="flex-1 pb-2">
                     <div className="font-semibold text-lg">{formatTime(state.drinkingTargetTime)}</div>
-                    <div className="text-muted-foreground">🎯 Target time reached</div>
+                    <div className={`transition-colors ${
+                      progressInfo.isComplete ? 'text-green-500 font-medium' : 'text-muted-foreground'
+                    }`}>
+                      {progressInfo.isComplete ? '✅ Target reached!' : '🎯 Target time'}
+                    </div>
                   </div>
                 </div>
               )}
