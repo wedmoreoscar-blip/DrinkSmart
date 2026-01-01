@@ -110,21 +110,49 @@ export const useUserMetrics = () => {
       effectiveMetricType = "ffmi"; // FFM is more accurate when both are available
     }
 
-    const { error } = await supabase
+    const metricsData = {
+      height_cm: metrics.heightCm ? parseFloat(metrics.heightCm) : null,
+      height_ft: metrics.heightFt ? parseFloat(metrics.heightFt) : null,
+      height_in: metrics.heightIn ? parseFloat(metrics.heightIn) : null,
+      height_unit: metrics.heightUnit,
+      weight: metrics.weight ? parseFloat(metrics.weight) : null,
+      weight_unit: metrics.weightUnit,
+      body_fat: metrics.bodyFat ? parseFloat(metrics.bodyFat) : null,
+      age: metrics.age ? parseInt(metrics.age) : null,
+      sex: metrics.sex || null,
+      metric_type: effectiveMetricType,
+    };
+
+    // Check if profile exists
+    const { data: existingProfile } = await supabase
       .from("profiles")
-      .update({
-        height_cm: metrics.heightCm ? parseFloat(metrics.heightCm) : null,
-        height_ft: metrics.heightFt ? parseFloat(metrics.heightFt) : null,
-        height_in: metrics.heightIn ? parseFloat(metrics.heightIn) : null,
-        height_unit: metrics.heightUnit,
-        weight: metrics.weight ? parseFloat(metrics.weight) : null,
-        weight_unit: metrics.weightUnit,
-        body_fat: metrics.bodyFat ? parseFloat(metrics.bodyFat) : null,
-        age: metrics.age ? parseInt(metrics.age) : null,
-        sex: metrics.sex || null,
-        metric_type: effectiveMetricType,
-      })
-      .eq("user_id", userId);
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    let error;
+    if (existingProfile) {
+      // Update existing profile
+      const result = await supabase
+        .from("profiles")
+        .update(metricsData)
+        .eq("user_id", userId);
+      error = result.error;
+    } else {
+      // Insert new profile - need to generate username
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData?.user?.email || "";
+      const username = email.split("@")[0] || `user_${Date.now()}`;
+      
+      const result = await supabase
+        .from("profiles")
+        .insert({
+          user_id: userId,
+          username: username,
+          ...metricsData,
+        });
+      error = result.error;
+    }
 
     if (error) {
       console.error("Error saving user metrics:", error);
