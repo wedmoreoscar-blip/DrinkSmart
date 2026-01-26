@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Lock, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { z } from "zod";
 
 const passwordSchema = z.object({
@@ -23,29 +23,58 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isValidSession, setIsValidSession] = useState(false);
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user has a valid recovery session
-    const checkSession = async () => {
+    // Listen for auth state changes - this captures the PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth event:", event, "Session:", !!session);
+      
+      if (event === "PASSWORD_RECOVERY") {
+        // User clicked the recovery link and was verified
+        setIsValidSession(true);
+        setIsCheckingSession(false);
+      } else if (event === "SIGNED_IN" && session) {
+        // Also valid if user has a session (covers refresh after recovery)
+        setIsValidSession(true);
+        setIsCheckingSession(false);
+      }
+    });
+
+    // Also check for existing session (in case of page refresh after clicking link)
+    const checkExistingSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (session) {
         setIsValidSession(true);
       } else {
-        toast({
-          title: "Invalid or expired link",
-          description: "Please request a new password reset link.",
-          variant: "destructive",
-        });
-        navigate("/auth");
+        // Give a moment for the auth state change to fire from URL hash
+        setTimeout(() => {
+          setIsCheckingSession(false);
+        }, 2000);
       }
     };
 
-    checkSession();
-  }, [navigate, toast]);
+    checkExistingSession();
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Redirect if no valid session after checking
+  useEffect(() => {
+    if (!isCheckingSession && !isValidSession) {
+      toast({
+        title: "Invalid or expired link",
+        description: "Please request a new password reset link.",
+        variant: "destructive",
+      });
+      navigate("/auth");
+    }
+  }, [isCheckingSession, isValidSession, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +121,20 @@ const ResetPassword = () => {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking session
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Verifying your reset link...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!isValidSession) {
     return null;
