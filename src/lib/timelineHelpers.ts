@@ -56,6 +56,11 @@ export const calculateTimeWithMidnight = (startTime: Date, minutesToAdd: number)
  * Get unit display text
  */
 export const getUnitDisplayText = (unitNumber: number, totalUnits: number, unit: string): string => {
+  // For ml/oz with multiple portions, show "portion" instead of the unit
+  if ((unit === "ml" || unit === "oz") && totalUnits > 1) {
+    return `${unitNumber}/${totalUnits} portion${totalUnits > 1 ? 's' : ''}`;
+  }
+  
   const unitMap: Record<string, string> = {
     "shots": "shot",
     "pints": "pint",
