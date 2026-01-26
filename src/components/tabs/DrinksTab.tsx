@@ -32,6 +32,7 @@ type DrinkEntry = {
   isCustom?: boolean;
   customName?: string;
   pricePerUnit?: number | null;
+  portions?: number; // Number of portions to split ml/oz drinks into
 };
 
 type FlattenedDrink = {
@@ -728,9 +729,17 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                   />
                   <Select
                     value={drink.unit}
-                    onValueChange={(value: "ml" | "oz" | "shots" | "pints" | "glass") => 
-                      updateDrink(drink.id, "unit", value)
-                    }
+                    onValueChange={(value: "ml" | "oz" | "shots" | "pints" | "glass") => {
+                      updateDrink(drink.id, "unit", value);
+                      // Reset portions when switching away from ml/oz
+                      if (value !== "ml" && value !== "oz") {
+                        updateDrinks(
+                          drinks.map((d) =>
+                            d.id === drink.id ? { ...d, unit: value, portions: undefined } : d
+                          )
+                        );
+                      }
+                    }}
                   >
                     <SelectTrigger className="w-28">
                       <SelectValue />
@@ -744,6 +753,44 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {/* Portions input - only for ml/oz units */}
+                {(drink.unit === "ml" || drink.unit === "oz") && drink.quantity && parseFloat(drink.quantity) > 0 && (
+                  <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1">
+                        <Label className="text-sm font-medium">Split into portions?</Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {drink.portions && drink.portions > 1 
+                            ? `${drink.portions} × ${Math.round(parseFloat(drink.quantity) / drink.portions)}${drink.unit} each`
+                            : "Drink will appear as one timeline entry"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="50"
+                          placeholder="1"
+                          value={drink.portions || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const numVal = parseInt(val);
+                            updateDrinks(
+                              drinks.map((d) =>
+                                d.id === drink.id 
+                                  ? { ...d, portions: val === "" ? undefined : (isNaN(numVal) || numVal < 1 ? 1 : numVal) } 
+                                  : d
+                              )
+                            );
+                          }}
+                          className="w-20 text-center"
+                        />
+                        <span className="text-sm text-muted-foreground">portions</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Mixer */}

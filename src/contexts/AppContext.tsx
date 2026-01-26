@@ -18,6 +18,7 @@ type DrinkEntry = {
   isCustom?: boolean;
   customName?: string;
   pricePerUnit?: number | null;
+  portions?: number; // Number of portions to split ml/oz drinks into
 };
 
 type DrinkTimelineEntry = {
@@ -327,9 +328,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const pureAlcoholMl = volumeMl * (abv / 100);
 
           // Determine timeline quantity (how many separate drinks to show)
-          // For ml/oz: treat as 1 drink regardless of volume
+          // For ml/oz: use portions if specified, otherwise treat as 1 drink
           // For shots/pints: treat as separate drinks
-          const timelineQuantity = (drink.unit === "ml" || drink.unit === "oz") ? 1 : quantity;
+          let timelineQuantity: number;
+          if (drink.unit === "ml" || drink.unit === "oz") {
+            timelineQuantity = drink.portions && drink.portions > 1 ? drink.portions : 1;
+          } else {
+            timelineQuantity = quantity;
+          }
 
           calculations.push({
             drinkId: drink.id,
@@ -374,10 +380,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const icon = getDrinkIcon(category);
 
           for (let i = 1; i <= calc.quantity; i++) {
-            // For ml/oz, show the full volume; for shots/pints show unit number
-            const displayName = (calc.unit === "ml" || calc.unit === "oz") 
-              ? `${calc.totalVolumeMl.toFixed(0)}${calc.unit} ${calc.drinkName}`
-              : calc.drinkName;
+            // For ml/oz with portions, show portion info; otherwise show full volume
+            let displayName: string;
+            if ((calc.unit === "ml" || calc.unit === "oz") && calc.quantity > 1) {
+              const portionSize = Math.round(calc.totalVolumeMl / calc.quantity);
+              displayName = `${portionSize}${calc.unit} ${calc.drinkName}`;
+            } else if (calc.unit === "ml" || calc.unit === "oz") {
+              displayName = `${calc.totalVolumeMl.toFixed(0)}${calc.unit} ${calc.drinkName}`;
+            } else {
+              displayName = calc.drinkName;
+            }
 
             timeline.push({
               drinkId: calc.drinkId,
