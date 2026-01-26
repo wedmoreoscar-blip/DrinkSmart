@@ -15,8 +15,13 @@ interface ParsedDrink {
   volumeUnit: string | null;
 }
 
+interface ImageData {
+  base64: string;
+  mimeType: string;
+}
+
 interface ParseMenuRequest {
-  images: string[]; // Array of base64 image data
+  images: ImageData[]; // Array of image data with MIME types
 }
 
 interface ParseMenuResponse {
@@ -54,7 +59,9 @@ serve(async (req) => {
 
     // Process each image
     for (let i = 0; i < images.length; i++) {
-      const imageBase64 = images[i];
+      const imageData = images[i];
+      const imageBase64 = imageData.base64;
+      const mimeType = imageData.mimeType || 'image/jpeg';
       console.log(`Processing image ${i + 1}/${images.length}`);
 
       try {
@@ -101,7 +108,7 @@ If you can see an establishment/venue name in the image, note it as suggestedNam
                   {
                     type: 'image_url',
                     image_url: {
-                      url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`
+                      url: imageBase64.startsWith('data:') ? imageBase64 : `data:${mimeType};base64,${imageBase64}`
                     }
                   }
                 ]

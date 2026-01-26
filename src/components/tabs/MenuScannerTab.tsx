@@ -22,7 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import { supabase } from "@/integrations/supabase/client";
-import { isNativePlatform, takePhoto, pickFromGallery, fileToBase64 } from "@/lib/cameraService";
+import { isNativePlatform, takePhoto, pickFromGallery, fileToBase64, getMimeType } from "@/lib/cameraService";
 import {
   Camera,
   Upload,
@@ -52,6 +52,7 @@ interface PhotoItem {
   id: string;
   base64: string;
   thumbnail: string;
+  mimeType: string;
 }
 
 const CATEGORY_OPTIONS = [
@@ -112,7 +113,8 @@ const MenuScannerTab = ({ onNext }: { onNext: () => void }) => {
   const handleTakePhoto = async () => {
     const result = await takePhoto();
     if (result) {
-      addPhoto(result.base64Data);
+      const mimeType = getMimeType(result.format);
+      addPhoto(result.base64Data, mimeType);
     }
   };
 
@@ -120,7 +122,8 @@ const MenuScannerTab = ({ onNext }: { onNext: () => void }) => {
   const handlePickFromGallery = async () => {
     const result = await pickFromGallery();
     if (result) {
-      addPhoto(result.base64Data);
+      const mimeType = getMimeType(result.format);
+      addPhoto(result.base64Data, mimeType);
     }
   };
 
@@ -134,7 +137,7 @@ const MenuScannerTab = ({ onNext }: { onNext: () => void }) => {
       if (file.type.startsWith("image/")) {
         try {
           const base64 = await fileToBase64(file);
-          addPhoto(base64);
+          addPhoto(base64, file.type);
         } catch (error) {
           console.error("Error converting file:", error);
           toast({
@@ -153,7 +156,7 @@ const MenuScannerTab = ({ onNext }: { onNext: () => void }) => {
   };
 
   // Add a photo to the queue
-  const addPhoto = (base64: string) => {
+  const addPhoto = (base64: string, mimeType: string = 'image/jpeg') => {
     if (photos.length >= 10) {
       toast({
         title: "Maximum photos reached",
@@ -169,7 +172,8 @@ const MenuScannerTab = ({ onNext }: { onNext: () => void }) => {
       {
         id,
         base64,
-        thumbnail: `data:image/jpeg;base64,${base64}`,
+        thumbnail: `data:${mimeType};base64,${base64}`,
+        mimeType,
       },
     ]);
   };
@@ -205,7 +209,10 @@ const MenuScannerTab = ({ onNext }: { onNext: () => void }) => {
     try {
       const { data, error } = await supabase.functions.invoke("parse-menu", {
         body: {
-          images: photos.map((p) => p.base64),
+          images: photos.map((p) => ({
+            base64: p.base64,
+            mimeType: p.mimeType,
+          })),
         },
       });
 
