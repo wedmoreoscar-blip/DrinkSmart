@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { CheckCircle, Trash2, Eye, Loader2, MessageSquare } from "lucide-react";
+import { CheckCircle, Trash2, Loader2, MessageSquare } from "lucide-react";
 
 interface FeedbackItem {
   id: string;
@@ -172,8 +172,12 @@ const FeedbackList = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {feedbackList.map((feedback) => (
-                    <TableRow key={feedback.id}>
+                {feedbackList.map((feedback) => (
+                    <TableRow 
+                      key={feedback.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedFeedback(feedback)}
+                    >
                       <TableCell className="font-medium max-w-[150px] truncate">
                         {feedback.title}
                       </TableCell>
@@ -193,15 +197,8 @@ const FeedbackList = () => {
                           {feedback.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedFeedback(feedback)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
                           {feedback.status === "new" && (
                             <Button
                               variant="ghost"
