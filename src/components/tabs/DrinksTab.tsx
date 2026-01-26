@@ -221,11 +221,15 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
           break;
       }
 
-      // Get ABV
+      // Get ABV - prefer customABV if set (used for establishment drinks and custom drinks)
       let abv = 0;
-      if (drink.isCustom) {
-        abv = parseFloat(drink.customABV || "0");
+      if (drink.customABV) {
+        abv = parseFloat(drink.customABV);
+      } else if (drink.isCustom) {
+        // Fallback for custom drinks without customABV (shouldn't happen normally)
+        abv = 0;
       } else {
+        // Fallback to lookup from establishment drinks
         const drinkData = allDrinks.find(d => d.name === drink.drink);
         abv = drinkData?.abv || 0;
       }
