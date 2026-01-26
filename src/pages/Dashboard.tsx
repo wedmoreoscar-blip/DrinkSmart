@@ -19,13 +19,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Settings, User, Monitor } from "lucide-react";
+import { Settings, User, Monitor, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("target-buzz");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     // Check authentication status
@@ -68,6 +70,15 @@ const Dashboard = () => {
                       <User className="h-5 w-5 text-muted-foreground" />
                       <span>Account</span>
                     </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={() => navigate("/admin/feedback")}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors"
+                      >
+                        <Shield className="h-5 w-5 text-muted-foreground" />
+                        <span>Admin Panel</span>
+                      </button>
+                    )}
                     <GraphicsSheet>
                       <button className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors">
                         <Monitor className="h-5 w-5 text-muted-foreground" />
