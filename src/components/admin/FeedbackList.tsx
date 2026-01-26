@@ -164,6 +164,7 @@ const FeedbackList = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Title</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Submitted By</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -173,8 +174,11 @@ const FeedbackList = () => {
                 <TableBody>
                   {feedbackList.map((feedback) => (
                     <TableRow key={feedback.id}>
-                      <TableCell className="font-medium max-w-[200px] truncate">
+                      <TableCell className="font-medium max-w-[150px] truncate">
                         {feedback.title}
+                      </TableCell>
+                      <TableCell className="max-w-[250px] truncate text-muted-foreground">
+                        {feedback.description}
                       </TableCell>
                       <TableCell>
                         {feedback.username || "Anonymous"}
