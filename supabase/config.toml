@@ -2,3 +2,6 @@ project_id = "bdgfmcspurftimormevy"
 
 [functions.parse-menu]
 verify_jwt = false
+
+[functions.submit-feedback]
+verify_jwt = false

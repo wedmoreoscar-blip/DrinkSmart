@@ -80,19 +80,34 @@ const FeedbackTab = () => {
         imageUrl = publicUrl;
       }
 
-      // Insert feedback record
-      const { error: insertError } = await supabase
-        .from("feedback")
-        .insert({
-          user_id: user?.id ?? null,
-          title: title.trim(),
-          description: description.trim(),
-          image_url: imageUrl,
-          status: "new",
-        });
+      // Submit feedback via edge function with rate limiting
+      const { data: responseData, error: invokeError } = await supabase.functions.invoke(
+        "submit-feedback",
+        {
+          body: {
+            user_id: user?.id ?? null,
+            title: title.trim(),
+            description: description.trim(),
+            image_url: imageUrl,
+          },
+        }
+      );
 
-      if (insertError) {
-        throw insertError;
+      if (invokeError) {
+        throw invokeError;
+      }
+
+      if (responseData?.error) {
+        // Handle rate limiting
+        if (responseData.resetIn) {
+          toast({
+            title: "Rate limit exceeded",
+            description: `You've submitted too many feedback entries. Please try again in ${responseData.resetIn} minutes.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        throw new Error(responseData.error);
       }
 
       toast({
