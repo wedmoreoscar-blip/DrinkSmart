@@ -315,11 +315,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           // Convert to ml
           const volumeMl = convertToMl(quantity, drink.unit);
 
-          // Get ABV
+          // Get ABV - prioritize customABV since it's set for ALL drinks at selection time
+          // This ensures establishment drinks and scanned menu drinks work correctly
           let abv = 0;
-          if (drink.isCustom) {
-            abv = parseFloat(drink.customABV || "0");
-          } else {
+          if (drink.customABV) {
+            // customABV is set for both custom drinks AND establishment drinks when selected
+            abv = parseFloat(drink.customABV);
+          } else if (!drink.isCustom) {
+            // Fallback lookup in static drinkCategories (legacy behavior)
             const drinkData = allDrinks.find(d => d.name === drink.drink);
             abv = drinkData?.abv || 0;
           }
