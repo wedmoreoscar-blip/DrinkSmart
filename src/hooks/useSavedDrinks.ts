@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -10,11 +11,12 @@ export type SavedDrink = {
   isSessionOnly?: boolean;
 };
 
+const savedDrinksKey = (userId: string | null) => ["savedDrinks", userId] as const;
+const sessionDrinksKey = ["sessionDrinks"] as const;
+
 export const useSavedDrinks = () => {
-  const [savedDrinks, setSavedDrinks] = useState<SavedDrink[]>([]);
-  const [sessionDrinks, setSessionDrinks] = useState<SavedDrink[]>([]);
-  const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -31,158 +33,193 @@ export const useSavedDrinks = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (userId) {
-      fetchSavedDrinks();
-    } else {
-      setSavedDrinks([]);
-      setLoading(false);
-    }
-  }, [userId]);
+  const queryKey = savedDrinksKey(userId);
 
-  const fetchSavedDrinks = async () => {
-    if (!userId) return;
-    
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("saved_custom_drinks")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const dbQuery = useQuery<SavedDrink[]>({
+    queryKey,
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("saved_custom_drinks")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as SavedDrink[];
+    },
+  });
 
-    if (error) {
-      console.error("Error fetching saved drinks:", error);
-    } else {
-      setSavedDrinks(data || []);
-    }
-    setLoading(false);
-  };
+  // Session drinks are purely client-side but shared across hook instances via the
+  // query cache so adds in one place show up everywhere.
+  const sessionQuery = useQuery<SavedDrink[]>({
+    queryKey: sessionDrinksKey,
+    queryFn: () => Promise.resolve([]),
+    enabled: false,
+    initialData: [],
+    staleTime: Infinity,
+  });
 
-  const saveDrink = async (drinkName: string, abv: number) => {
-    if (!userId) {
-      toast({
-        title: "Not logged in",
-        description: "Please sign in to save custom drinks.",
-        variant: "destructive",
-        duration: 3000,
+  const saveDrinkMut = useMutation<boolean, Error, { drinkName: string; abv: number }>({
+    mutationFn: async ({ drinkName, abv }) => {
+      if (!userId) throw new Error("Not authenticated");
+
+      // Avoid the duplicate-name round-trip — let the DB unique constraint catch it.
+      const { error } = await supabase.from("saved_custom_drinks").insert({
+        user_id: userId,
+        drink_name: drinkName,
+        abv,
       });
-      return false;
-    }
 
-    // Check if drink already exists
-    const existing = savedDrinks.find(
-      (d) => d.drink_name.toLowerCase() === drinkName.toLowerCase()
-    );
-    if (existing) {
-      toast({
-        title: "Already saved",
-        description: "This drink is already in your saved drinks.",
-        duration: 3000,
-      });
-      return false;
-    }
-
-    const { error } = await supabase.from("saved_custom_drinks").insert({
-      user_id: userId,
-      drink_name: drinkName,
-      abv,
-    });
-
-    if (error) {
-      if (error.code === "23505") {
-        toast({
-          title: "Already saved",
-          description: "This drink is already in your saved drinks.",
-          duration: 3000,
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to save drink. Please try again.",
-          variant: "destructive",
-          duration: 3000,
-        });
+      if (error) {
+        if (error.code === "23505") {
+          toast({
+            title: "Already saved",
+            description: "This drink is already in your saved drinks.",
+            duration: 3000,
+          });
+          return false;
+        }
+        throw error;
       }
-      return false;
-    }
 
-    toast({
-      title: "Drink saved! 🍹",
-      description: `${drinkName} has been added to your saved drinks.`,
-      duration: 3000,
-    });
-    
-    await fetchSavedDrinks();
-    return true;
-  };
-
-  const deleteDrink = async (drinkId: string) => {
-    // Check if it's a session drink
-    if (drinkId.startsWith('session-')) {
-      setSessionDrinks(prev => prev.filter(d => d.id !== drinkId));
       toast({
-        title: "Drink removed",
-        description: "The drink has been removed.",
+        title: "Drink saved! 🍹",
+        description: `${drinkName} has been added to your saved drinks.`,
         duration: 3000,
       });
       return true;
-    }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onError: (err) => {
+      console.error("Error saving drink:", err);
+      toast({
+        title: "Error",
+        description: "Failed to save drink. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    },
+  });
 
-    const { error } = await supabase
-      .from("saved_custom_drinks")
-      .delete()
-      .eq("id", drinkId);
+  const deleteDrinkMut = useMutation<boolean, Error, string>({
+    mutationFn: async (drinkId) => {
+      const { error } = await supabase
+        .from("saved_custom_drinks")
+        .delete()
+        .eq("id", drinkId);
+      if (error) throw error;
 
-    if (error) {
+      toast({
+        title: "Drink removed",
+        description: "The drink has been removed from your saved drinks.",
+        duration: 3000,
+      });
+      return true;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onError: (err) => {
+      console.error("Error deleting drink:", err);
       toast({
         title: "Error",
         description: "Failed to remove drink. Please try again.",
         variant: "destructive",
         duration: 3000,
       });
-      return false;
-    }
+    },
+  });
 
-    toast({
-      title: "Drink removed",
-      description: "The drink has been removed from your saved drinks.",
-      duration: 3000,
-    });
-    
-    setSavedDrinks((prev) => prev.filter((d) => d.id !== drinkId));
-    return true;
-  };
+  const saveDrink = useCallback(
+    async (drinkName: string, abv: number): Promise<boolean> => {
+      if (!userId) {
+        toast({
+          title: "Not logged in",
+          description: "Please sign in to save custom drinks.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return false;
+      }
+      // Cheap client-side dedupe to avoid an unnecessary write
+      const existing = (dbQuery.data ?? []).find(
+        (d) => d.drink_name.toLowerCase() === drinkName.toLowerCase()
+      );
+      if (existing) {
+        toast({
+          title: "Already saved",
+          description: "This drink is already in your saved drinks.",
+          duration: 3000,
+        });
+        return false;
+      }
+      try {
+        return await saveDrinkMut.mutateAsync({ drinkName, abv });
+      } catch {
+        return false;
+      }
+    },
+    [userId, dbQuery.data, saveDrinkMut, toast]
+  );
 
-  // Add a session-only drink (for guests)
-  const addSessionDrink = (drinkName: string, abv: number) => {
-    const newDrink: SavedDrink = {
-      id: `session-${Date.now()}`,
-      drink_name: drinkName,
-      abv,
-      created_at: new Date().toISOString(),
-      isSessionOnly: true,
-    };
-    setSessionDrinks(prev => [...prev, newDrink]);
-    return newDrink.id;
-  };
+  const deleteDrink = useCallback(
+    async (drinkId: string): Promise<boolean> => {
+      if (drinkId.startsWith("session-")) {
+        queryClient.setQueryData<SavedDrink[]>(sessionDrinksKey, (old = []) =>
+          old.filter((d) => d.id !== drinkId)
+        );
+        toast({
+          title: "Drink removed",
+          description: "The drink has been removed.",
+          duration: 3000,
+        });
+        return true;
+      }
+      try {
+        return await deleteDrinkMut.mutateAsync(drinkId);
+      } catch {
+        return false;
+      }
+    },
+    [queryClient, deleteDrinkMut, toast]
+  );
 
-  // Clear session drinks
-  const clearSessionDrinks = () => {
-    setSessionDrinks([]);
-  };
+  const addSessionDrink = useCallback(
+    (drinkName: string, abv: number): string => {
+      const newDrink: SavedDrink = {
+        id: `session-${Date.now()}`,
+        drink_name: drinkName,
+        abv,
+        created_at: new Date().toISOString(),
+        isSessionOnly: true,
+      };
+      queryClient.setQueryData<SavedDrink[]>(sessionDrinksKey, (old = []) => [
+        ...old,
+        newDrink,
+      ]);
+      return newDrink.id;
+    },
+    [queryClient]
+  );
 
-  // Combine saved drinks and session drinks for logged-in users
-  // For guests, only session drinks are available
-  const allSavedDrinks = userId ? savedDrinks : [];
+  const clearSessionDrinks = useCallback(() => {
+    queryClient.setQueryData<SavedDrink[]>(sessionDrinksKey, []);
+  }, [queryClient]);
+
+  const refetch = useCallback(async () => {
+    await dbQuery.refetch();
+  }, [dbQuery]);
+
+  const savedDrinks = userId ? dbQuery.data ?? [] : [];
+  const sessionDrinks = sessionQuery.data ?? [];
 
   return {
-    savedDrinks: allSavedDrinks,
+    savedDrinks,
     sessionDrinks,
-    loading,
+    loading: dbQuery.isLoading,
     isLoggedIn: !!userId,
     saveDrink,
     deleteDrink,
     addSessionDrink,
     clearSessionDrinks,
-    refetch: fetchSavedDrinks,
+    refetch,
   };
 };

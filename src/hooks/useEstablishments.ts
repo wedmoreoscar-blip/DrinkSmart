@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Establishment = {
@@ -20,13 +21,25 @@ export type EstablishmentDrink = {
   volume_unit: string | null;
 };
 
+type EstablishmentsDbData = {
+  establishments: Establishment[];
+  drinks: EstablishmentDrink[];
+};
+
+type SessionData = {
+  establishments: Establishment[];
+  drinks: EstablishmentDrink[];
+};
+
+const establishmentsDbKey = (userId: string | null) =>
+  ["establishments", userId] as const;
+const sessionEstablishmentsKey = ["sessionEstablishments"] as const;
+
+const emptySession: SessionData = { establishments: [], drinks: [] };
+
 export const useEstablishments = () => {
-  const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [establishmentDrinks, setEstablishmentDrinks] = useState<EstablishmentDrink[]>([]);
-  const [sessionEstablishments, setSessionEstablishments] = useState<Establishment[]>([]);
-  const [sessionEstablishmentDrinks, setSessionEstablishmentDrinks] = useState<EstablishmentDrink[]>([]);
-  const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -42,123 +55,138 @@ export const useEstablishments = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    fetchEstablishments();
-  }, [userId]);
+  const queryKey = establishmentsDbKey(userId);
 
-  const fetchEstablishments = async () => {
-    setLoading(true);
-    
-    // Fetch all establishments the user can see (global + their own if logged in)
-    const { data: establishmentsData, error: estError } = await supabase
-      .from("establishments")
-      .select("*")
-      .order("name");
+  const dbQuery = useQuery<EstablishmentsDbData>({
+    queryKey,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const { data: establishmentsData, error: estError } = await supabase
+        .from("establishments")
+        .select("*")
+        .order("name");
 
-    if (estError) {
-      console.error("Error fetching establishments:", estError);
-      setLoading(false);
-      return;
-    }
+      if (estError) throw estError;
 
-    // Map to our Establishment type
-    const mappedEstablishments: Establishment[] = (establishmentsData || []).map(est => ({
-      id: est.id,
-      name: est.name,
-      isGlobal: est.user_id === null,
-    }));
+      const mappedEstablishments: Establishment[] = (establishmentsData ?? []).map(
+        (est) => ({
+          id: est.id,
+          name: est.name,
+          isGlobal: est.user_id === null,
+        })
+      );
 
-    setEstablishments(mappedEstablishments);
+      const { data: drinksData, error: drinksError } = await supabase
+        .from("establishment_drinks")
+        .select("*")
+        .order("drink_name");
 
-    // Fetch all establishment drinks
-    const { data: drinksData, error: drinksError } = await supabase
-      .from("establishment_drinks")
-      .select("*")
-      .order("drink_name");
+      if (drinksError) throw drinksError;
 
-    if (drinksError) {
-      console.error("Error fetching establishment drinks:", drinksError);
-    } else {
-      setEstablishmentDrinks(drinksData || []);
-    }
+      return {
+        establishments: mappedEstablishments,
+        drinks: (drinksData ?? []) as EstablishmentDrink[],
+      };
+    },
+  });
 
-    setLoading(false);
-  };
+  const sessionQuery = useQuery<SessionData>({
+    queryKey: sessionEstablishmentsKey,
+    queryFn: () => Promise.resolve(emptySession),
+    enabled: false,
+    initialData: emptySession,
+    staleTime: Infinity,
+  });
 
-  // Get drinks for a specific establishment
-  const getEstablishmentDrinks = (establishmentId: string): EstablishmentDrink[] => {
-    // Check session establishments first
-    const sessionDrinks = sessionEstablishmentDrinks.filter(d => d.establishment_id === establishmentId);
-    if (sessionDrinks.length > 0) return sessionDrinks;
-    
-    // Then check database establishments
-    return establishmentDrinks.filter(d => d.establishment_id === establishmentId);
-  };
+  const db = dbQuery.data ?? { establishments: [], drinks: [] };
+  const session = sessionQuery.data ?? emptySession;
 
-  // Get global establishments (Wetherspoons)
-  const getGlobalEstablishments = (): Establishment[] => {
-    return establishments.filter(e => e.isGlobal);
-  };
+  const allEstablishments: Establishment[] = [
+    ...db.establishments,
+    ...session.establishments,
+  ];
 
-  // Get user establishments (non-global)
-  const getUserEstablishments = (): Establishment[] => {
-    return establishments.filter(e => !e.isGlobal);
-  };
+  const getEstablishmentDrinks = useCallback(
+    (establishmentId: string): EstablishmentDrink[] => {
+      const sessionDrinks = session.drinks.filter(
+        (d) => d.establishment_id === establishmentId
+      );
+      if (sessionDrinks.length > 0) return sessionDrinks;
+      return db.drinks.filter((d) => d.establishment_id === establishmentId);
+    },
+    [db.drinks, session.drinks]
+  );
 
-  // Add a session-only establishment (for guests uploading menus)
-  const addSessionEstablishment = (name: string, drinks: Omit<EstablishmentDrink, 'id' | 'establishment_id'>[]) => {
-    const sessionEstId = `session-${Date.now()}`;
-    const newEstablishment: Establishment = {
-      id: sessionEstId,
-      name,
-      isGlobal: false,
-      isSessionOnly: true,
-    };
-    
-    const sessionDrinks: EstablishmentDrink[] = drinks.map((drink, index) => ({
-      ...drink,
-      id: `session-drink-${Date.now()}-${index}`,
-      establishment_id: sessionEstId,
-      // Ensure price, volume, volume_unit are included
-      price: drink.price ?? null,
-      volume: drink.volume ?? null,
-      volume_unit: drink.volume_unit ?? null,
-    }));
+  const getGlobalEstablishments = useCallback(
+    (): Establishment[] => db.establishments.filter((e) => e.isGlobal),
+    [db.establishments]
+  );
 
-    setSessionEstablishments(prev => [...prev, newEstablishment]);
-    setSessionEstablishmentDrinks(prev => [...prev, ...sessionDrinks]);
+  const getUserEstablishments = useCallback(
+    (): Establishment[] => db.establishments.filter((e) => !e.isGlobal),
+    [db.establishments]
+  );
 
-    return sessionEstId;
-  };
+  const addSessionEstablishment = useCallback(
+    (
+      name: string,
+      drinks: Omit<EstablishmentDrink, "id" | "establishment_id">[]
+    ): string => {
+      const sessionEstId = `session-${Date.now()}`;
+      const newEstablishment: Establishment = {
+        id: sessionEstId,
+        name,
+        isGlobal: false,
+        isSessionOnly: true,
+      };
 
-  // Clear session establishments
-  const clearSessionEstablishments = () => {
-    setSessionEstablishments([]);
-    setSessionEstablishmentDrinks([]);
-  };
+      const newDrinks: EstablishmentDrink[] = drinks.map((drink, index) => ({
+        ...drink,
+        id: `session-drink-${Date.now()}-${index}`,
+        establishment_id: sessionEstId,
+        price: drink.price ?? null,
+        volume: drink.volume ?? null,
+        volume_unit: drink.volume_unit ?? null,
+      }));
 
-  // Get all searchable drinks (for search functionality)
-  const getAllSearchableDrinks = () => {
-    const dbDrinks = establishmentDrinks.map(d => ({
+      queryClient.setQueryData<SessionData>(sessionEstablishmentsKey, (old) => ({
+        establishments: [...(old?.establishments ?? []), newEstablishment],
+        drinks: [...(old?.drinks ?? []), ...newDrinks],
+      }));
+
+      return sessionEstId;
+    },
+    [queryClient]
+  );
+
+  const clearSessionEstablishments = useCallback(() => {
+    queryClient.setQueryData<SessionData>(sessionEstablishmentsKey, emptySession);
+  }, [queryClient]);
+
+  const getAllSearchableDrinks = useCallback(() => {
+    const dbDrinks = db.drinks.map((d) => ({
       name: d.drink_name,
       abv: d.abv,
       category: d.category,
       categoryLabel: d.category_label,
       establishmentId: d.establishment_id,
-      establishmentName: establishments.find(e => e.id === d.establishment_id)?.name || "Unknown",
+      establishmentName:
+        db.establishments.find((e) => e.id === d.establishment_id)?.name ?? "Unknown",
       isSessionOnly: false,
       price: d.price,
       volume: d.volume,
       volumeUnit: d.volume_unit,
     }));
 
-    const sessionDrinks = sessionEstablishmentDrinks.map(d => ({
+    const sessionDrinks = session.drinks.map((d) => ({
       name: d.drink_name,
       abv: d.abv,
       category: d.category,
       categoryLabel: d.category_label,
       establishmentId: d.establishment_id,
-      establishmentName: sessionEstablishments.find(e => e.id === d.establishment_id)?.name || "Unknown",
+      establishmentName:
+        session.establishments.find((e) => e.id === d.establishment_id)?.name ??
+        "Unknown",
       isSessionOnly: true,
       price: d.price,
       volume: d.volume,
@@ -166,22 +194,23 @@ export const useEstablishments = () => {
     }));
 
     return [...dbDrinks, ...sessionDrinks];
-  };
+  }, [db.drinks, db.establishments, session.drinks, session.establishments]);
 
-  // Combine all establishments (database + session)
-  const allEstablishments = [...establishments, ...sessionEstablishments];
+  const refetch = useCallback(async () => {
+    await dbQuery.refetch();
+  }, [dbQuery]);
 
   return {
     establishments: allEstablishments,
-    loading,
+    loading: dbQuery.isLoading,
     isLoggedIn: !!userId,
     getEstablishmentDrinks,
     getGlobalEstablishments,
     getUserEstablishments,
-    sessionEstablishments,
+    sessionEstablishments: session.establishments,
     addSessionEstablishment,
     clearSessionEstablishments,
     getAllSearchableDrinks,
-    refetch: fetchEstablishments,
+    refetch,
   };
 };

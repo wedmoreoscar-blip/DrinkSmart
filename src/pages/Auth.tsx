@@ -9,6 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { User, Mail, Lock, Upload, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
+import { isAnonymousSession } from "@/lib/anonymousAuth";
+import type { Session } from "@supabase/supabase-js";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -27,21 +29,30 @@ const Auth = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isUpgrade, setIsUpgrade] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; username?: string }>({});
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
+    // Redirect to dashboard only when the session belongs to a real (non-anonymous) user.
+    // Anonymous users stay on this page to upgrade their account.
+    const handleSession = (session: Session | null) => {
+      if (!session?.user) return;
+      if (isAnonymousSession(session)) {
+        setIsUpgrade(true);
+        setIsSignUp(true);
+      } else {
         navigate("/dashboard");
       }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleSession(session);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        navigate("/dashboard");
-      }
+      handleSession(session);
     });
 
     return () => subscription.unsubscribe();
@@ -140,51 +151,99 @@ const Auth = () => {
       }
 
       if (isSignUp) {
-        const redirectUrl = `${window.location.origin}/dashboard`;
-        
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-          },
-        });
-
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast({
-              title: "Account exists",
-              description: "This email is already registered. Please sign in instead.",
-              variant: "destructive",
-            });
-          } else {
-            throw error;
-          }
-          setLoading(false);
-          return;
-        }
-
-        if (data.user) {
-          let avatarUrl: string | null = null;
-          if (avatarFile) {
-            avatarUrl = await uploadAvatar(data.user.id);
-          }
-
-          const { error: profileError } = await supabase.from("profiles").insert({
-            user_id: data.user.id,
-            username,
-            avatar_url: avatarUrl,
+        if (isUpgrade) {
+          // Anonymous user upgrading to a permanent account — keep the same user_id.
+          const { data: updateData, error: updateError } = await supabase.auth.updateUser({
+            email,
+            password,
           });
 
-          if (profileError) {
-            console.error("Profile creation error:", profileError);
+          if (updateError) {
+            if (updateError.message.includes("already registered") || updateError.message.includes("already been registered")) {
+              toast({
+                title: "Email already in use",
+                description: "That email is already linked to another account. Try signing in instead.",
+                variant: "destructive",
+              });
+            } else {
+              throw updateError;
+            }
+            setLoading(false);
+            return;
           }
-        }
 
-        toast({
-          title: "Check your email!",
-          description: "We've sent you a verification link. Please check your inbox to verify your account.",
-        });
+          const userId = updateData.user?.id;
+          if (userId) {
+            let avatarUrl: string | null = null;
+            if (avatarFile) {
+              avatarUrl = await uploadAvatar(userId);
+            }
+
+            const { error: profileError } = await supabase.from("profiles").upsert(
+              {
+                user_id: userId,
+                username,
+                ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+              },
+              { onConflict: "user_id" }
+            );
+
+            if (profileError) {
+              console.error("Profile upsert error:", profileError);
+            }
+          }
+
+          toast({
+            title: "Check your email!",
+            description: "We've sent a verification link to confirm your new email and finalize your account.",
+          });
+        } else {
+          const redirectUrl = `${window.location.origin}/dashboard`;
+
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: redirectUrl,
+            },
+          });
+
+          if (error) {
+            if (error.message.includes("already registered")) {
+              toast({
+                title: "Account exists",
+                description: "This email is already registered. Please sign in instead.",
+                variant: "destructive",
+              });
+            } else {
+              throw error;
+            }
+            setLoading(false);
+            return;
+          }
+
+          if (data.user) {
+            let avatarUrl: string | null = null;
+            if (avatarFile) {
+              avatarUrl = await uploadAvatar(data.user.id);
+            }
+
+            const { error: profileError } = await supabase.from("profiles").insert({
+              user_id: data.user.id,
+              username,
+              avatar_url: avatarUrl,
+            });
+
+            if (profileError) {
+              console.error("Profile creation error:", profileError);
+            }
+          }
+
+          toast({
+            title: "Check your email!",
+            description: "We've sent you a verification link. Please check your inbox to verify your account.",
+          });
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -241,19 +300,23 @@ const Auth = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <CardTitle className="text-2xl">
-              {isForgotPassword 
-                ? "Reset Password" 
-                : isSignUp 
-                  ? "Create an account" 
-                  : "Welcome back"}
+              {isForgotPassword
+                ? "Reset Password"
+                : isUpgrade && isSignUp
+                  ? "Save your progress"
+                  : isSignUp
+                    ? "Create an account"
+                    : "Welcome back"}
             </CardTitle>
           </div>
           <CardDescription>
             {isForgotPassword
               ? "Enter your email to receive a reset link"
-              : isSignUp
-                ? "Enter your details to create your account"
-                : "Enter your credentials to sign in"}
+              : isUpgrade && isSignUp
+                ? "Create a permanent account to keep your stats, preferences, and history across devices."
+                : isSignUp
+                  ? "Enter your details to create your account"
+                  : "Enter your credentials to sign in"}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -127,7 +127,10 @@ export type Database = {
           height_unit: string | null
           id: string
           metric_type: string | null
+          onboarded_at: string | null
+          preferences: Json
           sex: string | null
+          theme: string
           updated_at: string
           user_id: string
           username: string
@@ -145,7 +148,10 @@ export type Database = {
           height_unit?: string | null
           id?: string
           metric_type?: string | null
+          onboarded_at?: string | null
+          preferences?: Json
           sex?: string | null
+          theme?: string
           updated_at?: string
           user_id: string
           username: string
@@ -163,7 +169,10 @@ export type Database = {
           height_unit?: string | null
           id?: string
           metric_type?: string | null
+          onboarded_at?: string | null
+          preferences?: Json
           sex?: string | null
+          theme?: string
           updated_at?: string
           user_id?: string
           username?: string
@@ -267,6 +276,30 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          buzz_level: number
+          drinks: Json
+          duration_minutes: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          buzz_level: number
+          drinks?: Json
+          duration_minutes: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          buzz_level?: number
+          drinks?: Json
+          duration_minutes?: number
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Lock, Unlock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatTimeDisplay, getUnitDisplayText } from "@/lib/timelineHelpers";
 
 type DrinkTimelineEntry = {
@@ -24,6 +25,8 @@ type SortableTimelineItemProps = {
   durationMinutes: number;
   isVolumeBased: boolean;
   isDraggable: boolean;
+  isLocked: boolean;
+  onToggleLock: () => void;
   formatDuration: (minutes: number) => string;
 };
 
@@ -36,6 +39,8 @@ export const SortableTimelineItem = ({
   durationMinutes,
   isVolumeBased,
   isDraggable,
+  isLocked,
+  onToggleLock,
   formatDuration,
 }: SortableTimelineItemProps) => {
   const {
@@ -45,9 +50,9 @@ export const SortableTimelineItem = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ 
+  } = useSortable({
     id: `${entry.drinkId}-${entry.unitNumber}`,
-    disabled: !isDraggable,
+    disabled: !isDraggable || isLocked,
   });
 
   const style = {
@@ -89,10 +94,23 @@ export const SortableTimelineItem = ({
         <div className={`flex-1 pb-2 transition-opacity ${
           isPast ? "opacity-50" : "opacity-100"
         } ${isDraggable && isFuture ? "ml-10" : ""}`}>
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-1 gap-2">
             <div className="font-semibold text-lg">{formatTime(entry.time)}</div>
-            <div className="text-sm text-muted-foreground">
-              {getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit)}
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-muted-foreground">
+                {getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit)}
+              </div>
+              {!isPast && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-7 w-7 ${isLocked ? "text-primary" : "text-muted-foreground"}`}
+                  onClick={onToggleLock}
+                  title={isLocked ? "Unlock — allow regenerate to replace this drink" : "Lock — keep this drink across regenerations"}
+                >
+                  {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                </Button>
+              )}
             </div>
           </div>
           <div className="text-muted-foreground">

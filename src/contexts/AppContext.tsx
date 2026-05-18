@@ -1,5 +1,9 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
+import { getBACForLevel } from "@/data/buzzLevels";
+import { drinkCategories } from "@/data/drinksData";
+import { convertToMl, getDrinkIcon, calculateTimeWithMidnight } from "@/lib/timelineHelpers";
+import { loadSession, saveSession } from "@/lib/sessionStore";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -63,6 +67,7 @@ type AppState = {
   inebriationLevel: number;
   targetBAC: { min: number; max: number }; // BAC range for selected inebriation level
   drinks: DrinkEntry[];
+  lockedDrinkIds: string[]; // ids of drinks pinned across regenerations
   startTime: number; // seconds since start (deprecated)
   isTimerRunning: boolean; // deprecated
   startDateTime: Date | null; // actual start time
@@ -84,6 +89,8 @@ type AppContextType = {
   updateStartTime: (startTime: Date) => void;
   updateDrinkingStartTime: (time: Date | null) => void;
   updateDrinkingTargetTime: (time: Date | null) => void;
+  toggleLockedDrink: (drinkId: string) => void;
+  clearLockedDrinks: () => void;
   recalculate: () => void;
   calculateDrinkTimeline: () => void;
   reorderTimelineEntries: (oldIndex: number, newIndex: number) => void;
@@ -107,6 +114,7 @@ const initialState: AppState = {
   inebriationLevel: 3,
   targetBAC: { min: 0.06, max: 0.09 }, // Default to level 3 (Tipsy)
   drinks: [{ id: "1", category: "", drink: "", quantity: "", unit: "ml", isCustom: false }],
+  lockedDrinkIds: [],
   startTime: 0,
   isTimerRunning: false,
   startDateTime: null,
@@ -119,8 +127,65 @@ const initialState: AppState = {
   isTargetAdjusted: false,
 };
 
+function hydrateInitialState(): AppState {
+  const persisted = loadSession();
+  if (!persisted) return initialState;
+
+  let targetBAC = initialState.targetBAC;
+  try {
+    const bac = getBACForLevel(persisted.inebriationLevel);
+    targetBAC = { min: bac.min_bac, max: bac.max_bac };
+  } catch {
+    // Unknown level — keep default
+  }
+
+  let timeDelta: number | null = null;
+  if (persisted.drinkingStartTime && persisted.drinkingTargetTime) {
+    const startMin =
+      persisted.drinkingStartTime.getHours() * 60 +
+      persisted.drinkingStartTime.getMinutes();
+    const targetMin =
+      persisted.drinkingTargetTime.getHours() * 60 +
+      persisted.drinkingTargetTime.getMinutes();
+    const diff =
+      targetMin <= startMin
+        ? 24 * 60 - startMin + targetMin
+        : targetMin - startMin;
+    timeDelta = diff / 60;
+  }
+
+  return {
+    ...initialState,
+    inebriationLevel: persisted.inebriationLevel,
+    targetBAC,
+    drinks:
+      persisted.drinks.length > 0 ? persisted.drinks : initialState.drinks,
+    lockedDrinkIds: persisted.lockedDrinkIds,
+    drinkingStartTime: persisted.drinkingStartTime,
+    drinkingTargetTime: persisted.drinkingTargetTime,
+    timeDelta,
+  };
+}
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [state, setState] = useState<AppState>(initialState);
+  const [state, setState] = useState<AppState>(hydrateInitialState);
+
+  // Persist the night-state slice to localStorage on change (debounced inside saveSession).
+  useEffect(() => {
+    saveSession({
+      inebriationLevel: state.inebriationLevel,
+      drinks: state.drinks,
+      lockedDrinkIds: state.lockedDrinkIds,
+      drinkingStartTime: state.drinkingStartTime,
+      drinkingTargetTime: state.drinkingTargetTime,
+    });
+  }, [
+    state.inebriationLevel,
+    state.drinks,
+    state.lockedDrinkIds,
+    state.drinkingStartTime,
+    state.drinkingTargetTime,
+  ]);
 
   const updateUserMetrics = (metrics: Partial<UserMetrics>) => {
     setState((prev) => ({
@@ -130,15 +195,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateInebriationLevel = (level: number) => {
-    // Import buzzLevels dynamically to get BAC range
-    import("@/data/buzzLevels").then(({ getBACForLevel }) => {
-      const bacRange = getBACForLevel(level);
-      setState((prev) => ({ 
-        ...prev, 
-        inebriationLevel: level,
-        targetBAC: { min: bacRange.min_bac, max: bacRange.max_bac }
-      }));
-    });
+    const bacRange = getBACForLevel(level);
+    setState((prev) => ({
+      ...prev,
+      inebriationLevel: level,
+      targetBAC: { min: bacRange.min_bac, max: bacRange.max_bac },
+    }));
   };
 
   const updateDrinks = (drinks: DrinkEntry[]) => {
@@ -184,6 +246,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const timeDelta = calculateTimeDelta(time, prev.drinkingTargetTime);
       return { ...prev, drinkingStartTime: time, timeDelta };
     });
+  };
+
+  const toggleLockedDrink = (drinkId: string) => {
+    setState((prev) => ({
+      ...prev,
+      lockedDrinkIds: prev.lockedDrinkIds.includes(drinkId)
+        ? prev.lockedDrinkIds.filter((id) => id !== drinkId)
+        : [...prev.lockedDrinkIds, drinkId],
+    }));
+  };
+
+  const clearLockedDrinks = () => {
+    setState((prev) => ({ ...prev, lockedDrinkIds: [] }));
   };
 
   const updateDrinkingTargetTime = (time: Date | null) => {
@@ -253,176 +328,160 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Import drink data and helpers
-    import("@/data/drinksData").then(({ drinkCategories }) => {
-      import("@/lib/timelineHelpers").then(({ convertToMl, getDrinkIcon, calculateTimeWithMidnight }) => {
-        // Flatten all drinks for lookup
-        const allDrinks = Object.entries(drinkCategories).flatMap(([categoryKey, category]) =>
-          category.options.map(option => ({
-            name: option.name,
-            abv: option.abv,
-            category: categoryKey,
-          }))
-        );
+    // Flatten all drinks for lookup
+    const allDrinks = Object.entries(drinkCategories).flatMap(([categoryKey, category]) =>
+      category.options.map((option) => ({
+        name: option.name,
+        abv: option.abv,
+        category: categoryKey,
+      }))
+    );
 
-        // Step 1: Calculate total pure alcohol needed using appropriate TBW formula
-        const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
-        const heightCm = getHeightInCm(
-          userMetrics.heightCm,
-          userMetrics.heightFt,
-          userMetrics.heightIn,
-          userMetrics.heightUnit
-        );
+    // Step 1: Calculate total pure alcohol needed using appropriate TBW formula
+    const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
+    const heightCm = getHeightInCm(
+      userMetrics.heightCm,
+      userMetrics.heightFt,
+      userMetrics.heightIn,
+      userMetrics.heightUnit
+    );
 
-        if (!weightKg) {
-          setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
-          return;
-        }
+    if (!weightKg) {
+      setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
+      return;
+    }
 
-        // Calculate Total Body Water using appropriate method (FFM or Watson)
-        const tbwGrams = getTBWGrams({
-          metricType: userMetrics.metricType,
-          bodyFat: userMetrics.bodyFat,
-          age: userMetrics.age,
-          heightCm,
-          weightKg,
-          sex: userMetrics.sex,
-        });
+    // Calculate Total Body Water using appropriate method (FFM or Watson)
+    const tbwGrams = getTBWGrams({
+      metricType: userMetrics.metricType,
+      bodyFat: userMetrics.bodyFat,
+      age: userMetrics.age,
+      heightCm,
+      weightKg,
+      sex: userMetrics.sex,
+    });
 
-        if (!tbwGrams) {
-          setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
-          return;
-        }
+    if (!tbwGrams) {
+      setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
+      return;
+    }
 
-        const BAC = (targetBAC.min + targetBAC.max) / 2;
-        // Formula: pure alcohol (g) = (BAC/100 + (0.00015 × timeDelta)) × TBW_grams
-        const pureAlcoholGrams = (BAC / 100 + (0.00015 * timeDelta)) * tbwGrams;
-        const totalPureAlcoholNeeded = pureAlcoholGrams / 0.789;
+    const BAC = (targetBAC.min + targetBAC.max) / 2;
+    // Formula: pure alcohol (g) = (BAC/100 + (0.00015 × timeDelta)) × TBW_grams
+    const pureAlcoholGrams = (BAC / 100 + 0.00015 * timeDelta) * tbwGrams;
+    const totalPureAlcoholNeeded = pureAlcoholGrams / 0.789;
 
-        const totalTimeDeltaMinutes = timeDelta * 60;
+    const totalTimeDeltaMinutes = timeDelta * 60;
 
-        // Step 2: Process each drink (first pass to calculate totals)
-        const calculations: DrinkCalculation[] = [];
-        
-        drinks.forEach((drink) => {
-          if (!drink.quantity) return;
-          if (!drink.isCustom && !drink.drink) return;
-          if (drink.isCustom && (!drink.customName || !drink.customABV)) return;
+    // Step 2: Process each drink (first pass to calculate totals)
+    const calculations: DrinkCalculation[] = [];
 
-          const quantity = parseFloat(drink.quantity);
-          if (isNaN(quantity) || quantity <= 0) return;
+    drinks.forEach((drink) => {
+      if (!drink.quantity) return;
+      if (!drink.isCustom && !drink.drink) return;
+      if (drink.isCustom && (!drink.customName || !drink.customABV)) return;
 
-          // Convert to ml
-          const volumeMl = convertToMl(quantity, drink.unit);
+      const quantity = parseFloat(drink.quantity);
+      if (isNaN(quantity) || quantity <= 0) return;
 
-          // Get ABV - prioritize customABV since it's set for ALL drinks at selection time
-          // This ensures establishment drinks and scanned menu drinks work correctly
-          let abv = 0;
-          if (drink.customABV) {
-            // customABV is set for both custom drinks AND establishment drinks when selected
-            abv = parseFloat(drink.customABV);
-          } else if (!drink.isCustom) {
-            // Fallback lookup in static drinkCategories (legacy behavior)
-            const drinkData = allDrinks.find(d => d.name === drink.drink);
-            abv = drinkData?.abv || 0;
-          }
+      const volumeMl = convertToMl(quantity, drink.unit);
 
-          // Calculate pure alcohol
-          const pureAlcoholMl = volumeMl * (abv / 100);
+      // ABV: customABV is set for custom AND establishment AND scanned drinks.
+      // Fall back to the static drinksData lookup only for legacy entries.
+      let abv = 0;
+      if (drink.customABV) {
+        abv = parseFloat(drink.customABV);
+      } else if (!drink.isCustom) {
+        const drinkData = allDrinks.find((d) => d.name === drink.drink);
+        abv = drinkData?.abv || 0;
+      }
 
-          // Determine timeline quantity (how many separate drinks to show)
-          // For ml/oz: use portions if specified, otherwise treat as 1 drink
-          // For shots/pints: treat as separate drinks
-          let timelineQuantity: number;
-          if (drink.unit === "ml" || drink.unit === "oz") {
-            timelineQuantity = drink.portions && drink.portions > 1 ? drink.portions : 1;
-          } else {
-            timelineQuantity = quantity;
-          }
+      const pureAlcoholMl = volumeMl * (abv / 100);
 
-          calculations.push({
-            drinkId: drink.id,
-            drinkName: drink.isCustom ? (drink.customName || "Custom Drink") : drink.drink || "",
-            totalVolumeMl: volumeMl,
-            pureAlcoholMl,
-            percentageOfTarget: 0, // Will be calculated after adjustment
-            timeAllocatedMinutes: 0, // Will be calculated after adjustment
-            intervalMinutes: 0, // Will be calculated after adjustment
-            quantity: timelineQuantity,
-            unit: drink.unit,
-          });
-        });
+      // ml/oz can be split into portions; shots/pints are per-unit
+      let timelineQuantity: number;
+      if (drink.unit === "ml" || drink.unit === "oz") {
+        timelineQuantity = drink.portions && drink.portions > 1 ? drink.portions : 1;
+      } else {
+        timelineQuantity = quantity;
+      }
 
-        // Step 3: Calculate adjustment if needed
-        const totalPureAlcoholFromDrinks = calculations.reduce((sum, calc) => sum + calc.pureAlcoholMl, 0);
-        const progressPercentage = totalPureAlcoholNeeded > 0 
-          ? (totalPureAlcoholFromDrinks / totalPureAlcoholNeeded) * 100 
-          : 0;
-
-        const adjustedTarget = progressPercentage > 100 
-          ? (progressPercentage / 100) * totalPureAlcoholNeeded 
-          : totalPureAlcoholNeeded;
-
-        const isTargetAdjusted = progressPercentage > 100;
-
-        // Step 4: Recalculate percentages and times with adjusted target
-        calculations.forEach((calc) => {
-          calc.percentageOfTarget = (calc.pureAlcoholMl / adjustedTarget) * 100;
-          calc.timeAllocatedMinutes = (calc.percentageOfTarget / 100) * totalTimeDeltaMinutes;
-          calc.intervalMinutes = calc.timeAllocatedMinutes / calc.quantity;
-        });
-
-        // Step 3: Generate timeline entries
-        const timeline: DrinkTimelineEntry[] = [];
-        let currentTime = new Date(drinkingStartTime);
-
-        calculations.forEach((calc) => {
-          const drinks = state.drinks.find(d => d.id === calc.drinkId);
-          const drinkData = allDrinks.find(d => d.name === calc.drinkName);
-          const category = drinkData?.category || "";
-          const icon = getDrinkIcon(category);
-
-          for (let i = 1; i <= calc.quantity; i++) {
-            // For ml/oz with portions, show portion info; otherwise show full volume
-            let displayName: string;
-            if ((calc.unit === "ml" || calc.unit === "oz") && calc.quantity > 1) {
-              const portionSize = Math.round(calc.totalVolumeMl / calc.quantity);
-              displayName = `${portionSize}${calc.unit} ${calc.drinkName}`;
-            } else if (calc.unit === "ml" || calc.unit === "oz") {
-              displayName = `${calc.totalVolumeMl.toFixed(0)}${calc.unit} ${calc.drinkName}`;
-            } else {
-              displayName = calc.drinkName;
-            }
-
-            timeline.push({
-              drinkId: calc.drinkId,
-              drinkName: displayName,
-              unitNumber: i,
-              totalUnits: calc.quantity,
-              time: new Date(currentTime),
-              pureAlcoholMl: calc.pureAlcoholMl / calc.quantity,
-              percentageOfTarget: calc.percentageOfTarget / calc.quantity,
-              icon,
-              unit: calc.unit,
-            });
-
-            // Move to next time slot (except for last entry)
-            if (i < calc.quantity || calc !== calculations[calculations.length - 1]) {
-              currentTime = calculateTimeWithMidnight(currentTime, calc.intervalMinutes);
-            }
-          }
-        });
-
-        // Step 5: Store calculations
-        setState((prev) => ({
-          ...prev,
-          drinkCalculations: calculations,
-          drinkTimeline: timeline,
-          adjustedTargetMl: isTargetAdjusted ? adjustedTarget : null,
-          isTargetAdjusted: isTargetAdjusted,
-        }));
+      calculations.push({
+        drinkId: drink.id,
+        drinkName: drink.isCustom ? (drink.customName || "Custom Drink") : drink.drink || "",
+        totalVolumeMl: volumeMl,
+        pureAlcoholMl,
+        percentageOfTarget: 0,
+        timeAllocatedMinutes: 0,
+        intervalMinutes: 0,
+        quantity: timelineQuantity,
+        unit: drink.unit,
       });
     });
+
+    // Step 3: Adjust target if drinks exceed 100%
+    const totalPureAlcoholFromDrinks = calculations.reduce((sum, calc) => sum + calc.pureAlcoholMl, 0);
+    const progressPercentage =
+      totalPureAlcoholNeeded > 0 ? (totalPureAlcoholFromDrinks / totalPureAlcoholNeeded) * 100 : 0;
+
+    const adjustedTarget =
+      progressPercentage > 100 ? (progressPercentage / 100) * totalPureAlcoholNeeded : totalPureAlcoholNeeded;
+
+    const isTargetAdjusted = progressPercentage > 100;
+
+    // Step 4: Recompute percentages and times against the adjusted target
+    calculations.forEach((calc) => {
+      calc.percentageOfTarget = (calc.pureAlcoholMl / adjustedTarget) * 100;
+      calc.timeAllocatedMinutes = (calc.percentageOfTarget / 100) * totalTimeDeltaMinutes;
+      calc.intervalMinutes = calc.timeAllocatedMinutes / calc.quantity;
+    });
+
+    // Step 5: Generate timeline entries
+    const timeline: DrinkTimelineEntry[] = [];
+    let currentTime = new Date(drinkingStartTime);
+
+    calculations.forEach((calc) => {
+      const drinkData = allDrinks.find((d) => d.name === calc.drinkName);
+      const category = drinkData?.category || "";
+      const icon = getDrinkIcon(category);
+
+      for (let i = 1; i <= calc.quantity; i++) {
+        let displayName: string;
+        if ((calc.unit === "ml" || calc.unit === "oz") && calc.quantity > 1) {
+          const portionSize = Math.round(calc.totalVolumeMl / calc.quantity);
+          displayName = `${portionSize}${calc.unit} ${calc.drinkName}`;
+        } else if (calc.unit === "ml" || calc.unit === "oz") {
+          displayName = `${calc.totalVolumeMl.toFixed(0)}${calc.unit} ${calc.drinkName}`;
+        } else {
+          displayName = calc.drinkName;
+        }
+
+        timeline.push({
+          drinkId: calc.drinkId,
+          drinkName: displayName,
+          unitNumber: i,
+          totalUnits: calc.quantity,
+          time: new Date(currentTime),
+          pureAlcoholMl: calc.pureAlcoholMl / calc.quantity,
+          percentageOfTarget: calc.percentageOfTarget / calc.quantity,
+          icon,
+          unit: calc.unit,
+        });
+
+        // Advance the cursor unless this is the very last entry
+        if (i < calc.quantity || calc !== calculations[calculations.length - 1]) {
+          currentTime = calculateTimeWithMidnight(currentTime, calc.intervalMinutes);
+        }
+      }
+    });
+
+    setState((prev) => ({
+      ...prev,
+      drinkCalculations: calculations,
+      drinkTimeline: timeline,
+      adjustedTargetMl: isTargetAdjusted ? adjustedTarget : null,
+      isTargetAdjusted: isTargetAdjusted,
+    }));
   };
 
   // Auto-recalculate timeline when dependencies change
@@ -457,6 +516,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateStartTime,
         updateDrinkingStartTime,
         updateDrinkingTargetTime,
+        toggleLockedDrink,
+        clearLockedDrinks,
         recalculate,
         calculateDrinkTimeline,
         reorderTimelineEntries,

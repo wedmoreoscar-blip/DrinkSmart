@@ -4,10 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Clock, Target, Bell, BellOff, Play } from "lucide-react";
+import { Clock, Target, Bell, BellOff, Droplet, Beer, Wine, Martini, Plus, RotateCcw } from "lucide-react";
 import { formatTimeDisplay } from "@/lib/timelineHelpers";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWebDrinkReminders } from "@/hooks/useWebDrinkReminders";
+import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
+import { SHOT_ML, PINT_ML, GLASS_ML, VODKA_ABV, BEER_ABV, WINE_ABV } from "@/lib/drinkConstants";
+import { buzzLevels } from "@/data/buzzLevels";
 import {
   DndContext,
   closestCenter,
@@ -26,11 +29,11 @@ import { SortableTimelineItem } from "./SortableTimelineItem";
 import { getWeightInGrams } from "@/lib/unitConversions";
 
 type TimelineTabProps = {
-  onNext: () => void;
+  onNext?: () => void;
 };
 
-const TimelineTab = ({ onNext }: TimelineTabProps) => {
-  const { state, reorderTimelineEntries } = useAppContext();
+const TimelineTab = ({ onNext: _onNext }: TimelineTabProps) => {
+  const { state, reorderTimelineEntries, toggleLockedDrink, updateDrinks } = useAppContext();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [webRemindersEnabled, setWebRemindersEnabled] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -121,6 +124,74 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
   const maintenanceEquivalents = maintenanceMl ? calculateMaintenanceEquivalents(maintenanceMl) : null;
 
   const timeDeltaHours = state.timeDelta || 0;
+
+  // Pure alcohol needed (absorbed from ResultsTab) — used in the top summary card
+  const alcoholNeededMl = useMemo(() => {
+    const { userMetrics, targetBAC, timeDelta } = state;
+    if (!userMetrics.weight || timeDelta === null) return null;
+
+    const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
+    if (!weightKg) return null;
+
+    const heightCm = getHeightInCm(
+      userMetrics.heightCm,
+      userMetrics.heightFt,
+      userMetrics.heightIn,
+      userMetrics.heightUnit
+    );
+
+    const tbwGrams = getTBWGrams({
+      metricType: userMetrics.metricType,
+      bodyFat: userMetrics.bodyFat,
+      age: userMetrics.age,
+      heightCm,
+      weightKg,
+      sex: userMetrics.sex,
+    });
+    if (!tbwGrams) return null;
+
+    const BAC = (targetBAC.min + targetBAC.max) / 2;
+    const pureAlcoholGrams = (BAC / 100 + 0.00015 * timeDelta) * tbwGrams;
+    return pureAlcoholGrams / 0.789;
+  }, [state]);
+
+  const drinkEquivalents = useMemo(() => {
+    if (alcoholNeededMl === null) return null;
+    const ml = state.adjustedTargetMl ?? alcoholNeededMl;
+    return {
+      shots: ((ml * (1 / VODKA_ABV)) / SHOT_ML).toFixed(1),
+      pints: ((ml * (1 / BEER_ABV)) / PINT_ML).toFixed(1),
+      glasses: ((ml * (1 / WINE_ABV)) / GLASS_ML).toFixed(1),
+    };
+  }, [alcoholNeededMl, state.adjustedTargetMl]);
+
+  const currentBuzz = buzzLevels.find((b) => b.level === state.inebriationLevel);
+
+  // Quick-add chips
+  const lastFilledDrink = [...state.drinks].reverse().find((d) => d.drink || d.isCustom);
+
+  const quickAdd = (template: {
+    category: string;
+    drink: string;
+    customABV: string;
+    quantity: string;
+    unit: "ml" | "oz" | "shots" | "pints" | "glass";
+    isCustom?: boolean;
+    customName?: string;
+  }) => {
+    updateDrinks([
+      ...state.drinks.filter((d) => d.drink || d.isCustom),
+      { id: crypto.randomUUID(), isCustom: false, ...template },
+    ]);
+  };
+
+  const handleAddLast = () => {
+    if (!lastFilledDrink) return;
+    updateDrinks([
+      ...state.drinks.filter((d) => d.drink || d.isCustom),
+      { ...lastFilledDrink, id: crypto.randomUUID() },
+    ]);
+  };
 
   // Update current time every second for smooth progress indicator
   useEffect(() => {
@@ -239,6 +310,46 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Pure alcohol summary (absorbed from ResultsTab) */}
+      {alcoholNeededMl !== null && drinkEquivalents && (
+        <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <Droplet className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-primary">
+                {state.isTargetAdjusted && state.adjustedTargetMl
+                  ? `${state.adjustedTargetMl.toFixed(1)} ml`
+                  : `${alcoholNeededMl.toFixed(1)} ml`}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                of pure alcohol for buzz {state.inebriationLevel}
+                {currentBuzz ? ` — ${currentBuzz.label}` : ""}
+                {state.isTargetAdjusted ? " (adjusted)" : ""}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2 rounded bg-background/50">
+              <Martini className="w-4 h-4 text-primary mx-auto mb-1" />
+              <div className="font-bold">{drinkEquivalents.shots}</div>
+              <div className="text-xs text-muted-foreground">shots</div>
+            </div>
+            <div className="p-2 rounded bg-background/50">
+              <Beer className="w-4 h-4 text-primary mx-auto mb-1" />
+              <div className="font-bold">{drinkEquivalents.pints}</div>
+              <div className="text-xs text-muted-foreground">pints</div>
+            </div>
+            <div className="p-2 rounded bg-background/50">
+              <Wine className="w-4 h-4 text-primary mx-auto mb-1" />
+              <div className="font-bold">{drinkEquivalents.glasses}</div>
+              <div className="text-xs text-muted-foreground">glasses</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Adjustment Notice */}
       {state.isTargetAdjusted && state.adjustedTargetMl && (
         <Alert className="border-blue-500/30 bg-blue-500/10">
@@ -291,6 +402,67 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
             onCheckedChange={isNative ? handleNotificationToggle : handleWebRemindersToggle}
             disabled={isNative && notificationsLoading}
           />
+        </div>
+      </Card>
+
+      {/* Quick add */}
+      <Card className="p-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground mr-1">Quick add:</span>
+          {lastFilledDrink && (
+            <Button size="sm" variant="outline" onClick={handleAddLast} className="h-8 gap-1">
+              <RotateCcw className="w-3 h-3" />
+              Last drink
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1"
+            onClick={() =>
+              quickAdd({
+                category: "shots",
+                drink: "Vodka Shot",
+                customABV: "37.5",
+                quantity: "1",
+                unit: "shots",
+              })
+            }
+          >
+            <Plus className="w-3 h-3" /> Shot
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1"
+            onClick={() =>
+              quickAdd({
+                category: "beer_pint",
+                drink: "Carling",
+                customABV: "4.0",
+                quantity: "1",
+                unit: "pints",
+              })
+            }
+          >
+            <Plus className="w-3 h-3" /> Beer
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1"
+            onClick={() =>
+              quickAdd({
+                category: "wine_red",
+                drink: "House Red",
+                customABV: "12",
+                quantity: "1",
+                unit: "glass",
+              })
+            }
+          >
+            <Plus className="w-3 h-3" /> Wine
+          </Button>
         </div>
       </Card>
 
@@ -374,6 +546,8 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
                       durationMinutes={durationMinutes}
                       isVolumeBased={isVolumeBased}
                       isDraggable={isFuture}
+                      isLocked={state.lockedDrinkIds.includes(entry.drinkId)}
+                      onToggleLock={() => toggleLockedDrink(entry.drinkId)}
                       formatDuration={formatDuration}
                     />
                   );
@@ -424,17 +598,6 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
         </Card>
       )}
 
-      {/* Next Button */}
-      <div className="flex justify-end">
-        <Button
-          size="lg"
-          onClick={onNext}
-          className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-        >
-          View Results
-          <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
-      </div>
     </div>
   );
 };

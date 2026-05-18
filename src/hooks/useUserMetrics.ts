@@ -1,6 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  defaultPreferences,
+  parsePreferences,
+  type PreferenceData,
+} from "@/lib/preferences";
 
 export type UserMetricsData = {
   metricType: "bmi" | "ffmi";
@@ -15,6 +21,8 @@ export type UserMetricsData = {
   sex: "male" | "female" | "";
 };
 
+export type ThemePreference = "light" | "dark" | "system";
+
 const defaultMetrics: UserMetricsData = {
   metricType: "bmi",
   heightUnit: "cm",
@@ -28,13 +36,82 @@ const defaultMetrics: UserMetricsData = {
   sex: "",
 };
 
+type ProfileQueryData = {
+  metrics: UserMetricsData | null;
+  preferences: PreferenceData;
+  theme: ThemePreference;
+  onboardedAt: string | null;
+};
+
+const emptySnapshot: ProfileQueryData = {
+  metrics: null,
+  preferences: { ...defaultPreferences },
+  theme: "system",
+  onboardedAt: null,
+};
+
+const profileQueryKey = (userId: string | null) => ["profile", userId] as const;
+
+function metricsToColumns(metrics: UserMetricsData) {
+  const hasFFMData = metrics.bodyFat && parseFloat(metrics.bodyFat) > 0;
+  const hasBMIData = metrics.weight && metrics.age && metrics.sex;
+  const effectiveMetricType =
+    hasFFMData && hasBMIData ? "ffmi" : metrics.metricType;
+
+  return {
+    columns: {
+      height_cm: metrics.heightCm ? parseFloat(metrics.heightCm) : null,
+      height_ft: metrics.heightFt ? parseFloat(metrics.heightFt) : null,
+      height_in: metrics.heightIn ? parseFloat(metrics.heightIn) : null,
+      height_unit: metrics.heightUnit,
+      weight: metrics.weight ? parseFloat(metrics.weight) : null,
+      weight_unit: metrics.weightUnit,
+      body_fat: metrics.bodyFat ? parseFloat(metrics.bodyFat) : null,
+      age: metrics.age ? parseInt(metrics.age) : null,
+      sex: metrics.sex || null,
+      metric_type: effectiveMetricType,
+    },
+    effectiveMetricType,
+  };
+}
+
+function columnsToMetrics(data: {
+  metric_type: string | null;
+  height_unit: string | null;
+  weight_unit: string | null;
+  height_cm: number | null;
+  height_ft: number | null;
+  height_in: number | null;
+  weight: number | null;
+  body_fat: number | null;
+  age: number | null;
+  sex: string | null;
+}): UserMetricsData {
+  return {
+    metricType: (data.metric_type as "bmi" | "ffmi") || "bmi",
+    heightUnit: (data.height_unit as "cm" | "ft") || "cm",
+    weightUnit: (data.weight_unit as "kg" | "lbs") || "kg",
+    heightCm: data.height_cm?.toString() || "",
+    heightFt: data.height_ft?.toString() || "",
+    heightIn: data.height_in?.toString() || "",
+    weight: data.weight?.toString() || "",
+    bodyFat: data.body_fat?.toString() || "",
+    age: data.age?.toString() || "",
+    sex: (data.sex as "male" | "female" | "") || "",
+  };
+}
+
+async function generateUsername(): Promise<string> {
+  const { data: userData } = await supabase.auth.getUser();
+  const email = userData?.user?.email || "";
+  return email.split("@")[0] || `user_${Date.now()}`;
+}
+
 export const useUserMetrics = () => {
   const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [savedMetrics, setSavedMetrics] = useState<UserMetricsData | null>(null);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Check auth state
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -49,131 +126,254 @@ export const useUserMetrics = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch saved metrics when user logs in
-  useEffect(() => {
-    if (userId) {
-      fetchSavedMetrics();
-    } else {
-      setSavedMetrics(null);
-      setLoading(false);
-    }
-  }, [userId]);
+  const queryKey = profileQueryKey(userId);
 
-  const fetchSavedMetrics = async () => {
-    if (!userId) return;
+  const query = useQuery<ProfileQueryData>({
+    queryKey,
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      if (!userId) return emptySnapshot;
 
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("height_cm, height_ft, height_in, height_unit, weight, weight_unit, body_fat, age, sex, metric_type")
-      .eq("user_id", userId)
-      .maybeSingle();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(
+          "height_cm, height_ft, height_in, height_unit, weight, weight_unit, body_fat, age, sex, metric_type, preferences, theme, onboarded_at"
+        )
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (error) {
-      console.error("Error fetching user metrics:", error);
-      setLoading(false);
-      return;
-    }
+      if (error) throw error;
+      if (!data) return emptySnapshot;
 
-    if (data && data.weight) {
-      // User has saved metrics
-      const metrics: UserMetricsData = {
-        metricType: (data.metric_type as "bmi" | "ffmi") || "bmi",
-        heightUnit: (data.height_unit as "cm" | "ft") || "cm",
-        weightUnit: (data.weight_unit as "kg" | "lbs") || "kg",
-        heightCm: data.height_cm?.toString() || "",
-        heightFt: data.height_ft?.toString() || "",
-        heightIn: data.height_in?.toString() || "",
-        weight: data.weight?.toString() || "",
-        bodyFat: data.body_fat?.toString() || "",
-        age: data.age?.toString() || "",
-        sex: (data.sex as "male" | "female" | "") || "",
+      return {
+        metrics: data.weight ? columnsToMetrics(data) : null,
+        preferences: parsePreferences(data.preferences),
+        theme: (data.theme as ThemePreference) || "system",
+        onboardedAt: data.onboarded_at ?? null,
       };
-      setSavedMetrics(metrics);
-    }
-    setLoading(false);
-  };
+    },
+  });
 
-  const saveMetrics = useCallback(async (metrics: UserMetricsData): Promise<boolean> => {
-    if (!userId) {
-      // Not logged in - metrics are session-only, no need to save
-      return true;
-    }
+  const data = query.data ?? emptySnapshot;
 
-    // Determine the best metric type to save based on available data
-    // If both BMI and FFM data is available, use FFM as it's more accurate
-    let effectiveMetricType = metrics.metricType;
-    const hasFFMData = metrics.bodyFat && parseFloat(metrics.bodyFat) > 0;
-    const hasBMIData = metrics.weight && metrics.age && metrics.sex;
-    
-    if (hasFFMData && hasBMIData) {
-      effectiveMetricType = "ffmi"; // FFM is more accurate when both are available
-    }
+  const saveMetricsMut = useMutation<UserMetricsData, Error, UserMetricsData>({
+    mutationFn: async (metrics) => {
+      if (!userId) return metrics;
+      const { columns, effectiveMetricType } = metricsToColumns(metrics);
 
-    const metricsData = {
-      height_cm: metrics.heightCm ? parseFloat(metrics.heightCm) : null,
-      height_ft: metrics.heightFt ? parseFloat(metrics.heightFt) : null,
-      height_in: metrics.heightIn ? parseFloat(metrics.heightIn) : null,
-      height_unit: metrics.heightUnit,
-      weight: metrics.weight ? parseFloat(metrics.weight) : null,
-      weight_unit: metrics.weightUnit,
-      body_fat: metrics.bodyFat ? parseFloat(metrics.bodyFat) : null,
-      age: metrics.age ? parseInt(metrics.age) : null,
-      sex: metrics.sex || null,
-      metric_type: effectiveMetricType,
-    };
-
-    // Check if profile exists
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    let error;
-    if (existingProfile) {
-      // Update existing profile
-      const result = await supabase
+      const { data: existingProfile } = await supabase
         .from("profiles")
-        .update(metricsData)
-        .eq("user_id", userId);
-      error = result.error;
-    } else {
-      // Insert new profile - need to generate username
-      const { data: userData } = await supabase.auth.getUser();
-      const email = userData?.user?.email || "";
-      const username = email.split("@")[0] || `user_${Date.now()}`;
-      
-      const result = await supabase
-        .from("profiles")
-        .insert({
-          user_id: userId,
-          username: username,
-          ...metricsData,
-        });
-      error = result.error;
-    }
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (error) {
-      console.error("Error saving user metrics:", error);
+      const result = existingProfile
+        ? await supabase.from("profiles").update(columns).eq("user_id", userId)
+        : await supabase.from("profiles").insert({
+            user_id: userId,
+            username: await generateUsername(),
+            ...columns,
+          });
+
+      if (result.error) throw result.error;
+      return { ...metrics, metricType: effectiveMetricType };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onError: (err) => {
+      console.error("Error saving user metrics:", err);
       toast({
         title: "Error",
         description: "Failed to save your metrics. Please try again.",
         variant: "destructive",
         duration: 3000,
       });
-      return false;
-    }
+    },
+  });
 
-    setSavedMetrics({ ...metrics, metricType: effectiveMetricType });
-    return true;
-  }, [userId, toast]);
+  const savePreferencesMut = useMutation<
+    PreferenceData,
+    Error,
+    PreferenceData,
+    { previous?: ProfileQueryData }
+  >({
+    mutationFn: async (preferences) => {
+      if (!userId) return preferences;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ preferences: preferences as unknown as Record<string, unknown> })
+        .eq("user_id", userId);
+      if (error) throw error;
+      return preferences;
+    },
+    onMutate: async (newPrefs) => {
+      if (!userId) return { previous: undefined };
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<ProfileQueryData>(queryKey);
+      queryClient.setQueryData<ProfileQueryData>(queryKey, (old) => ({
+        ...(old ?? emptySnapshot),
+        preferences: newPrefs,
+      }));
+      return { previous };
+    },
+    onError: (err, _newPrefs, ctx) => {
+      console.error("Error saving preferences:", err);
+      if (ctx?.previous) queryClient.setQueryData(queryKey, ctx.previous);
+      toast({
+        title: "Error",
+        description: "Failed to save your preferences.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
+  const saveThemeMut = useMutation<
+    ThemePreference,
+    Error,
+    ThemePreference,
+    { previous?: ProfileQueryData }
+  >({
+    mutationFn: async (theme) => {
+      if (!userId) return theme;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ theme })
+        .eq("user_id", userId);
+      if (error) throw error;
+      return theme;
+    },
+    onMutate: async (newTheme) => {
+      if (!userId) return { previous: undefined };
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<ProfileQueryData>(queryKey);
+      queryClient.setQueryData<ProfileQueryData>(queryKey, (old) => ({
+        ...(old ?? emptySnapshot),
+        theme: newTheme,
+      }));
+      return { previous };
+    },
+    onError: (err, _newTheme, ctx) => {
+      console.error("Error saving theme:", err);
+      if (ctx?.previous) queryClient.setQueryData(queryKey, ctx.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
+  const completeOnboardingMut = useMutation<
+    void,
+    Error,
+    { metrics: UserMetricsData; preferences: PreferenceData }
+  >({
+    mutationFn: async ({ metrics, preferences }) => {
+      if (!userId) throw new Error("Not authenticated");
+
+      const { columns } = metricsToColumns(metrics);
+      const onboardedAt = new Date().toISOString();
+
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const payload = {
+        ...columns,
+        preferences: preferences as unknown as Record<string, unknown>,
+        onboarded_at: onboardedAt,
+      };
+
+      const result = existingProfile
+        ? await supabase.from("profiles").update(payload).eq("user_id", userId)
+        : await supabase.from("profiles").insert({
+            user_id: userId,
+            username: await generateUsername(),
+            ...payload,
+          });
+
+      if (result.error) throw result.error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onError: (err) => {
+      console.error("Error completing onboarding:", err);
+      toast({
+        title: "Error",
+        description: "Failed to save your onboarding details. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveMetrics = useCallback(
+    async (metrics: UserMetricsData): Promise<boolean> => {
+      if (!userId) return true;
+      try {
+        await saveMetricsMut.mutateAsync(metrics);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [userId, saveMetricsMut]
+  );
+
+  const savePreferences = useCallback(
+    async (preferences: PreferenceData): Promise<boolean> => {
+      if (!userId) return true;
+      try {
+        await savePreferencesMut.mutateAsync(preferences);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [userId, savePreferencesMut]
+  );
+
+  const saveTheme = useCallback(
+    async (theme: ThemePreference): Promise<boolean> => {
+      if (!userId) return true;
+      try {
+        await saveThemeMut.mutateAsync(theme);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [userId, saveThemeMut]
+  );
+
+  const completeOnboarding = useCallback(
+    async (metrics: UserMetricsData, preferences: PreferenceData): Promise<boolean> => {
+      if (!userId) return false;
+      try {
+        await completeOnboardingMut.mutateAsync({ metrics, preferences });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [userId, completeOnboardingMut]
+  );
+
+  const refetch = useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   return {
     isLoggedIn: !!userId,
-    loading,
-    savedMetrics,
+    loading: query.isLoading,
+    savedMetrics: data.metrics,
+    preferences: data.preferences,
+    theme: data.theme,
+    onboardedAt: data.onboardedAt,
+    isOnboarded: !!data.onboardedAt,
     saveMetrics,
-    refetch: fetchSavedMetrics,
+    savePreferences,
+    saveTheme,
+    completeOnboarding,
+    refetch,
   };
 };
+
+export { defaultMetrics };
