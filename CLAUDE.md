@@ -10,6 +10,13 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 **The math engine** (`src/contexts/AppContext.tsx`) is the source of truth for BAC and pacing. **Do not have the LLM do math** — it picks drinks from a catalog; the deterministic engine does everything quantitative.
 
+## Build status (as of last refactor commit)
+
+- `npx tsc --noEmit` passes clean.
+- `npm run lint` has not been run; do this before any release.
+- No automated tests exist for the new code. The deterministic engine (`calculateDrinkTimeline` in `AppContext.tsx`), `computeTargetEthanolMl`, and `greedyPlanFallback` are the natural unit-test candidates.
+- `npm install` reports 17 pre-existing dependency vulnerabilities (8 moderate, 9 high). They predate this refactor; triage with `npm audit` before going to prod.
+
 ---
 
 ## Pitfalls & gotchas
@@ -119,6 +126,28 @@ When setting up a fresh environment:
 
 ---
 
+## Verification still needed (live backend required)
+
+The code is written and typechecks; nothing here has been exercised against a real Supabase project. Walk through these once the backend is set up:
+
+- **Anonymous bootstrap** — first launch should silently create a Supabase anon user. Check `auth.users` for an `is_anonymous = true` row.
+- **Onboarding flow** — the modal should appear, write the `profiles` row with stats + preferences, and set `onboarded_at`. Re-launch should skip the modal.
+- **localStorage hydration** — set buzz/duration/drinks, refresh the page, confirm state restores.
+- **Anonymous → real upgrade** — `/auth` should detect the anon session and switch into upgrade mode. After upgrade, `auth.users.id` must be unchanged; the profile row carries over.
+- **`generate-plan`** — fires within ~1s when the API key is set; falls back to greedy with a "Built offline" toast when the key is missing or the function is down.
+- **Lock + regenerate** — locked drinks survive, their ethanol is subtracted from the budget passed to the LLM.
+- **"Use last night"** — on a returning user, the banner appears with the previous duration/buzz/drinks; tapping it restores them with start = now.
+- **Quick-add chips** — appending a drink re-paces the timeline immediately.
+- **Theme persistence** — toggle dark mode in Profile; refresh; confirm theme stays (via `profiles.theme` + `next-themes`).
+- **Admin gating** — log in as a non-admin and confirm the Profile "Admin" section does not render. Promote to admin via `user_roles`, confirm the section appears.
+
+## Mobile / Capacitor (entirely unverified)
+
+- Notifications: `npx cap sync ios`, build, install on a real device, schedule a plan, confirm a local notification fires at the right time. Same for Android.
+- Confirm `capacitor.config.ts` references the right Supabase URL after any project changes.
+
+---
+
 ## Known follow-ups (deliberately out of scope)
 
 - Drop the dependency of `AppContext.state.userMetrics` on `MetricsSync` — read directly from `useUserMetrics`.
@@ -129,6 +158,9 @@ When setting up a fresh environment:
 - Delete `src/components/settings/GraphicsSheet.tsx` (orphaned).
 - Decide whether to centralize the per-hook `userId` auth subscriptions into a single `useAuthUser` hook.
 - Auto-regenerate `src/integrations/supabase/types.ts` via the Supabase CLI rather than hand-maintaining it.
+- Write unit tests for `calculateDrinkTimeline`, `computeTargetEthanolMl`, and `greedyPlanFallback`. The math engine and the fallback are deterministic and easy to cover.
+- Run `npm audit` and decide which dependency vulnerabilities to address.
+- Run `npm run lint` and clean any warnings/errors.
 
 ---
 
