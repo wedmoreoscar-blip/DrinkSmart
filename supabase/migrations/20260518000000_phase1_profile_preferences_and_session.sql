@@ -34,28 +34,37 @@ ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own session"
   ON public.user_sessions FOR SELECT
   TO authenticated
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert their own session"
   ON public.user_sessions FOR INSERT
   TO authenticated
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update their own session"
   ON public.user_sessions FOR UPDATE
   TO authenticated
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete their own session"
   ON public.user_sessions FOR DELETE
   TO authenticated
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Admins can view all sessions"
   ON public.user_sessions FOR SELECT
   TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'));
+  USING (public.has_role((select auth.uid()), 'admin'));
+
+-- Indexes on user_id columns referenced in policies. user_sessions.user_id is
+-- already the primary key (so the PK index covers it). Add explicit indexes on
+-- the other tables that the policies in earlier migrations reference. Foreign
+-- key columns are NOT automatically indexed in Postgres.
+CREATE INDEX IF NOT EXISTS profiles_user_id_idx ON public.profiles(user_id);
+CREATE INDEX IF NOT EXISTS saved_custom_drinks_user_id_idx ON public.saved_custom_drinks(user_id);
+CREATE INDEX IF NOT EXISTS establishment_drinks_user_id_idx ON public.establishment_drinks(user_id);
+CREATE INDEX IF NOT EXISTS establishments_user_id_idx ON public.establishments(user_id);
 
 -- Auto-update updated_at on row changes
 CREATE OR REPLACE FUNCTION public.handle_user_sessions_updated_at()

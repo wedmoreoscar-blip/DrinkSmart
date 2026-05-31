@@ -16,6 +16,7 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 - `npm run lint` has not been run; do this before any release.
 - No automated tests exist for the new code. The deterministic engine (`calculateDrinkTimeline` in `AppContext.tsx`), `computeTargetEthanolMl`, and `greedyPlanFallback` are the natural unit-test candidates.
 - `npm install` reports 17 pre-existing dependency vulnerabilities (8 moderate, 9 high). They predate this refactor; triage with `npm audit` before going to prod.
+- The codebase was updated to current Supabase patterns (mid-2026): RLS policies wrap `auth.uid()` in `(select ...)` for ~95% perf gain; the edge function uses `@supabase/server`'s `withSupabase` wrapper; the anonymous-upgrade flow is two-step (email link, then password-reset link); a `db:types` npm script regenerates `types.ts` from the live schema.
 
 ---
 
@@ -25,9 +26,11 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 1. **Anonymous sign-ins are off by default.** The entire app's auth bootstrap depends on `supabase.auth.signInAnonymously()` succeeding. If a fresh Supabase project is created, you MUST enable anonymous sign-ins in **Authentication → Providers → Anonymous** or every user gets stuck on a blank screen with a silent auth error. There is no in-app affordance to recover.
 
+1a. **Manual identity linking must be enabled** for the anonymous → permanent upgrade flow to work. Toggle it on at **Authentication → Providers → Manual linking**. If it's off, `updateUser({ email })` on `/auth` will return an error. We catch that specific error and surface a toast, but you still have to enable the setting.
+
 2. **`ANTHROPIC_API_KEY` must be a Supabase secret.** Set via `supabase secrets set ANTHROPIC_API_KEY=...`. If missing, the `generate-plan` edge function returns 500 — but `src/lib/generatePlan.ts` catches it and falls back to the greedy generator silently. You'll see "Built offline" toasts and no AI calls. Check the function logs for `ANTHROPIC_API_KEY not configured`.
 
-3. **`types.ts` is hand-maintained, not auto-generated** in this repo. When you apply a new migration, regenerate with `supabase gen types typescript --project-id <id> > src/integrations/supabase/types.ts` or update by hand. The hand-update in 1.1 added `preferences`, `theme`, `onboarded_at` to `profiles` and the entire `user_sessions` table.
+3. **`types.ts` regeneration is scripted but still manual to run.** `npm run db:types` (project) or `npm run db:types:local` (local CLI) writes `src/integrations/supabase/types.ts` from the current schema. **There is no auto-trigger** — run it manually whenever you apply a migration. The file is committed because devs without the CLI configured still need to typecheck.
 
 4. **The Phase 1 migration in `supabase/migrations/20260518000000_phase1_*.sql` has not been applied to any live DB.** It's been written but not run. First-time setup needs to run it.
 
@@ -37,7 +40,12 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 ### Auth flow
 
-7. **Anonymous → real-account upgrade via `supabase.auth.updateUser({ email, password })`** preserves the `user_id`. Existing data (profile, sessions, saved drinks) carries over automatically. **Important caveat:** Supabase sends an email-verification link for the new address; until the user clicks it, they're still effectively anonymous from RLS's perspective. Don't assume `isAnonymous === false` immediately after the upgrade call.
+7. **Anonymous → real-account upgrade is two-step** per current Supabase docs. The password CANNOT be set in the same call as the email change — the email must be verified first. Our flow on `/auth`:
+   - User submits email + username (no password). We call `updateUser({ email })` to link the identity; Supabase sends a verification email.
+   - We also call `resetPasswordForEmail(email)` so the user gets a second email with a password-set link they use after verifying.
+   - The user clicks the verification link → their email is verified. Then clicks the password-reset link → they set a password.
+   - The `user_id` is preserved throughout. Existing profile, sessions, saved drinks all carry over.
+   - If you try to call `updateUser({ password })` immediately after `updateUser({ email })` before verification, it'll fail. Don't add that back.
 
 8. **The `/auth` page detects anonymous sessions** and switches into "upgrade" mode. The auth-state effect distinguishes between real and anonymous sessions: real session → redirect to `/dashboard`, anonymous session → stay on `/auth`. If you change the redirect logic, preserve this distinction.
 
@@ -81,6 +89,18 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 23. **The static catalog is Wetherspoons-only.** Future work: merge in user-specific `establishment_drinks` when the user has selected an establishment. The catalog format is already designed for it (`CatalogItem.id` uses `category::name` for static, `est::<id>` would work for establishment-scoped).
 
+23a. **The edge function uses the `@supabase/server` `withSupabase` wrapper** (mid-2026 pattern), not the legacy `serve` + manual `createClient` + manual auth check pattern. `auth: 'user'` mode enforces a valid JWT (including anonymous JWTs) and gives you `ctx.supabase` (RLS-scoped) and `ctx.userClaims`. Dependencies are declared in `supabase/functions/generate-plan/deno.json` using `npm:` specifiers. **Don't revert to `https://esm.sh/` URLs or the std `serve` import** — they're legacy.
+
+23b. **`config.toml` for `generate-plan` has `verify_jwt = true`.** This is required for `auth: 'user'` mode — the platform validates the JWT before the handler runs. Don't switch back to `verify_jwt = false`; anonymous users have valid JWTs and pass this check.
+
+### RLS
+
+23c. **RLS policies wrap `auth.uid()` in `(select ...)`.** `(select auth.uid()) = user_id` instead of `auth.uid() = user_id`. Per Supabase benchmarks this is ~95% faster on RLS-filtered queries because Postgres caches the function result per statement instead of per row. **Do not regress this** in new policies. Same pattern applies to `auth.jwt()` and SECURITY DEFINER helper functions (e.g. `public.has_role`).
+
+23d. **Indexes exist on every `user_id` referenced by a policy** (added in the Phase 1 migration). Foreign keys are NOT auto-indexed in Postgres. If you add a new policy that filters by a column other than `user_id`, add an index for it.
+
+23e. **An event trigger auto-enables RLS on new public-schema tables** (`supabase/migrations/20260518000001_rls_auto_enable_trigger.sql`). New tables don't need an explicit `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` — the trigger fires after `CREATE TABLE` and does it for you. You still have to write the actual policies.
+
 ### UI
 
 24. **The Onboarding modal's close X is hidden via `[&>button.absolute]:hidden`.** Brittle — relies on the shadcn dialog's auto-rendered Close button being absolutely positioned. If shadcn refactors the dialog, the X reappears and onboarding becomes dismissable. Test after shadcn upgrades.
@@ -119,10 +139,12 @@ When setting up a fresh environment:
    ```
 4. Update `supabase/config.toml` with the same `project_id`.
 5. Enable **Anonymous sign-ins** in the Supabase Auth dashboard.
-6. Run all 10 migrations (the original 9 + the Phase 1 additive migration).
+5a. Enable **Manual identity linking** at Authentication → Providers → Manual linking (required for anon → permanent account upgrade).
+6. Run all 11 migrations (the original 9 + the Phase 1 additive migration + the RLS auto-enable trigger).
 7. Set the secret: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`.
 8. Deploy edge functions: `supabase functions deploy generate-plan parse-menu submit-feedback`.
-9. `npm run dev`.
+9. (Optional) Regenerate types from the live schema: `npm run db:types` (reads `VITE_SUPABASE_PROJECT_ID` from your env).
+10. `npm run dev`.
 
 ---
 

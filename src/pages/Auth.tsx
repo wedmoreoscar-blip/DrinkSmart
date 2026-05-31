@@ -132,10 +132,12 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const validation = authSchema.safeParse({ 
-        email, 
-        password, 
-        username: isSignUp ? username : undefined 
+      // For anonymous upgrade we only collect the email; the password is set
+      // later via the password-reset email flow (see handleSubmit upgrade branch).
+      const validation = authSchema.safeParse({
+        email,
+        password: isUpgrade ? "placeholder-not-used" : password,
+        username: isSignUp ? username : undefined,
       });
 
       if (!validation.success) {
@@ -152,17 +154,28 @@ const Auth = () => {
 
       if (isSignUp) {
         if (isUpgrade) {
-          // Anonymous user upgrading to a permanent account — keep the same user_id.
+          // Anonymous → permanent upgrade is a two-step process per Supabase docs:
+          //   1. updateUser({ email }) links the email identity and sends a verification link.
+          //   2. After verification, updateUser({ password }) can set a password.
+          // Trying to set both in one call fails because the password can't be set
+          // before the email is verified. We do step 1 here, then send a password-set
+          // email so the user can complete step 2 from their inbox.
           const { data: updateData, error: updateError } = await supabase.auth.updateUser({
             email,
-            password,
           });
 
           if (updateError) {
-            if (updateError.message.includes("already registered") || updateError.message.includes("already been registered")) {
+            const msg = updateError.message.toLowerCase();
+            if (msg.includes("already registered") || msg.includes("already been registered") || msg.includes("already exists")) {
               toast({
                 title: "Email already in use",
                 description: "That email is already linked to another account. Try signing in instead.",
+                variant: "destructive",
+              });
+            } else if (msg.includes("manual linking") || msg.includes("identity linking")) {
+              toast({
+                title: "Manual linking is disabled",
+                description: "Enable 'Manual identity linking' in your Supabase Auth settings, then try again.",
                 variant: "destructive",
               });
             } else {
@@ -193,9 +206,16 @@ const Auth = () => {
             }
           }
 
+          // Send a password-set email so the user can set a password after
+          // verifying. They click the verification link in email #1, then the
+          // password-reset link in email #2. (No password is captured here.)
+          await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password`,
+          });
+
           toast({
-            title: "Check your email!",
-            description: "We've sent a verification link to confirm your new email and finalize your account.",
+            title: "Check your email",
+            description: `We've sent a verification link to ${email}. After verifying, follow the password-set link to finish.`,
           });
         } else {
           const redirectUrl = `${window.location.origin}/dashboard`;
@@ -427,30 +447,37 @@ const Auth = () => {
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                {!isUpgrade && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="text-sm text-destructive">{errors.password}</p>
+                    )}
                   </div>
-                  {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password}</p>
-                  )}
-                </div>
+                )}
+                {isUpgrade && (
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    You'll set a password from a separate email after verifying your address.
+                  </p>
+                )}
 
                 {!isSignUp && (
                   <>

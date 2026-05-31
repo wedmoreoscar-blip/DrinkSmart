@@ -1,13 +1,15 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withSupabase } from "@supabase/server";
 
+const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
+const ANTHROPIC_VERSION = "2023-06-01";
+
+// CORS headers — Supabase's withSupabase wrapper handles auth; we still emit
+// CORS headers on responses so browser callers from `supabase.functions.invoke`
+// land correctly.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
-const ANTHROPIC_VERSION = "2023-06-01";
 
 interface CatalogItem {
   id: string;
@@ -185,159 +187,130 @@ function validateRequest(body: unknown): GeneratePlanRequest | string {
   return body as unknown as GeneratePlanRequest;
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+function jsonResponse(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
-  try {
-    // Auth check — any Supabase session (anonymous OK), prevents open abuse
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+export default {
+  fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
+    // Auth has already been verified by the wrapper. ctx.userClaims is the
+    // caller (anonymous users have userClaims with is_anonymous = true).
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    try {
+      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+      if (!ANTHROPIC_API_KEY) {
+        console.error("ANTHROPIC_API_KEY not configured");
+        return jsonResponse({ error: "AI service not configured" }, 500);
+      }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      const body = await req.json();
+      const validated = validateRequest(body);
+      if (typeof validated === "string") {
+        return jsonResponse({ error: validated }, 400);
+      }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      console.error("ANTHROPIC_API_KEY not configured");
-      return new Response(
-        JSON.stringify({ error: "AI service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const body = await req.json();
-    const validated = validateRequest(body);
-    if (typeof validated === "string") {
-      return new Response(
-        JSON.stringify({ error: validated }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(
-      `generate-plan: user=${user.id} target=${validated.target_ethanol_ml}ml duration=${validated.duration_minutes}min catalog=${validated.catalog.length}`
-    );
-
-    // System: static instructions + catalog (cached). The cache breakpoint goes on the
-    // catalog block — that block and everything before it forms the cache key.
-    const systemBlocks = [
-      { type: "text", text: SYSTEM_INSTRUCTIONS },
-      {
-        type: "text",
-        text: buildCatalogBlock(validated.catalog),
-        cache_control: { type: "ephemeral" },
-      },
-    ];
-
-    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": ANTHROPIC_VERSION,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 1024,
-        system: systemBlocks,
-        tools: [SUBMIT_PLAN_TOOL],
-        tool_choice: { type: "tool", name: "submit_plan" },
-        messages: [
-          {
-            role: "user",
-            content: buildUserMessage(validated),
-          },
-        ],
-      }),
-    });
-
-    if (!anthropicResponse.ok) {
-      const errorText = await anthropicResponse.text();
-      console.error("Anthropic API error:", anthropicResponse.status, errorText);
-      const status = anthropicResponse.status === 429 ? 429 : 502;
-      return new Response(
-        JSON.stringify({
-          error:
-            anthropicResponse.status === 429
-              ? "Rate limited"
-              : "AI service error",
-          details: errorText.slice(0, 200),
-        }),
-        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const data = await anthropicResponse.json();
-
-    // Log cache hit metrics for cost tracking
-    if (data.usage) {
       console.log(
-        `tokens: in=${data.usage.input_tokens} out=${data.usage.output_tokens} cache_read=${data.usage.cache_read_input_tokens ?? 0} cache_create=${data.usage.cache_creation_input_tokens ?? 0}`
+        `generate-plan: user=${ctx.userClaims?.id} target=${validated.target_ethanol_ml}ml duration=${validated.duration_minutes}min catalog=${validated.catalog.length}`
+      );
+
+      // System prompt: static instructions + catalog. The catalog block carries
+      // `cache_control` so it (plus everything before it) gets cached across
+      // calls — usually >90% cost reduction on the catalog after the first hit.
+      const systemBlocks = [
+        { type: "text", text: SYSTEM_INSTRUCTIONS },
+        {
+          type: "text",
+          text: buildCatalogBlock(validated.catalog),
+          cache_control: { type: "ephemeral" },
+        },
+      ];
+
+      const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": ANTHROPIC_VERSION,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 1024,
+          system: systemBlocks,
+          tools: [SUBMIT_PLAN_TOOL],
+          tool_choice: { type: "tool", name: "submit_plan" },
+          messages: [
+            {
+              role: "user",
+              content: buildUserMessage(validated),
+            },
+          ],
+        }),
+      });
+
+      if (!anthropicResponse.ok) {
+        const errorText = await anthropicResponse.text();
+        console.error("Anthropic API error:", anthropicResponse.status, errorText);
+        const status = anthropicResponse.status === 429 ? 429 : 502;
+        return jsonResponse(
+          {
+            error: anthropicResponse.status === 429 ? "Rate limited" : "AI service error",
+            details: errorText.slice(0, 200),
+          },
+          status
+        );
+      }
+
+      const data = await anthropicResponse.json();
+
+      if (data.usage) {
+        console.log(
+          `tokens: in=${data.usage.input_tokens} out=${data.usage.output_tokens} cache_read=${data.usage.cache_read_input_tokens ?? 0} cache_create=${data.usage.cache_creation_input_tokens ?? 0}`
+        );
+      }
+
+      const toolUseBlock = Array.isArray(data.content)
+        ? data.content.find(
+            (block: { type?: string; name?: string }) =>
+              block.type === "tool_use" && block.name === "submit_plan"
+          )
+        : null;
+
+      if (!toolUseBlock?.input) {
+        console.error(
+          "No submit_plan tool_use block in response:",
+          JSON.stringify(data).slice(0, 500)
+        );
+        return jsonResponse({ error: "AI returned unexpected response shape" }, 502);
+      }
+
+      const plan = toolUseBlock.input as PlanResponse;
+
+      // Drop any drinks whose catalog_id isn't in the provided catalog.
+      const validIds = new Set(validated.catalog.map((c) => c.id));
+      const cleanedDrinks = (plan.drinks ?? []).filter((d) => validIds.has(d.catalog_id));
+
+      if (cleanedDrinks.length !== (plan.drinks ?? []).length) {
+        console.warn(
+          `Dropped ${(plan.drinks ?? []).length - cleanedDrinks.length} drinks with unknown catalog_ids`
+        );
+      }
+
+      return jsonResponse({
+        drinks: cleanedDrinks,
+        notes: plan.notes ?? "",
+      } satisfies PlanResponse);
+    } catch (error) {
+      console.error("Error in generate-plan function:", error);
+      return jsonResponse(
+        { error: error instanceof Error ? error.message : "Unknown error" },
+        500
       );
     }
-
-    // Extract the tool_use block
-    const toolUseBlock = Array.isArray(data.content)
-      ? data.content.find(
-          (block: { type?: string; name?: string }) =>
-            block.type === "tool_use" && block.name === "submit_plan"
-        )
-      : null;
-
-    if (!toolUseBlock?.input) {
-      console.error("No submit_plan tool_use block in response:", JSON.stringify(data).slice(0, 500));
-      return new Response(
-        JSON.stringify({ error: "AI returned unexpected response shape" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const plan = toolUseBlock.input as PlanResponse;
-
-    // Hard validation: drop any drinks whose catalog_id isn't in the provided catalog
-    const validIds = new Set(validated.catalog.map((c) => c.id));
-    const cleanedDrinks = (plan.drinks ?? []).filter((d) => validIds.has(d.catalog_id));
-
-    if (cleanedDrinks.length !== (plan.drinks ?? []).length) {
-      console.warn(
-        `Dropped ${(plan.drinks ?? []).length - cleanedDrinks.length} drinks with unknown catalog_ids`
-      );
-    }
-
-    const result: PlanResponse = {
-      drinks: cleanedDrinks,
-      notes: plan.notes ?? "",
-    };
-
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Error in generate-plan function:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-});
+  }),
+};

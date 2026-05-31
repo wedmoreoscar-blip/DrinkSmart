@@ -8,7 +8,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "db:types": "supabase gen types typescript --project-id \"$VITE_SUPABASE_PROJECT_ID\" --schema public > src/integrations/supabase/types.ts",
+    "db:types:local": "supabase gen types typescript --local > src/integrations/supabase/types.ts"
   },
   "dependencies": {
     "@capacitor/camera": "^8.0.0",

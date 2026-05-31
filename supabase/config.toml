@@ -7,4 +7,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.generate-plan]
-verify_jwt = false
+# auth: 'user' mode in the function expects a platform-validated JWT.
+# verify_jwt defaults to true; left explicit for clarity.
+verify_jwt = true
