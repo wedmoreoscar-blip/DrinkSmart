@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withSupabase } from "@supabase/server";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,39 +30,15 @@ interface ParseMenuResponse {
   errors?: string[];
 }
 
-serve(async (req) => {
-  // Handle CORS preflight
+const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
+  // withSupabase has already validated the caller's JWT (anonymous OK).
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Authentication check - require logged-in user
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - please log in to use the menu scanner' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - please log in to use the menu scanner' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`User ${user.id} is using menu scanner`);
+    const user = ctx.userClaims;
+    console.log(`User ${user?.id} is using menu scanner`);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -270,3 +245,5 @@ If you can see an establishment/venue name in the image, note it as suggestedNam
     );
   }
 });
+
+export default { fetch: handler };

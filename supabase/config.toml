@@ -1,12 +1,14 @@
 project_id = "bdgfmcspurftimormevy"
 
+# All functions use the @supabase/server withSupabase wrapper with
+# auth: 'user' mode, which requires a platform-validated JWT (anonymous OK).
+# verify_jwt = true is the default; left explicit for visibility.
+
 [functions.parse-menu]
-verify_jwt = false
+verify_jwt = true
 
 [functions.submit-feedback]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-plan]
-# auth: 'user' mode in the function expects a platform-validated JWT.
-# verify_jwt defaults to true; left explicit for clarity.
 verify_jwt = true

@@ -1,54 +1,48 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withSupabase } from "@supabase/server";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Simple in-memory rate limiting (resets on function cold start)
-// For production, consider using Redis or a database table
+// In-memory rate limit (resets on cold start). For real production traffic,
+// move to a Postgres counter table or a managed rate limiter.
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const MAX_REQUESTS_PER_WINDOW = 5; // 5 submissions per hour per IP
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const MAX_REQUESTS_PER_WINDOW = 5;
 
 function getClientIP(req: Request): string {
-  // Try various headers that might contain the real IP
   const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
-  }
-  const realIP = req.headers.get("x-real-ip");
-  if (realIP) {
-    return realIP;
-  }
-  const cfIP = req.headers.get("cf-connecting-ip");
-  if (cfIP) {
-    return cfIP;
-  }
-  return "unknown";
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return (
+    req.headers.get("x-real-ip") ??
+    req.headers.get("cf-connecting-ip") ??
+    "unknown"
+  );
 }
 
-function isRateLimited(ip: string): { limited: boolean; remaining: number; resetIn: number } {
+function isRateLimited(ip: string): {
+  limited: boolean;
+  remaining: number;
+  resetIn: number;
+} {
   const now = Date.now();
   const record = rateLimitMap.get(ip);
 
   if (!record || now > record.resetTime) {
-    // Reset or create new record
     rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
     return { limited: false, remaining: MAX_REQUESTS_PER_WINDOW - 1, resetIn: RATE_LIMIT_WINDOW_MS };
   }
 
   if (record.count >= MAX_REQUESTS_PER_WINDOW) {
-    const resetIn = record.resetTime - now;
-    return { limited: true, remaining: 0, resetIn };
+    return { limited: true, remaining: 0, resetIn: record.resetTime - now };
   }
 
   record.count++;
-  return { 
-    limited: false, 
+  return {
+    limited: false,
     remaining: MAX_REQUESTS_PER_WINDOW - record.count,
-    resetIn: record.resetTime - now
+    resetIn: record.resetTime - now,
   };
 }
 
@@ -56,100 +50,85 @@ interface FeedbackRequest {
   title: string;
   description: string;
   image_url?: string | null;
-  user_id?: string | null;
 }
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+function jsonResponse(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
-  try {
-    // Rate limiting check
-    const clientIP = getClientIP(req);
-    const rateCheck = isRateLimited(clientIP);
-
-    if (rateCheck.limited) {
-      const resetMinutes = Math.ceil(rateCheck.resetIn / 60000);
-      console.log(`Rate limited IP: ${clientIP}`);
-      return new Response(
-        JSON.stringify({
-          error: "Too many feedback submissions. Please try again later.",
-          resetIn: resetMinutes,
-        }),
-        {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+export default {
+  fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
     }
 
-    // Parse and validate request body
-    const body: FeedbackRequest = await req.json();
+    try {
+      const clientIP = getClientIP(req);
+      const rateCheck = isRateLimited(clientIP);
 
-    if (!body.title || typeof body.title !== "string" || body.title.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Title is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      if (rateCheck.limited) {
+        const resetMinutes = Math.ceil(rateCheck.resetIn / 60000);
+        console.log(`Rate limited IP: ${clientIP}`);
+        return jsonResponse(
+          {
+            error: "Too many feedback submissions. Please try again later.",
+            resetIn: resetMinutes,
+          },
+          429
+        );
+      }
 
-    if (!body.description || typeof body.description !== "string" || body.description.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Description is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      const body: FeedbackRequest = await req.json();
 
-    // Limit field lengths
-    const title = body.title.trim().slice(0, 200);
-    const description = body.description.trim().slice(0, 5000);
-    const image_url = body.image_url || null;
-    const user_id = body.user_id || null;
+      if (!body.title?.trim()) {
+        return jsonResponse({ error: "Title is required" }, 400);
+      }
+      if (!body.description?.trim()) {
+        return jsonResponse({ error: "Description is required" }, 400);
+      }
 
-    // Create Supabase client with service role to bypass RLS
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+      const title = body.title.trim().slice(0, 200);
+      const description = body.description.trim().slice(0, 5000);
+      const image_url = body.image_url ?? null;
 
-    // Insert feedback
-    const { data, error } = await supabase
-      .from("feedback")
-      .insert({
-        title,
-        description,
-        image_url,
-        user_id,
-        status: "new",
-      })
-      .select()
-      .single();
+      // user_id is taken from the verified JWT (ctx.userClaims), NOT from the
+      // request body, so callers can't forge submissions as other users.
+      // Anonymous users will have a real userClaims.id too.
+      const userId = ctx.userClaims?.id ?? null;
 
-    if (error) {
-      console.error("Error inserting feedback:", error);
-      return new Response(
-        JSON.stringify({ error: "Failed to submit feedback" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      // Insert via the RLS-scoped client; the feedback table's INSERT policy
+      // is `WITH CHECK (true)` so any authenticated user (anon or permanent)
+      // can submit.
+      const { data, error } = await ctx.supabase
+        .from("feedback")
+        .insert({
+          title,
+          description,
+          image_url,
+          user_id: userId,
+          status: "new",
+        })
+        .select()
+        .single();
 
-    console.log(`Feedback submitted from IP ${clientIP}, remaining: ${rateCheck.remaining}`);
+      if (error) {
+        console.error("Error inserting feedback:", error);
+        return jsonResponse({ error: "Failed to submit feedback" }, 500);
+      }
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
+      console.log(`Feedback submitted by ${userId} from IP ${clientIP}, remaining: ${rateCheck.remaining}`);
+
+      return jsonResponse({
+        success: true,
         data,
-        remaining: rateCheck.remaining 
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Error processing feedback:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-});
+        remaining: rateCheck.remaining,
+      });
+    } catch (err) {
+      console.error("Error processing feedback:", err);
+      return jsonResponse({ error: "Internal server error" }, 500);
+    }
+  }),
+};

@@ -89,17 +89,21 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 23. **The static catalog is Wetherspoons-only.** Future work: merge in user-specific `establishment_drinks` when the user has selected an establishment. The catalog format is already designed for it (`CatalogItem.id` uses `category::name` for static, `est::<id>` would work for establishment-scoped).
 
-23a. **The edge function uses the `@supabase/server` `withSupabase` wrapper** (mid-2026 pattern), not the legacy `serve` + manual `createClient` + manual auth check pattern. `auth: 'user'` mode enforces a valid JWT (including anonymous JWTs) and gives you `ctx.supabase` (RLS-scoped) and `ctx.userClaims`. Dependencies are declared in `supabase/functions/generate-plan/deno.json` using `npm:` specifiers. **Don't revert to `https://esm.sh/` URLs or the std `serve` import** — they're legacy.
+23a. **All three edge functions use the `@supabase/server` `withSupabase` wrapper** (mid-2026 pattern), not the legacy `serve` + manual `createClient` + manual auth check pattern. `auth: 'user'` mode enforces a valid JWT (anonymous OK) and gives you `ctx.supabase` (RLS-scoped) and `ctx.userClaims`. Each function has its own `deno.json` with `npm:` specifiers. **Don't revert to `https://esm.sh/` URLs or the std `serve` import** — they're legacy.
 
-23b. **`config.toml` for `generate-plan` has `verify_jwt = true`.** This is required for `auth: 'user'` mode — the platform validates the JWT before the handler runs. Don't switch back to `verify_jwt = false`; anonymous users have valid JWTs and pass this check.
+23b. **No edge function references `SUPABASE_ANON_KEY` or `SUPABASE_SERVICE_ROLE_KEY` directly.** The `withSupabase` wrapper auto-reads the modern env vars (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWKS`) which the platform auto-provisions. If you need service-role for admin ops, use `ctx.supabaseAdmin`, not a manual `createClient` call.
+
+23c. **`config.toml` sets `verify_jwt = true` for all three functions.** Required for `auth: 'user'` mode — the platform validates the JWT before the handler runs. Don't switch back to `verify_jwt = false`; anonymous users have valid JWTs and pass this check.
+
+23d. **`submit-feedback` writes via RLS, not service-role.** The feedback table's INSERT policy is `WITH CHECK (true)` so any authenticated user (anon or permanent) can submit. We use `ctx.supabase` (RLS-scoped) and pull `user_id` from `ctx.userClaims.id` — not from the request body — so callers can't forge submissions as other users.
 
 ### RLS
 
-23c. **RLS policies wrap `auth.uid()` in `(select ...)`.** `(select auth.uid()) = user_id` instead of `auth.uid() = user_id`. Per Supabase benchmarks this is ~95% faster on RLS-filtered queries because Postgres caches the function result per statement instead of per row. **Do not regress this** in new policies. Same pattern applies to `auth.jwt()` and SECURITY DEFINER helper functions (e.g. `public.has_role`).
+23e. **RLS policies wrap `auth.uid()` in `(select ...)`.** `(select auth.uid()) = user_id` instead of `auth.uid() = user_id`. Per Supabase benchmarks this is ~95% faster on RLS-filtered queries because Postgres caches the function result per statement instead of per row. **Do not regress this** in new policies. Same pattern applies to `auth.jwt()` and SECURITY DEFINER helper functions (e.g. `public.has_role`).
 
-23d. **Indexes exist on every `user_id` referenced by a policy** (added in the Phase 1 migration). Foreign keys are NOT auto-indexed in Postgres. If you add a new policy that filters by a column other than `user_id`, add an index for it.
+23f. **Indexes exist on every `user_id` referenced by a policy** (added in the Phase 1 migration). Foreign keys are NOT auto-indexed in Postgres. If you add a new policy that filters by a column other than `user_id`, add an index for it.
 
-23e. **An event trigger auto-enables RLS on new public-schema tables** (`supabase/migrations/20260518000001_rls_auto_enable_trigger.sql`). New tables don't need an explicit `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` — the trigger fires after `CREATE TABLE` and does it for you. You still have to write the actual policies.
+23g. **An event trigger auto-enables RLS on new public-schema tables** (`supabase/migrations/20260518000001_rls_auto_enable_trigger.sql`). New tables don't need an explicit `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` — the trigger fires after `CREATE TABLE` and does it for you. You still have to write the actual policies.
 
 ### UI
 

@@ -231,37 +231,36 @@ export default {
 
 **Secret required:** `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`. Without it the function returns 500; the client falls back to the deterministic greedy generator (`src/lib/greedyPlanFallback.ts`) and toasts "Built offline."
 
-### `parse-menu` (legacy pattern — works, modernisation pending)
+### `parse-menu` (modernised)
 
-Receives base64 images of a drinks menu, returns parsed drink data. Uses Gemini 2.5 Flash via the Lovable AI gateway (`https://ai.gateway.lovable.dev/...`).
+Receives base64 images of a drinks menu, returns parsed drink data. Uses Gemini 2.5 Flash via the Lovable AI gateway (`https://ai.gateway.lovable.dev/...`, requires `LOVABLE_API_KEY` as a Supabase secret).
 
-Still uses the legacy pattern (`Deno.serve` style with manual `createClient` + manual auth check). It works fine, but a future modernisation pass should:
-- Replace the manual auth check with `withSupabase({ auth: 'user' })`.
-- Switch imports to `npm:@supabase/server` and `npm:@supabase/supabase-js@2`.
-- Add a per-function `deno.json`.
+Uses `withSupabase({ auth: 'user' })` — anonymous users can scan menus too. The Lovable gateway call is unchanged; only the wrapper is updated. Per-function `deno.json` with `npm:` specifiers.
 
-Either keep using the Lovable gateway (current) or switch the AI provider — pure decision, no urgency.
+### `submit-feedback` (modernised)
 
-### `submit-feedback` (legacy pattern)
+Receives a feedback payload, applies IP-based rate limiting (5/hour, in-memory map), inserts a row.
 
-Receives a feedback payload, applies IP-based rate limiting (in-memory map), inserts via the service role (bypasses RLS so anonymous users can write).
+Uses `withSupabase({ auth: 'user' })`. Writes go through `ctx.supabase` (RLS-scoped) — we don't need service-role since the `feedback` INSERT policy is `WITH CHECK (true)`. **`user_id` is pulled from `ctx.userClaims.id`, never from the request body**, so a caller can't forge submissions as another user.
 
-Same modernisation opportunity as `parse-menu`. The IP rate limit could be replaced with a Postgres-level rate limit using a counter table or with Supabase's built-in rate limits.
+Future polish: move the IP rate limit out of memory into a Postgres counter table so it survives function cold starts. Not blocking.
 
 ### Function configuration
 
-`supabase/config.toml`:
+`supabase/config.toml` — all three functions use the modern wrapper:
 
 ```toml
 [functions.parse-menu]
-verify_jwt = false   # legacy: handles auth manually inside
+verify_jwt = true
 
 [functions.submit-feedback]
-verify_jwt = false   # legacy: uses service-role client
+verify_jwt = true
 
 [functions.generate-plan]
-verify_jwt = true    # modern: withSupabase auth: 'user' requires platform-validated JWT
+verify_jwt = true
 ```
+
+`verify_jwt = true` is required by `withSupabase({ auth: 'user' })` — the platform validates the JWT (anonymous OK) before the handler runs. Don't set `verify_jwt = false` unless you also switch the wrapper to `auth: 'none'`, which skips ALL auth checks (use only for signed webhooks).
 
 ### Deployment
 
@@ -292,6 +291,71 @@ const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
 The bucket must exist in the Supabase project. Avatar uploads are best-effort; failures fall through silently (the user gets the default avatar icon).
 
 ---
+
+## 5a. API keys — modern vs legacy (use modern)
+
+Supabase is in the middle of a key-system migration. New projects can pick which to use; existing projects often have both available. **This codebase is configured for the modern keys throughout.**
+
+### The two systems
+
+| Legacy (deprecated) | Modern (recommended) |
+|---|---|
+| `anon` JWT key (long base64 string starting `eyJ...`) — safe to ship to the browser; RLS still applies | `sb_publishable_...` — same role, cleaner format, supports named keys |
+| `service_role` JWT key — bypasses RLS; server-side only, NEVER ship to the browser | `sb_secret_...` — same role, cleaner format, supports named keys |
+
+Both formats still work today; the platform provides legacy env var names (`SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) alongside the modern ones (`SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`) for back-compat. The codebase **does not reference either set by hand** — the edge functions use `@supabase/server`'s `withSupabase` wrapper, which reads whichever set the platform provisions automatically.
+
+### Where to find the modern keys in your Supabase project
+
+In the dashboard:
+1. **Project Settings → API Keys** (or Settings → API on older dashboards).
+2. Look for the "**Publishable keys**" and "**Secret keys**" sections (these are the modern slots).
+3. The default publishable key is named `default` and has the `sb_publishable_` prefix. Copy it into `.env`.
+4. Secret keys are server-only. You don't need to copy one for this project — `withSupabase` reads them server-side automatically. If you ever do need one in your local dev shell, copy it into a local-only `.env.local` (never commit).
+5. If the dashboard offers a toggle to "**Use new API keys**" or similar, enable it. Some accounts default to legacy.
+
+### Our `.env` (client-side, committed to `.env.example` style template)
+
+```
+# Client-side env, read by Vite. Safe to ship the publishable key to the browser
+# because RLS gates every query.
+VITE_SUPABASE_URL="https://<your-project-ref>.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."   # NOT the JWT-format anon key
+VITE_SUPABASE_PROJECT_ID="<your-project-ref>"
+```
+
+If you have a legacy anon key (long `eyJ...` JWT), it still works — but get a modern `sb_publishable_...` from the dashboard and use that instead. Same powers, cleaner format, supports key rotation without breaking sessions.
+
+### Server-side env (auto-provisioned by the platform)
+
+You don't set these manually — the Supabase platform injects them into every edge function automatically:
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_URL` | Project URL (used inside the wrapper) |
+| `SUPABASE_PUBLISHABLE_KEY` (singular) or `SUPABASE_PUBLISHABLE_KEYS` (named JSON) | Modern publishable key(s) |
+| `SUPABASE_SECRET_KEY` (singular) or `SUPABASE_SECRET_KEYS` (named JSON) | Modern secret key(s) — used by `ctx.supabaseAdmin` |
+| `SUPABASE_JWKS` | JSON Web Key Set used to verify caller JWTs |
+| `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Legacy back-compat. Do not reference in new code. |
+
+For local dev with `supabase start`, the CLI provisions a single-key setup (`SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SECRET_KEY`) automatically. The `withSupabase` wrapper accepts either form.
+
+### Function-specific secrets we DO set manually
+
+Two third-party API keys, set via the Supabase CLI:
+
+```sh
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...   # used by generate-plan
+supabase secrets set LOVABLE_API_KEY=...            # used by parse-menu
+```
+
+Verify with `supabase secrets list`.
+
+### Why this matters
+
+- **No legacy key references in our code.** Future Supabase deprecations of the JWT-format keys won't break anything.
+- **Cleaner key rotation.** Modern keys can be rotated in the dashboard without invalidating user sessions (legacy `service_role` rotation rotates the JWT signing secret, which kills every active session).
+- **Named keys.** You can have multiple publishable/secret keys with names (`default`, `mobile`, `cron`, etc.) and the function can pin to a specific one with `auth: 'secret:<name>'` if desired.
 
 ## 6. Client integration
 
@@ -531,7 +595,6 @@ When standing up the project against a fresh Supabase account:
 
 | Item | Effort | Why it matters |
 |---|---|---|
-| Modernise `parse-menu` and `submit-feedback` to use `withSupabase` + `npm:` + `deno.json` | ~1 hour each | Consistency; cleaner code; same security model as `generate-plan` |
 | Retrofit the original 9 Lovable migrations' RLS policies to use `(select auth.uid())` | ~1 hour | ~95% perf gain on every RLS-filtered query on the older tables |
 | Add `RESTRICTIVE` policies for permanent-users-only actions (e.g., feedback submit) if you ever want to lock anonymous users out of some endpoints | ~30 min per policy | Anti-abuse |
 | Add Cloudflare Turnstile / hCaptcha to anonymous sign-in | Dashboard config + 1 client change | Anti-bot for the anon endpoint (default rate limit is 30/hr/IP) |
