@@ -19,6 +19,17 @@ type PreferencesPickerProps = {
   submitting?: boolean;
 };
 
+const SWEET_LABELS: Record<number, string> = {
+  0: "Dry",
+  0.5: "Balanced",
+  1: "Sweet",
+};
+const STRONG_LABELS: Record<number, string> = {
+  0: "Light",
+  0.5: "Medium",
+  1: "Strong",
+};
+
 export const PreferencesPicker = ({
   initial,
   onSubmit,
@@ -65,32 +76,42 @@ export const PreferencesPicker = ({
           <div className="flex items-center justify-between">
             <Label>Sweet</Label>
             <span className="text-xs text-muted-foreground">
-              {prefs.sweet < 0.34 ? "Dry" : prefs.sweet > 0.66 ? "Sweet" : "Balanced"}
+              {SWEET_LABELS[prefs.sweet] ?? "Balanced"}
             </span>
           </div>
           <Slider
             value={[prefs.sweet]}
             min={0}
             max={1}
-            step={0.05}
+            step={0.5}
             onValueChange={([v]) => update({ sweet: v })}
           />
+          <div className="flex justify-between text-xs text-muted-foreground px-1">
+            <span>Dry</span>
+            <span>Balanced</span>
+            <span>Sweet</span>
+          </div>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Strong</Label>
             <span className="text-xs text-muted-foreground">
-              {prefs.strong < 0.34 ? "Light" : prefs.strong > 0.66 ? "Strong" : "Medium"}
+              {STRONG_LABELS[prefs.strong] ?? "Medium"}
             </span>
           </div>
           <Slider
             value={[prefs.strong]}
             min={0}
             max={1}
-            step={0.05}
+            step={0.5}
             onValueChange={([v]) => update({ strong: v })}
           />
+          <div className="flex justify-between text-xs text-muted-foreground px-1">
+            <span>Light</span>
+            <span>Medium</span>
+            <span>Strong</span>
+          </div>
         </div>
       </Card>
 
