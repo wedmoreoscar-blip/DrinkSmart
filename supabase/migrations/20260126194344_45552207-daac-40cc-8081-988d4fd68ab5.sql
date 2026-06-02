@@ -6,11 +6,10 @@ ON public.profiles FOR SELECT
 TO authenticated
 USING (public.has_role(auth.uid(), 'admin'));
 
--- User drinks: Allow admins to view all user drinks
-CREATE POLICY "Admins can view all user drinks"
-ON public.user_drinks FOR SELECT
-TO authenticated
-USING (public.has_role(auth.uid(), 'admin'));
+-- (removed: admin policy on public.user_drinks — the table was a Lovable-managed
+-- artifact that no migration in this repo creates, and the refactor replaced it
+-- with localStorage-backed session state. If a future migration introduces a
+-- real user_drinks table, add the admin SELECT policy there.)
 
 -- Saved custom drinks: Allow admins to view all saved drinks
 CREATE POLICY "Admins can view all saved custom drinks"

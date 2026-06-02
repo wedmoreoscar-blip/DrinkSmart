@@ -10,7 +10,7 @@ DrinkSmart leans on five Supabase products. Each is mapped to a specific need in
 |---|---|---|
 | **Postgres database** | Stores profiles, drinking-session history, saved custom drinks, establishment menus (incl. Wetherspoons), feedback, admin role grants | `supabase/migrations/`, `src/integrations/supabase/types.ts` |
 | **Auth** | Anonymous sessions on launch, optional upgrade to email/password, password reset, role-based admin gating | `src/lib/anonymousAuth.ts`, `src/pages/Auth.tsx`, `src/pages/ResetPassword.tsx`, `src/hooks/useUserRole.ts` |
-| **Edge Functions (Deno)** | Server-side AI calls so the API key never leaves the server: `generate-plan` (Anthropic, plan generation), `parse-menu` (Gemini via Lovable gateway, menu OCR), `submit-feedback` (rate-limited insert) | `supabase/functions/*` |
+| **Edge Functions (Deno)** | Server-side AI calls so the API key never leaves the server: `generate-plan` (Anthropic Claude Haiku, plan generation), `parse-menu` (Anthropic Claude Haiku vision, menu OCR), `submit-feedback` (rate-limited insert) | `supabase/functions/*` |
 | **Storage** | User avatar images | `src/pages/Auth.tsx` `uploadAvatar()` |
 | **TypeScript client** (`@supabase/supabase-js@2`) | All client-side database, auth, function-invoke, storage calls | `src/integrations/supabase/client.ts` + every hook |
 
@@ -233,9 +233,9 @@ export default {
 
 ### `parse-menu` (modernised)
 
-Receives base64 images of a drinks menu, returns parsed drink data. Uses Gemini 2.5 Flash via the Lovable AI gateway (`https://ai.gateway.lovable.dev/...`, requires `LOVABLE_API_KEY` as a Supabase secret).
+Receives base64 images of a drinks menu, returns parsed drink data. Uses Claude Haiku 4.5 vision via the Anthropic API (the same `ANTHROPIC_API_KEY` as `generate-plan`).
 
-Uses `withSupabase({ auth: 'user' })` — anonymous users can scan menus too. The Lovable gateway call is unchanged; only the wrapper is updated. Per-function `deno.json` with `npm:` specifiers.
+Uses `withSupabase({ auth: 'user' })` — anonymous users can scan menus too. Per-function `deno.json` with `npm:` specifiers. Processes images one at a time so one bad image doesn't kill the rest; tool-use forced with the `extract_menu_drinks` tool for structured output. Token usage is logged per image.
 
 ### `submit-feedback` (modernised)
 
@@ -342,11 +342,10 @@ For local dev with `supabase start`, the CLI provisions a single-key setup (`SUP
 
 ### Function-specific secrets we DO set manually
 
-Two third-party API keys, set via the Supabase CLI:
+One third-party API key, set via the Supabase CLI:
 
 ```sh
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...   # used by generate-plan
-supabase secrets set LOVABLE_API_KEY=...            # used by parse-menu
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...   # used by generate-plan AND parse-menu
 ```
 
 Verify with `supabase secrets list`.
