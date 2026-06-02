@@ -15,11 +15,25 @@ import { ensureSession } from "./lib/anonymousAuth";
 
 const queryClient = new QueryClient();
 
+type SessionState =
+  | { status: "loading" }
+  | { status: "ready" }
+  | { status: "error"; message: string };
+
 const App = () => {
-  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionState, setSessionState] = useState<SessionState>({ status: "loading" });
 
   useEffect(() => {
-    ensureSession().finally(() => setSessionReady(true));
+    ensureSession().then(({ session, error }) => {
+      if (session) {
+        setSessionState({ status: "ready" });
+      } else {
+        setSessionState({
+          status: "error",
+          message: error?.message ?? "Failed to create a Supabase session.",
+        });
+      }
+    });
   }, []);
 
   return (
@@ -27,7 +41,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        {sessionReady ? (
+        {sessionState.status === "ready" && (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Welcome />} />
@@ -40,8 +54,53 @@ const App = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-        ) : (
+        )}
+        {sessionState.status === "loading" && (
           <div className="min-h-screen bg-background" />
+        )}
+        {sessionState.status === "error" && (
+          <div className="min-h-screen bg-background flex items-center justify-center p-6">
+            <div className="max-w-md w-full bg-card border rounded-lg p-6 space-y-4">
+              <div>
+                <h1 className="text-xl font-semibold">Can't reach Supabase</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  We couldn't create an anonymous session. The app can't continue
+                  until this is fixed.
+                </p>
+              </div>
+              <div className="text-sm">
+                <p className="font-medium mb-1">Error from Supabase:</p>
+                <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap break-all">
+                  {sessionState.message}
+                </pre>
+              </div>
+              <div className="text-sm space-y-1 text-muted-foreground">
+                <p className="font-medium text-foreground">Likely fixes:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>
+                    In the Supabase dashboard, go to{" "}
+                    <span className="font-mono">Authentication → Sign In / Up → Providers</span>
+                    {" "}and ensure <strong>Anonymous Sign-Ins</strong> is enabled and saved.
+                  </li>
+                  <li>
+                    Verify <span className="font-mono">VITE_SUPABASE_URL</span> and{" "}
+                    <span className="font-mono">VITE_SUPABASE_PUBLISHABLE_KEY</span> in{" "}
+                    <span className="font-mono">.env</span> match the project you're configuring.
+                  </li>
+                  <li>
+                    If you have CAPTCHA enabled for anon sign-ins, disable it during dev.
+                  </li>
+                </ol>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="w-full bg-primary text-primary-foreground rounded-md py-2 text-sm font-medium hover:opacity-90"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
         )}
       </TooltipProvider>
     </QueryClientProvider>

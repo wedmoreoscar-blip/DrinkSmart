@@ -21,13 +21,17 @@ type PreferencesPickerProps = {
 
 const SWEET_LABELS: Record<number, string> = {
   0: "Dry",
+  0.25: "Slightly dry",
   0.5: "Balanced",
+  0.75: "Slightly sweet",
   1: "Sweet",
 };
 const STRONG_LABELS: Record<number, string> = {
   0: "Light",
+  0.25: "Mild",
   0.5: "Medium",
-  1: "Strong",
+  0.75: "Strong",
+  1: "Very strong",
 };
 
 export const PreferencesPicker = ({
@@ -83,12 +87,14 @@ export const PreferencesPicker = ({
             value={[prefs.sweet]}
             min={0}
             max={1}
-            step={0.5}
+            step={0.25}
             onValueChange={([v]) => update({ sweet: v })}
           />
-          <div className="flex justify-between text-xs text-muted-foreground px-1">
+          <div className="flex justify-between text-[10px] text-muted-foreground px-1">
             <span>Dry</span>
+            <span>·</span>
             <span>Balanced</span>
+            <span>·</span>
             <span>Sweet</span>
           </div>
         </div>
@@ -104,13 +110,15 @@ export const PreferencesPicker = ({
             value={[prefs.strong]}
             min={0}
             max={1}
-            step={0.5}
+            step={0.25}
             onValueChange={([v]) => update({ strong: v })}
           />
-          <div className="flex justify-between text-xs text-muted-foreground px-1">
+          <div className="flex justify-between text-[10px] text-muted-foreground px-1">
             <span>Light</span>
+            <span>·</span>
             <span>Medium</span>
-            <span>Strong</span>
+            <span>·</span>
+            <span>Very strong</span>
           </div>
         </div>
       </Card>
