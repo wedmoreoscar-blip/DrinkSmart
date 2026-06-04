@@ -137,6 +137,25 @@ export async function generatePlan(input: GeneratePlanInput): Promise<GeneratePl
   }
 }
 
+function ethanolPerServing(
+  drink: GeneratedDrink,
+  catalog: CatalogItem[]
+): number {
+  const item = catalog.find((c) => c.id === drink.catalog_id);
+  if (!item) return 0;
+  if (drink.unit === "ml" || drink.unit === "oz") {
+    const serving = drink.ml ?? item.typical_ml;
+    return serving * (item.abv / 100);
+  }
+  return item.typical_ml * (item.abv / 100);
+}
+
+/**
+ * If the AI plan underfills the budget, bump quantities on the drinks it
+ * already picked — staying consistent with the variety rule (real sessions
+ * are dominated by 1–2 drinks). We only fall through to greedy if the AI
+ * returned no drinks at all.
+ */
 function topUpIfUnderfilled(
   plan: GeneratedPlan,
   input: GeneratePlanInput
@@ -144,27 +163,59 @@ function topUpIfUnderfilled(
   const actual = plan.actual_total_ethanol_ml ?? 0;
   if (input.target_ethanol_ml <= 0) return plan;
 
-  const deficit = input.target_ethanol_ml - actual;
+  let deficit = input.target_ethanol_ml - actual;
   if (deficit / input.target_ethanol_ml < UNDERFILL_DEFICIT_THRESHOLD) return plan;
 
-  const alreadyPickedIds = new Set(plan.drinks.map((d) => d.catalog_id));
-  const topUp = greedyPlanFallback({
-    ...input,
-    target_ethanol_ml: deficit,
-    locked_drinks: [],
-    exclude: [...(input.exclude ?? []), ...alreadyPickedIds],
-  });
+  // No AI picks at all → full greedy.
+  if (plan.drinks.length === 0) {
+    const greedy = greedyPlanFallback({ ...input, locked_drinks: [] });
+    if (greedy.drinks.length === 0) return plan;
+    console.info(
+      `generate-plan: AI returned no drinks, used full greedy (${greedy.drinks.length} drinks)`
+    );
+    return {
+      drinks: greedy.drinks,
+      notes: plan.notes || greedy.notes,
+      actual_total_ethanol_ml: input.target_ethanol_ml - deficit,
+    };
+  }
 
-  if (topUp.drinks.length === 0) return plan;
+  // Bump quantities on the AI's existing picks. Each iteration picks the
+  // drink whose single-serving ethanol gets us closest to closing the gap.
+  const drinks = plan.drinks.map((d) => ({ ...d }));
+  const tolerance = input.target_ethanol_ml * 0.05;
+  const MAX_ITERATIONS = 12;
+
+  let iterations = 0;
+  while (deficit > tolerance && iterations < MAX_ITERATIONS) {
+    let bestIdx = -1;
+    let bestDist = Infinity;
+    for (let i = 0; i < drinks.length; i++) {
+      const e = ethanolPerServing(drinks[i], input.catalog);
+      if (e <= 0) continue;
+      const dist = Math.abs(e - deficit);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx === -1) break;
+
+    drinks[bestIdx].quantity = (drinks[bestIdx].quantity || 1) + 1;
+    deficit -= ethanolPerServing(drinks[bestIdx], input.catalog);
+    iterations++;
+  }
+
+  if (iterations === 0) return plan;
 
   console.info(
-    `generate-plan: topped up ${deficit.toFixed(1)}ml deficit with ${topUp.drinks.length} drink(s) from greedy`
+    `generate-plan: bumped quantities ${iterations}× to absorb deficit (remaining ${deficit.toFixed(1)}ml)`
   );
 
   return {
-    drinks: [...plan.drinks, ...topUp.drinks],
+    drinks,
     notes: plan.notes,
-    actual_total_ethanol_ml: actual + deficit,
+    actual_total_ethanol_ml: input.target_ethanol_ml - deficit,
   };
 }
 

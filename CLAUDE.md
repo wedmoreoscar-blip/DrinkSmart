@@ -91,7 +91,7 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 22b. **The server recomputes `actual_total_ethanol_ml` from the model's picks** — never trust the value the model puts in its own tool call. The recomputed total is returned to the client.
 
-22c. **Client tops up underfills via greedy.** If the AI plan's actual ethanol is more than 15% under target, `generatePlan` in `src/lib/generatePlan.ts` calls `greedyPlanFallback` with the deficit as the budget and the AI's already-chosen `catalog_id`s in the exclude list, then appends the top-up drinks. `usedFallback` stays `false` — that flag only flips on a full edge-function failure. The notes line shown to the user is the AI's, not the greedy one.
+22c. **Client tops up underfills by bumping AI-chosen quantities.** If the AI plan's actual ethanol is more than 15% under target, `topUpIfUnderfilled` in `src/lib/generatePlan.ts` increments the `quantity` field on the AI's existing picks (chosen to close the gap fastest) until within 5% of target or 12 iterations elapse. It does NOT introduce new drinks via greedy — that would break the variety rule we asked Haiku to follow. Only if the AI returned zero drinks at all do we fall through to a full greedy run. `usedFallback` stays `false` either way — that flag only flips on a complete edge-function failure.
 
 22d. **Variety rule lives in the system prompt.** Haiku is asked to prefer 1–2 distinct catalog items per session and bump quantity instead of adding new drinks, with branching beyond 2 only when `duration > 240min`, `categories_liked.length ≥ 3`, or `target_ethanol_ml > 80`. If you regress this, you'll see Haiku reverting to "tasting flight" plans.
 
