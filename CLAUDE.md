@@ -87,6 +87,14 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 22. **The model is pinned at `claude-haiku-4-5-20251001`** in the edge function. To upgrade: change `ANTHROPIC_MODEL` at the top of `generate-plan/index.ts`. Don't switch to Sonnet/Opus without measuring — Haiku is plenty for this task and an order of magnitude cheaper.
 
+22a. **The catalog block sent to Haiku now includes a precomputed `ethanol_ml` column** per row (`id | name | abv% | typical_ml | ethanol_ml | category`). The model is told to sum that column rather than re-derive from abv × typical_ml — LLMs are unreliable at arithmetic across ~80 rows. Don't drop the column. The cache key for prompt caching is the full catalog block, so changing the format invalidates cached entries once.
+
+22b. **The server recomputes `actual_total_ethanol_ml` from the model's picks** — never trust the value the model puts in its own tool call. The recomputed total is returned to the client.
+
+22c. **Client tops up underfills via greedy.** If the AI plan's actual ethanol is more than 15% under target, `generatePlan` in `src/lib/generatePlan.ts` calls `greedyPlanFallback` with the deficit as the budget and the AI's already-chosen `catalog_id`s in the exclude list, then appends the top-up drinks. `usedFallback` stays `false` — that flag only flips on a full edge-function failure. The notes line shown to the user is the AI's, not the greedy one.
+
+22d. **Variety rule lives in the system prompt.** Haiku is asked to prefer 1–2 distinct catalog items per session and bump quantity instead of adding new drinks, with branching beyond 2 only when `duration > 240min`, `categories_liked.length ≥ 3`, or `target_ethanol_ml > 80`. If you regress this, you'll see Haiku reverting to "tasting flight" plans.
+
 23. **The static catalog is Wetherspoons-only.** Future work: merge in user-specific `establishment_drinks` when the user has selected an establishment. The catalog format is already designed for it (`CatalogItem.id` uses `category::name` for static, `est::<id>` would work for establishment-scoped).
 
 23a. **All three edge functions use the `@supabase/server` `withSupabase` wrapper** (mid-2026 pattern), not the legacy `serve` + manual `createClient` + manual auth check pattern. `auth: 'user'` mode enforces a valid JWT (anonymous OK) and gives you `ctx.supabase` (RLS-scoped) and `ctx.userClaims`. Each function has its own `deno.json` with `npm:` specifiers. **Don't revert to `https://esm.sh/` URLs or the std `serve` import** — they're legacy.

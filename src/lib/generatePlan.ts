@@ -22,7 +22,10 @@ export type GeneratedDrink = {
 export type GeneratedPlan = {
   drinks: GeneratedDrink[];
   notes: string;
+  actual_total_ethanol_ml?: number;
 };
+
+const UNDERFILL_DEFICIT_THRESHOLD = 0.15;
 
 export type LockedDrink = {
   catalog_id: string;
@@ -117,16 +120,52 @@ async function invokeEdgeFunction(input: GeneratePlanInput): Promise<GeneratedPl
  * Invoke the generate-plan edge function with a deterministic offline fallback.
  * Returns `usedFallback: true` when the edge function fails or times out so the
  * caller can surface a small notice.
+ *
+ * If the AI plan undershoots the ethanol budget by more than UNDERFILL_DEFICIT_THRESHOLD,
+ * we top it up via the greedy picker so the BAC meter actually fills. The AI's
+ * picks are added to the exclude list so the top-up doesn't duplicate them.
  */
 export async function generatePlan(input: GeneratePlanInput): Promise<GeneratePlanResult> {
   try {
     const data = await withTimeout(invokeEdgeFunction(input), EDGE_FUNCTION_TIMEOUT_MS);
-    return { ...data, usedFallback: false };
+    const filled = topUpIfUnderfilled(data, input);
+    return { ...filled, usedFallback: false };
   } catch (err) {
     console.warn("generate-plan edge function failed, using greedy fallback:", err);
     const fallback = greedyPlanFallback(input);
     return { ...fallback, usedFallback: true };
   }
+}
+
+function topUpIfUnderfilled(
+  plan: GeneratedPlan,
+  input: GeneratePlanInput
+): GeneratedPlan {
+  const actual = plan.actual_total_ethanol_ml ?? 0;
+  if (input.target_ethanol_ml <= 0) return plan;
+
+  const deficit = input.target_ethanol_ml - actual;
+  if (deficit / input.target_ethanol_ml < UNDERFILL_DEFICIT_THRESHOLD) return plan;
+
+  const alreadyPickedIds = new Set(plan.drinks.map((d) => d.catalog_id));
+  const topUp = greedyPlanFallback({
+    ...input,
+    target_ethanol_ml: deficit,
+    locked_drinks: [],
+    exclude: [...(input.exclude ?? []), ...alreadyPickedIds],
+  });
+
+  if (topUp.drinks.length === 0) return plan;
+
+  console.info(
+    `generate-plan: topped up ${deficit.toFixed(1)}ml deficit with ${topUp.drinks.length} drink(s) from greedy`
+  );
+
+  return {
+    drinks: [...plan.drinks, ...topUp.drinks],
+    notes: plan.notes,
+    actual_total_ethanol_ml: actual + deficit,
+  };
 }
 
 /**

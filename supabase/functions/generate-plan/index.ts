@@ -52,6 +52,7 @@ interface PlanDrink {
 interface PlanResponse {
   drinks: PlanDrink[];
   notes: string;
+  actual_total_ethanol_ml?: number;
 }
 
 const SYSTEM_INSTRUCTIONS = `You are a drink planning assistant for the DrinkSmart app.
@@ -60,20 +61,27 @@ You will receive:
 - A pure-ethanol budget in mL (target_ethanol_ml) — the total alcohol the user should consume
 - A drinking duration in minutes
 - Per-call user preferences (sweet 0-1, strong 0-1, categories liked/avoided)
-- A catalog of available drinks (id, name, abv, typical_ml, category)
+- A catalog of available drinks. Each row gives (id | name | abv% | typical_ml | ethanol_ml | category) where ethanol_ml is the pure-ethanol contribution of ONE typical serving — already computed for you. Sum the ethanol_ml column for your picks; do not re-derive from abv and typical_ml.
 - Locked drinks already chosen (their ethanol is already subtracted from the budget — DO NOT re-include them)
 - An exclude list of catalog_ids you must avoid
 
-Your job: select drinks from the catalog whose summed ethanol approximately equals target_ethanol_ml (±10%), and order them.
+Your job: select drinks from the catalog so that summed ethanol_ml × quantity reaches target_ethanol_ml (aim within ±5%, never undershoot by more than 10%), and order them.
+
+Filling the budget is the highest priority. The user picked a target BAC — if the plan undershoots, they don't reach it. Add another quantity or another drink rather than stopping short.
+
+Variety rule (people stick to a few drinks):
+- Prefer 1–2 distinct catalog items per session. Increase the quantity of an existing pick before introducing a new catalog item.
+- Only branch beyond 2 distinct items when ANY of: duration_minutes > 240, preferences.categories_liked has ≥3 entries, or target_ethanol_ml > 80.
+- Even then cap at 3 distinct items unless the user clearly signalled variety via a long categories_liked list.
 
 Hard rules:
 - Pick only from the provided catalog. NEVER invent drinks or ABVs. Use exact catalog_id values.
 - Do not pick any drink whose category appears in preferences.categories_avoided.
 - Do not pick any catalog_id appearing in the exclude list.
-- For each chosen drink, set quantity and unit. typical_ml in the catalog tells you the default serving — for "ml"/"oz" units include an "ml" override only if you want a non-default size.
-- Pick a reasonable number of drinks for the duration (rule of thumb: 1 drink per 30–60 min).
+- For each chosen drink set quantity and unit. quantity is a count of typical servings (so two pints of the same beer = one entry with quantity: 2, not two entries). Only override ml when you genuinely want a non-default size for an ml/oz drink.
+- Pick a reasonable number of total servings for the duration (rule of thumb: 1 serving per 30–60 min).
 
-Ordering: lighter drinks earlier, the heaviest in the middle third of the plan, taper toward the end. This is a soft rule, use judgement.
+Ordering: lighter drinks earlier, the heaviest in the middle third of the plan, taper toward the end. Soft rule.
 
 Selection bias from preferences (soft):
 - preferences.sweet near 1 → favour sweeter drinks (cocktails, alcopops, dessert wines)
@@ -83,15 +91,31 @@ Selection bias from preferences (soft):
 - categories_liked → boost these
 - categories_avoided → exclude entirely (hard rule above)
 
+Before submitting: add up ethanol_ml × quantity across your picks and put the total in actual_total_ethanol_ml. If it's under target_ethanol_ml by more than 10%, increase a quantity or add one more drink before submitting.
+
 Always invoke the submit_plan tool to return your selection. Do not respond with plain text.`;
+
+function ethanolPerServing(item: CatalogItem): number {
+  return item.typical_ml * (item.abv / 100);
+}
 
 function buildCatalogBlock(catalog: CatalogItem[]): string {
   return [
-    "Drink catalog (id | name | abv% | typical_ml | category):",
+    "Drink catalog (id | name | abv% | typical_ml | ethanol_ml | category):",
     ...catalog.map(
-      (c) => `${c.id} | ${c.name} | ${c.abv}% | ${c.typical_ml}ml | ${c.category}`
+      (c) =>
+        `${c.id} | ${c.name} | ${c.abv}% | ${c.typical_ml}ml | ${ethanolPerServing(c).toFixed(1)}ml | ${c.category}`
     ),
   ].join("\n");
+}
+
+function planDrinkEthanol(drink: PlanDrink, item: CatalogItem): number {
+  const qty = drink.quantity || 1;
+  if (drink.unit === "ml" || drink.unit === "oz") {
+    const serving = drink.ml ?? item.typical_ml;
+    return serving * qty * (item.abv / 100);
+  }
+  return qty * item.typical_ml * (item.abv / 100);
 }
 
 function buildUserMessage(req: GeneratePlanRequest): string {
@@ -162,8 +186,13 @@ const SUBMIT_PLAN_TOOL = {
         type: "string",
         description: "One-sentence rationale for the ordering and selection.",
       },
+      actual_total_ethanol_ml: {
+        type: "number",
+        description:
+          "Your computed sum of ethanol_ml × quantity across all drinks. Used to verify the plan hits the budget.",
+      },
     },
-    required: ["drinks"],
+    required: ["drinks", "actual_total_ethanol_ml"],
   },
 };
 
@@ -292,8 +321,8 @@ export default {
       const plan = toolUseBlock.input as PlanResponse;
 
       // Drop any drinks whose catalog_id isn't in the provided catalog.
-      const validIds = new Set(validated.catalog.map((c) => c.id));
-      const cleanedDrinks = (plan.drinks ?? []).filter((d) => validIds.has(d.catalog_id));
+      const catalogById = new Map(validated.catalog.map((c) => [c.id, c]));
+      const cleanedDrinks = (plan.drinks ?? []).filter((d) => catalogById.has(d.catalog_id));
 
       if (cleanedDrinks.length !== (plan.drinks ?? []).length) {
         console.warn(
@@ -301,9 +330,25 @@ export default {
         );
       }
 
+      // Recompute actual ethanol server-side — never trust the model's arithmetic.
+      const actualTotalEthanolMl = cleanedDrinks.reduce(
+        (sum, d) => sum + planDrinkEthanol(d, catalogById.get(d.catalog_id)!),
+        0
+      );
+
+      const deficitPct =
+        validated.target_ethanol_ml > 0
+          ? (validated.target_ethanol_ml - actualTotalEthanolMl) / validated.target_ethanol_ml
+          : 0;
+
+      console.log(
+        `plan: drinks=${cleanedDrinks.length} actual=${actualTotalEthanolMl.toFixed(1)}ml target=${validated.target_ethanol_ml.toFixed(1)}ml deficit=${(deficitPct * 100).toFixed(1)}% model_claimed=${plan.actual_total_ethanol_ml ?? "n/a"}`
+      );
+
       return jsonResponse({
         drinks: cleanedDrinks,
         notes: plan.notes ?? "",
+        actual_total_ethanol_ml: actualTotalEthanolMl,
       } satisfies PlanResponse);
     } catch (error) {
       console.error("Error in generate-plan function:", error);
