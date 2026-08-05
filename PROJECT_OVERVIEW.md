@@ -43,7 +43,7 @@ See `CLAUDE.md` for the detailed pitfalls list and known follow-ups.
 - Adding Redux / Zustand / Jotai.
 - Reverting to dynamic imports in `AppContext.tsx` (we explicitly removed those).
 - Tests written for the sake of coverage. If you write a test, the unit should be either the deterministic engine or the greedy fallback.
-- Changes to `bun.lockb` — this repo originated from Lovable and the lockfile is touched by their syncs.
+- Changes to `bun.lockb` — the lockfile should not be manually edited.
 
 ## Things I will commonly ask about
 

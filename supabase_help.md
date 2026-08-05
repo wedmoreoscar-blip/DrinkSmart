@@ -24,7 +24,7 @@ Eleven migrations live in `supabase/migrations/`. They split into three groups:
 
 | Migration | Purpose |
 |---|---|
-| `20251202155912_*.sql` → `20260126194344_*.sql` (9 files) | **Lovable-generated origin layer.** Created the `profiles`, `user_roles`, `feedback`, `establishments`, `establishment_drinks`, `saved_custom_drinks` tables, the `app_role` enum, the `has_role()` SECURITY DEFINER helper, and admin SELECT policies. |
+| `20251202155912_*.sql` → `20260126194344_*.sql` (9 files) | **Origin layer.** Created the `profiles`, `user_roles`, `feedback`, `establishments`, `establishment_drinks`, `saved_custom_drinks` tables, the `app_role` enum, the `has_role()` SECURITY DEFINER helper, and admin SELECT policies. |
 | `20260518000000_phase1_profile_preferences_and_session.sql` | **Phase 1 additive.** Adds `preferences/theme/onboarded_at` columns to `profiles`; creates `user_sessions` table + RLS + `updated_at` trigger; adds explicit indexes on `user_id` columns; uses the modern `(select auth.uid())` RLS pattern. |
 | `20260518000001_rls_auto_enable_trigger.sql` | **Belt-and-braces RLS.** Installs a Postgres event trigger so any future `CREATE TABLE` in `public` auto-runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`. |
 
@@ -66,11 +66,11 @@ Eleven migrations live in `supabase/migrations/`. They split into three groups:
 - UNIQUE(`user_id`, `role`)
 - **RLS:** admin-only (via the `has_role()` helper).
 
-`public.user_drinks` — legacy table from Lovable; currently unused in the new flow. Type exists in `types.ts` for compatibility. Don't add new code that depends on it.
+`public.user_drinks` — legacy table; currently unused in the new flow. Type exists in `types.ts` for compatibility. Don't add new code that depends on it.
 
 ### Database functions
 
-- **`public.has_role(_user_id uuid, _role app_role) returns boolean`** — `SECURITY DEFINER`, called from RLS policies (e.g., `(select public.has_role(auth.uid(), 'admin'))`) and from the client via `supabase.rpc('has_role', ...)` in `useUserRole`. Defined in the original Lovable migrations.
+- **`public.has_role(_user_id uuid, _role app_role) returns boolean`** — `SECURITY DEFINER`, called from RLS policies (e.g., `(select public.has_role(auth.uid(), 'admin'))`) and from the client via `supabase.rpc('has_role', ...)` in `useUserRole`. Defined in the original migrations.
 - **`public.handle_user_sessions_updated_at()`** — BEFORE UPDATE trigger function on `user_sessions` that bumps `updated_at`. Created in Phase 1.
 - **`public.rls_auto_enable()`** — event trigger function on `ddl_command_end` that runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` for any new public-schema table. Created in `20260518000001`.
 
@@ -594,7 +594,7 @@ When standing up the project against a fresh Supabase account:
 
 | Item | Effort | Why it matters |
 |---|---|---|
-| Retrofit the original 9 Lovable migrations' RLS policies to use `(select auth.uid())` | ~1 hour | ~95% perf gain on every RLS-filtered query on the older tables |
+| Retrofit the original 9 migrations' RLS policies to use `(select auth.uid())` | ~1 hour | ~95% perf gain on every RLS-filtered query on the older tables |
 | Add `RESTRICTIVE` policies for permanent-users-only actions (e.g., feedback submit) if you ever want to lock anonymous users out of some endpoints | ~30 min per policy | Anti-abuse |
 | Add Cloudflare Turnstile / hCaptcha to anonymous sign-in | Dashboard config + 1 client change | Anti-bot for the anon endpoint (default rate limit is 30/hr/IP) |
 | Centralise the per-hook auth-state subscriptions into a single `useAuthUser` hook | ~1 hour | Reduces auth-state listener noise; cleaner |

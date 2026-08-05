@@ -48,7 +48,7 @@ All Phase 1 policies follow the modern Supabase pattern:
 - Explicit indexes on every `user_id` column referenced in a policy
 - RLS auto-enabled on new tables via an event trigger (`supabase/migrations/20260518000001_*.sql`)
 
-Reference: `supabase/migrations/20260518000000_phase1_*.sql` for the modern policies; the older Lovable migrations still use the bare `auth.uid()` pattern and would benefit from a retrofit pass.
+Reference: `supabase/migrations/20260518000000_phase1_*.sql` for the modern policies; the older origin migrations still use the bare `auth.uid()` pattern and would benefit from a retrofit pass.
 
 ---
 
@@ -221,7 +221,7 @@ When making the app public-facing, run through this list once and then quarterly
 | Anonymous → permanent upgrade | `src/pages/Auth.tsx` |
 | Profile / session RLS | `supabase/migrations/20260518000000_phase1_profile_preferences_and_session.sql` |
 | Auto-enable RLS trigger | `supabase/migrations/20260518000001_rls_auto_enable_trigger.sql` |
-| Admin role helper | `public.has_role()` Postgres function (defined in original Lovable migrations) |
+| Admin role helper | `public.has_role()` Postgres function (defined in original migrations) |
 | Storage policies (avatars) | `supabase/migrations/20251202155912_*.sql` |
 | Storage policies (feedback-images) | `supabase/migrations/20260126190357_*.sql`, `20260126193107_*.sql` |
 | Feedback edge function (rate limit + RLS-scoped insert) | `supabase/functions/submit-feedback/index.ts` |

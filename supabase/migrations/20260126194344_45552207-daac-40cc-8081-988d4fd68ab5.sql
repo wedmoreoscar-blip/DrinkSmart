@@ -6,7 +6,7 @@ ON public.profiles FOR SELECT
 TO authenticated
 USING (public.has_role(auth.uid(), 'admin'));
 
--- (removed: admin policy on public.user_drinks — the table was a Lovable-managed
+-- (removed: admin policy on public.user_drinks — the table was an auto-generated
 -- artifact that no migration in this repo creates, and the refactor replaced it
 -- with localStorage-backed session state. If a future migration introduces a
 -- real user_drinks table, add the admin SELECT policy there.)
