@@ -196,7 +196,7 @@ When making the app public-facing, run through this list once and then quarterly
 - [ ] Anonymous Sign-Ins enabled in Auth → Providers (verify saved)
 - [ ] Manual Linking enabled in Auth → Providers (required for upgrade flow)
 - [ ] CAPTCHA configured in Auth → Attack Protection
-- [ ] `ANTHROPIC_API_KEY` set as Supabase secret
+- [ ] `DEEPSEEK_API_KEY` set as Supabase secret
 - [ ] All 3 edge functions deployed (`generate-plan`, `parse-menu`, `submit-feedback`)
 - [ ] Storage bucket size limits set: avatars 2 MB, feedback-images 5 MB
 - [ ] `pg_cron` daily job for anon user cleanup scheduled
@@ -232,7 +232,7 @@ When making the app public-facing, run through this list once and then quarterly
 
 ## 8. Things this doc does NOT cover
 
-- **Anthropic API abuse.** If your `ANTHROPIC_API_KEY` leaks (e.g., committed to git), you'll get a real bill before you notice. Mitigations: rotate keys regularly, use Anthropic's per-key spend limits, never reference `ANTHROPIC_API_KEY` outside the edge functions (the client uses `supabase.functions.invoke`, never direct Anthropic). Currently we follow this rule.
+- **Anthropic API abuse.** If your `DEEPSEEK_API_KEY` leaks (e.g., committed to git), you'll get a real bill before you notice. Mitigations: rotate keys regularly, use Anthropic's per-key spend limits, never reference `DEEPSEEK_API_KEY` outside the edge functions (the client uses `supabase.functions.invoke`, never direct Anthropic). Currently we follow this rule.
 - **JWT secret leakage.** Don't share the project URL + service-role key with anyone. The `service_role` (or `sb_secret_...`) key bypasses RLS entirely.
 - **Database backups.** Free-tier Supabase has limited PITR. Decide your tolerance and upgrade or self-backup if needed.
 - **Client-side input validation.** RLS protects you at the DB level, but malicious users can craft payloads to e.g. set their `username` to 10 MB of garbage. Add zod validation at every Supabase write call as a defence-in-depth layer when you're hardening for production.

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,23 +14,30 @@ import { defaultMetrics, type UserMetricsData } from "@/hooks/useUserMetrics";
 
 type StatsFormProps = {
   initial?: UserMetricsData | null;
-  onSubmit: (metrics: UserMetricsData) => void;
+  onSubmit?: (metrics: UserMetricsData) => void;
+  onChange?: (metrics: UserMetricsData, valid: boolean) => void;
   submitLabel?: string;
   submitting?: boolean;
+  hideSubmit?: boolean;
 };
 
 export const StatsForm = ({
   initial,
   onSubmit,
+  onChange,
   submitLabel = "Continue",
   submitting = false,
+  hideSubmit = false,
 }: StatsFormProps) => {
   const [metrics, setMetrics] = useState<UserMetricsData>(
     initial ?? defaultMetrics
   );
 
   const update = (patch: Partial<UserMetricsData>) =>
-    setMetrics((prev) => ({ ...prev, ...patch }));
+    setMetrics((prev) => {
+      const next = { ...prev, ...patch };
+      return next;
+    });
 
   const heightValid =
     metrics.heightUnit === "cm"
@@ -47,6 +54,10 @@ export const StatsForm = ({
 
   const isValid =
     heightValid && weightValid && ageValid && sexValid && bodyFatValid;
+
+  useEffect(() => {
+    onChange?.(metrics, isValid);
+  }, [metrics, isValid]);
 
   return (
     <div className="space-y-4">
@@ -200,14 +211,16 @@ export const StatsForm = ({
         </div>
       </Card>
 
-      <Button
-        type="button"
-        className="w-full"
-        disabled={!isValid || submitting}
-        onClick={() => onSubmit(metrics)}
-      >
-        {submitting ? "Saving..." : submitLabel}
-      </Button>
+      {!hideSubmit && onSubmit && (
+        <Button
+          type="button"
+          className="w-full"
+          disabled={!isValid || submitting}
+          onClick={() => onSubmit(metrics)}
+        >
+          {submitting ? "Saving..." : submitLabel}
+        </Button>
+      )}
     </div>
   );
 };

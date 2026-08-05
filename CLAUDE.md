@@ -28,7 +28,7 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 1a. **Manual identity linking must be enabled** for the anonymous → permanent upgrade flow to work. Toggle it on at **Authentication → Providers → Manual linking**. If it's off, `updateUser({ email })` on `/auth` will return an error. We catch that specific error and surface a toast, but you still have to enable the setting.
 
-2. **`ANTHROPIC_API_KEY` must be a Supabase secret.** Set via `supabase secrets set ANTHROPIC_API_KEY=...`. If missing, the `generate-plan` edge function returns 500 — but `src/lib/generatePlan.ts` catches it and falls back to the greedy generator silently. You'll see "Built offline" toasts and no AI calls. Check the function logs for `ANTHROPIC_API_KEY not configured`.
+2. **`DEEPSEEK_API_KEY` must be a Supabase secret.** Set via `supabase secrets set DEEPSEEK_API_KEY=...`. If missing, the `generate-plan` edge function returns 500 — but `src/lib/generatePlan.ts` catches it and falls back to the greedy generator silently. You'll see "Built offline" toasts and no AI calls. Check the function logs for `DEEPSEEK_API_KEY not configured`.
 
 3. **`types.ts` regeneration is scripted but still manual to run.** `npm run db:types` (project) or `npm run db:types:local` (local CLI) writes `src/integrations/supabase/types.ts` from the current schema. **There is no auto-trigger** — run it manually whenever you apply a migration. The file is committed because devs without the CLI configured still need to typecheck.
 
@@ -79,21 +79,21 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 18. **The LLM never does math.** `src/supabase/functions/generate-plan/index.ts` gives Claude a pre-computed `target_ethanol_ml` and asks for catalog picks via tool-use (forced structured JSON). The client validates that every returned `catalog_id` exists in the input catalog and drops hallucinated ones.
 
-19. **Anthropic prompt caching depends on identical preamble.** The system prompt + catalog block uses `cache_control: { type: "ephemeral" }`. If the catalog's order or content changes between calls, the cache invalidates and you pay full cost. `Object.entries(drinkCategories)` is stable in V8, but **if you sort/filter the catalog client-side per request, you'll never get cache hits**.
+19. **No prompt caching with DeepSeek.** The API doesn't support Anthropic-style `cache_control` blocks. DeepSeek V4 Flash is cheap enough that this isn't a cost concern. The catalog is sent in full on every call as part of the system prompt.
 
 20. **`generatePlan` never throws.** It wraps the edge function call in a 6s timeout race; on any failure it falls back to `greedyPlanFallback`. Callers don't need try/catch. The return type is `GeneratePlanResult` which has a `usedFallback: boolean` flag — surface that to the user if they're suddenly getting deterministic plans.
 
 21. **Greedy fallback's category sweet/strong axes (`CATEGORY_AXES` in `greedyPlanFallback.ts`) are hand-tuned.** If new categories get added to `drinksData.ts`, add entries to that table or scoring defaults will kick in (sweet=0.5, strong=0.5).
 
-22. **The model is pinned at `claude-haiku-4-5-20251001`** in the edge function. To upgrade: change `ANTHROPIC_MODEL` at the top of `generate-plan/index.ts`. Don't switch to Sonnet/Opus without measuring — Haiku is plenty for this task and an order of magnitude cheaper.
+22. **The model is `deepseek/v4-flash-0731`** via the DeepSeek API (OpenAI-compatible format). To change: update `DEEPSEEK_MODEL` at the top of `generate-plan/index.ts`. The edge function uses multi-turn tool calling: the model drafts picks, calls `calculate_ethanol` to verify its total against the budget, adjusts if needed, then calls `submit_plan`. Max 5 tool rounds.
 
-22a. **The catalog block sent to Haiku now includes a precomputed `ethanol_ml` column** per row (`id | name | abv% | typical_ml | ethanol_ml | category`). The model is told to sum that column rather than re-derive from abv × typical_ml — LLMs are unreliable at arithmetic across ~80 rows. Don't drop the column. The cache key for prompt caching is the full catalog block, so changing the format invalidates cached entries once.
+22a. **The catalog block includes a precomputed `ethanol_ml` column** per row (`id | name | abv% | typical_ml | ethanol_ml | category`). The model uses the `calculate_ethanol` tool to verify its picks rather than doing arithmetic itself. Don't drop the column — it's still useful context for the model's selection decisions.
 
 22b. **The server recomputes `actual_total_ethanol_ml` from the model's picks** — never trust the value the model puts in its own tool call. The recomputed total is returned to the client.
 
-22c. **Client tops up underfills by bumping AI-chosen quantities.** If the AI plan's actual ethanol is more than 15% under target, `topUpIfUnderfilled` in `src/lib/generatePlan.ts` increments the `quantity` field on the AI's existing picks (chosen to close the gap fastest) until within 5% of target or 12 iterations elapse. It does NOT introduce new drinks via greedy — that would break the variety rule we asked Haiku to follow. Only if the AI returned zero drinks at all do we fall through to a full greedy run. `usedFallback` stays `false` either way — that flag only flips on a complete edge-function failure.
+22c. **Client tops up underfills as a safety net.** If the AI plan's actual ethanol is more than 15% under target, `topUpIfUnderfilled` in `src/lib/generatePlan.ts` bumps quantities on existing picks. With the `calculate_ethanol` tool available to the model, this should rarely trigger — the model can self-correct before submitting. Kept as defense-in-depth. Edge function timeout is 15s to accommodate multi-turn tool calling.
 
-22d. **Variety rule lives in the system prompt.** Haiku is asked to prefer 1–2 distinct catalog items per session and bump quantity instead of adding new drinks, with branching beyond 2 only when `duration > 240min`, `categories_liked.length ≥ 3`, or `target_ethanol_ml > 80`. If you regress this, you'll see Haiku reverting to "tasting flight" plans.
+22d. **Variety rule lives in the system prompt.** The model is asked to prefer 1–2 distinct catalog items per session and bump quantity instead of adding new drinks, with branching beyond 2 only when `duration > 240min`, `categories_liked.length ≥ 3`, or `target_ethanol_ml > 80`. If you regress this, you'll see the model reverting to "tasting flight" plans.
 
 23. **The static catalog is Wetherspoons-only.** Future work: merge in user-specific `establishment_drinks` when the user has selected an establishment. The catalog format is already designed for it (`CatalogItem.id` uses `category::name` for static, `est::<id>` would work for establishment-scoped).
 
@@ -153,7 +153,7 @@ When setting up a fresh environment:
 5. Enable **Anonymous sign-ins** in the Supabase Auth dashboard.
 5a. Enable **Manual identity linking** at Authentication → Providers → Manual linking (required for anon → permanent account upgrade).
 6. Run all 11 migrations (the original 9 + the Phase 1 additive migration + the RLS auto-enable trigger).
-7. Set the secret: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`.
+7. Set the secret: `supabase secrets set DEEPSEEK_API_KEY=sk-...`.
 8. Deploy edge functions: `supabase functions deploy generate-plan parse-menu submit-feedback`.
 9. (Optional) Regenerate types from the live schema: `npm run db:types` (reads `VITE_SUPABASE_PROJECT_ID` from your env).
 10. `npm run dev`.

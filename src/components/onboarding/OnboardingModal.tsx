@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,8 +6,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { StatsForm } from "./StatsForm";
 import { PreferencesPicker } from "./PreferencesPicker";
 import { useUserMetrics, type UserMetricsData } from "@/hooks/useUserMetrics";
@@ -19,35 +19,36 @@ type OnboardingModalProps = {
   onComplete: () => void;
 };
 
-type Step = "stats" | "preferences";
-
 export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
-  const [step, setStep] = useState<Step>("stats");
   const [stats, setStats] = useState<UserMetricsData | null>(null);
+  const [statsValid, setStatsValid] = useState(false);
   const [prefs, setPrefs] = useState<PreferenceData>(defaultPreferences);
   const [submitting, setSubmitting] = useState(false);
   const { completeOnboarding, isLoggedIn } = useUserMetrics();
   const { toast } = useToast();
 
-  const handleStatsSubmit = (metrics: UserMetricsData) => {
-    setStats(metrics);
-    setStep("preferences");
-  };
+  const handleStatsChange = useCallback(
+    (metrics: UserMetricsData, valid: boolean) => {
+      setStats(metrics);
+      setStatsValid(valid);
+    },
+    []
+  );
 
   const handleFinishClick = async () => {
-    if (!stats) {
+    if (!stats || !statsValid) {
       toast({
         title: "Missing info",
-        description: "Please fill out the stats step first.",
+        description: "Please fill out all required fields above.",
         variant: "destructive",
       });
-      setStep("stats");
       return;
     }
     if (!isLoggedIn) {
       toast({
         title: "Not signed in",
-        description: "Anonymous session hasn't been bootstrapped — refresh the page.",
+        description:
+          "Anonymous session hasn't been bootstrapped — refresh the page.",
         variant: "destructive",
       });
       return;
@@ -64,9 +65,6 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
       });
       onComplete();
     } else {
-      // completeOnboarding returns false on caught error; the hook already
-      // surfaces a destructive toast via useMutation's onError. Add a hint here
-      // so the user knows their click registered.
       toast({
         title: "Couldn't save",
         description: "Try again — if it keeps failing, check the browser console.",
@@ -75,59 +73,55 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     }
   };
 
-  const progressValue = step === "stats" ? 50 : 100;
-
   return (
-    <Dialog open={open} onOpenChange={() => { /* not dismissable */ }}>
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
-        // Flex column with fixed header + scrollable body + sticky footer so
-        // the action button is always visible and clickable regardless of how
-        // tall the body content gets.
         className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0 [&>button.absolute]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader className="p-6 pb-4">
-          <DialogTitle>
-            {step === "stats" ? "Tell us about you" : "What do you like to drink?"}
-          </DialogTitle>
+          <DialogTitle>Set up your profile</DialogTitle>
           <DialogDescription>
-            {step === "stats"
-              ? "We use these to calculate how much you can drink to hit your buzz."
-              : "Helps us pick drinks you'll actually enjoy."}
+            We use your stats to calculate safe intake, and your preferences to
+            pick drinks you'll enjoy.
           </DialogDescription>
-          <Progress value={progressValue} className="h-1 mt-2" />
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-4">
-          {step === "stats" && (
-            <StatsForm
-              initial={stats}
-              onSubmit={handleStatsSubmit}
-              submitLabel="Next"
-            />
-          )}
-          {step === "preferences" && (
-            <PreferencesPicker
-              initial={prefs}
-              onChange={setPrefs}
-              // No onSubmit — the Finish button lives in the sticky footer below
-            />
-          )}
+        <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-6">
+          <div>
+            <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              About you
+            </Label>
+            <div className="mt-2">
+              <StatsForm
+                initial={stats}
+                onChange={handleStatsChange}
+                hideSubmit
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Drink preferences
+            </Label>
+            <div className="mt-2">
+              <PreferencesPicker initial={prefs} onChange={setPrefs} />
+            </div>
+          </div>
         </div>
 
-        {step === "preferences" && (
-          <div className="p-6 pt-3 border-t bg-background">
-            <Button
-              type="button"
-              className="w-full"
-              disabled={submitting}
-              onClick={handleFinishClick}
-            >
-              {submitting ? "Saving…" : "Finish"}
-            </Button>
-          </div>
-        )}
+        <div className="p-6 pt-3 border-t bg-background">
+          <Button
+            type="button"
+            className="w-full"
+            disabled={submitting || !statsValid}
+            onClick={handleFinishClick}
+          >
+            {submitting ? "Saving..." : "Done"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

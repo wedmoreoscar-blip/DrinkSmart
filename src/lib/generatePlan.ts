@@ -10,7 +10,7 @@ import {
 import type { PreferenceData } from "@/lib/preferences";
 import { greedyPlanFallback } from "@/lib/greedyPlanFallback";
 
-const EDGE_FUNCTION_TIMEOUT_MS = 6000;
+const EDGE_FUNCTION_TIMEOUT_MS = 15000;
 
 export type GeneratedDrink = {
   catalog_id: string;

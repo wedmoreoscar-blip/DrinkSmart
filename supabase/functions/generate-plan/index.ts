@@ -1,14 +1,12 @@
 import { withSupabase } from "@supabase/server";
 
-const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
-const ANTHROPIC_VERSION = "2023-06-01";
+const DEEPSEEK_MODEL = "deepseek/v4-flash-0731";
+const MAX_TOOL_ROUNDS = 5;
 
-// CORS headers — Supabase's withSupabase wrapper handles auth; we still emit
-// CORS headers on responses so browser callers from `supabase.functions.invoke`
-// land correctly.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 interface CatalogItem {
@@ -61,13 +59,15 @@ You will receive:
 - A pure-ethanol budget in mL (target_ethanol_ml) — the total alcohol the user should consume
 - A drinking duration in minutes
 - Per-call user preferences (sweet 0-1, strong 0-1, categories liked/avoided)
-- A catalog of available drinks. Each row gives (id | name | abv% | typical_ml | ethanol_ml | category) where ethanol_ml is the pure-ethanol contribution of ONE typical serving — already computed for you. Sum the ethanol_ml column for your picks; do not re-derive from abv and typical_ml.
+- A catalog of available drinks. Each row gives (id | name | abv% | typical_ml | ethanol_ml | category) where ethanol_ml is the pure-ethanol contribution of ONE typical serving.
 - Locked drinks already chosen (their ethanol is already subtracted from the budget — DO NOT re-include them)
 - An exclude list of catalog_ids you must avoid
 
-Your job: select drinks from the catalog so that summed ethanol_ml × quantity reaches target_ethanol_ml (aim within ±5%, never undershoot by more than 10%), and order them.
+Your job: select drinks from the catalog so that the total ethanol reaches target_ethanol_ml (aim within ±5%, never undershoot by more than 10%), and order them.
 
-Filling the budget is the highest priority. The user picked a target BAC — if the plan undershoots, they don't reach it. Add another quantity or another drink rather than stopping short.
+Filling the budget is the highest priority. The user picked a target BAC — if the plan undershoots, they don't reach it.
+
+IMPORTANT: You have a calculate_ethanol tool. ALWAYS call it with your draft picks before submitting. If the result shows a deficit > 5%, adjust your picks (add quantity or another drink) and check again. Only call submit_plan once the calculator confirms you're within range.
 
 Variety rule (people stick to a few drinks):
 - Prefer 1–2 distinct catalog items per session. Increase the quantity of an existing pick before introducing a new catalog item.
@@ -91,9 +91,7 @@ Selection bias from preferences (soft):
 - categories_liked → boost these
 - categories_avoided → exclude entirely (hard rule above)
 
-Before submitting: add up ethanol_ml × quantity across your picks and put the total in actual_total_ethanol_ml. If it's under target_ethanol_ml by more than 10%, increase a quantity or add one more drink before submitting.
-
-Always invoke the submit_plan tool to return your selection. Do not respond with plain text.`;
+Workflow: draft your picks, call calculate_ethanol to verify, adjust if needed, then call submit_plan.`;
 
 function ethanolPerServing(item: CatalogItem): number {
   return item.typical_ml * (item.abv / 100);
@@ -143,58 +141,122 @@ function buildUserMessage(req: GeneratePlanRequest): string {
     `locked_drinks: ${lockedSummary}`,
     `exclude: ${excludeSummary}`,
     "",
-    "Return your plan via the submit_plan tool.",
+    "Draft your picks, call calculate_ethanol to verify, then submit_plan.",
   ].join("\n");
 }
 
-const SUBMIT_PLAN_TOOL = {
-  name: "submit_plan",
-  description: "Submit the chosen drinks plan as a structured list.",
-  input_schema: {
-    type: "object",
-    properties: {
-      drinks: {
-        type: "array",
-        description: "Ordered list of drinks the user should consume.",
-        items: {
-          type: "object",
-          properties: {
-            catalog_id: {
-              type: "string",
-              description: "The id of a drink from the provided catalog.",
-            },
-            quantity: {
-              type: "number",
-              description:
-                "How many of this drink. For shots/pints/glass: count. For ml/oz: typically 1 unless splitting into portions.",
-            },
-            unit: {
-              type: "string",
-              enum: ["ml", "oz", "shots", "pints", "glass"],
-              description: "Serving unit.",
-            },
-            ml: {
-              type: "number",
-              description:
-                "Optional explicit ml override for ml/oz units. Omit to use the catalog typical_ml.",
+// OpenAI-format tool definitions
+const TOOLS = [
+  {
+    type: "function" as const,
+    function: {
+      name: "calculate_ethanol",
+      description:
+        "Check the total ethanol of a draft drink list against the target budget. Call this BEFORE submitting to verify your picks hit the target.",
+      parameters: {
+        type: "object",
+        properties: {
+          drinks: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                catalog_id: { type: "string" },
+                quantity: { type: "number" },
+                unit: {
+                  type: "string",
+                  enum: ["ml", "oz", "shots", "pints", "glass"],
+                },
+                ml: { type: "number", description: "Optional ml override." },
+              },
+              required: ["catalog_id", "quantity", "unit"],
             },
           },
-          required: ["catalog_id", "quantity", "unit"],
         },
-      },
-      notes: {
-        type: "string",
-        description: "One-sentence rationale for the ordering and selection.",
-      },
-      actual_total_ethanol_ml: {
-        type: "number",
-        description:
-          "Your computed sum of ethanol_ml × quantity across all drinks. Used to verify the plan hits the budget.",
+        required: ["drinks"],
       },
     },
-    required: ["drinks", "actual_total_ethanol_ml"],
   },
-};
+  {
+    type: "function" as const,
+    function: {
+      name: "submit_plan",
+      description:
+        "Submit the final drinks plan. Only call after calculate_ethanol confirms the total is within range.",
+      parameters: {
+        type: "object",
+        properties: {
+          drinks: {
+            type: "array",
+            description: "Ordered list of drinks the user should consume.",
+            items: {
+              type: "object",
+              properties: {
+                catalog_id: { type: "string" },
+                quantity: { type: "number" },
+                unit: {
+                  type: "string",
+                  enum: ["ml", "oz", "shots", "pints", "glass"],
+                },
+                ml: { type: "number" },
+              },
+              required: ["catalog_id", "quantity", "unit"],
+            },
+          },
+          notes: {
+            type: "string",
+            description: "One-sentence rationale for the selection.",
+          },
+        },
+        required: ["drinks"],
+      },
+    },
+  },
+];
+
+function handleCalculateEthanol(
+  args: { drinks: PlanDrink[] },
+  catalogById: Map<string, CatalogItem>,
+  targetEthanolMl: number
+): string {
+  let total = 0;
+  const breakdown: string[] = [];
+
+  for (const d of args.drinks) {
+    const item = catalogById.get(d.catalog_id);
+    if (!item) {
+      breakdown.push(`${d.catalog_id}: UNKNOWN — not in catalog, will be dropped`);
+      continue;
+    }
+    const ethanol = planDrinkEthanol(d, item);
+    total += ethanol;
+    breakdown.push(
+      `${d.catalog_id} × ${d.quantity}: ${ethanol.toFixed(1)}ml ethanol`
+    );
+  }
+
+  const deficit = targetEthanolMl - total;
+  const deficitPct = targetEthanolMl > 0 ? (deficit / targetEthanolMl) * 100 : 0;
+
+  let verdict: string;
+  if (Math.abs(deficitPct) <= 5) {
+    verdict = "GOOD — within ±5% of target. You can submit_plan now.";
+  } else if (deficit > 0) {
+    verdict = `UNDER by ${deficit.toFixed(1)}ml (${deficitPct.toFixed(0)}%). Add more quantity or another drink, then check again.`;
+  } else {
+    verdict = `OVER by ${Math.abs(deficit).toFixed(1)}ml (${Math.abs(deficitPct).toFixed(0)}%). Reduce quantity if over by a lot, otherwise acceptable.`;
+  }
+
+  return [
+    `Target: ${targetEthanolMl.toFixed(1)}ml`,
+    `Your total: ${total.toFixed(1)}ml`,
+    `Deficit: ${deficit.toFixed(1)}ml (${deficitPct.toFixed(0)}%)`,
+    "",
+    ...breakdown,
+    "",
+    verdict,
+  ].join("\n");
+}
 
 function validateRequest(body: unknown): GeneratePlanRequest | string {
   if (!body || typeof body !== "object") return "Invalid request body";
@@ -223,18 +285,19 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
+// deno-lint-ignore no-explicit-any
+type ChatMessage = { role: string; content?: string; tool_calls?: any[]; tool_call_id?: string };
+
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
-    // Auth has already been verified by the wrapper. ctx.userClaims is the
-    // caller (anonymous users have userClaims with is_anonymous = true).
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
     }
 
     try {
-      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-      if (!ANTHROPIC_API_KEY) {
-        console.error("ANTHROPIC_API_KEY not configured");
+      const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+      if (!DEEPSEEK_API_KEY) {
+        console.error("DEEPSEEK_API_KEY not configured");
         return jsonResponse({ error: "AI service not configured" }, 500);
       }
 
@@ -248,85 +311,146 @@ export default {
         `generate-plan: user=${ctx.userClaims?.id} target=${validated.target_ethanol_ml}ml duration=${validated.duration_minutes}min catalog=${validated.catalog.length}`
       );
 
-      // System prompt: static instructions + catalog. The catalog block carries
-      // `cache_control` so it (plus everything before it) gets cached across
-      // calls — usually >90% cost reduction on the catalog after the first hit.
-      const systemBlocks = [
-        { type: "text", text: SYSTEM_INSTRUCTIONS },
-        {
-          type: "text",
-          text: buildCatalogBlock(validated.catalog),
-          cache_control: { type: "ephemeral" },
-        },
+      const catalogById = new Map(validated.catalog.map((c) => [c.id, c]));
+
+      const systemPrompt =
+        SYSTEM_INSTRUCTIONS + "\n\n" + buildCatalogBlock(validated.catalog);
+
+      const messages: ChatMessage[] = [
+        { role: "user", content: buildUserMessage(validated) },
       ];
 
-      const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": ANTHROPIC_VERSION,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: ANTHROPIC_MODEL,
-          max_tokens: 1024,
-          system: systemBlocks,
-          tools: [SUBMIT_PLAN_TOOL],
-          tool_choice: { type: "tool", name: "submit_plan" },
-          messages: [
-            {
-              role: "user",
-              content: buildUserMessage(validated),
-            },
-          ],
-        }),
-      });
+      let plan: PlanResponse | null = null;
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
 
-      if (!anthropicResponse.ok) {
-        const errorText = await anthropicResponse.text();
-        console.error("Anthropic API error:", anthropicResponse.status, errorText);
-        const status = anthropicResponse.status === 429 ? 429 : 502;
-        return jsonResponse(
+      for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        const apiResponse = await fetch(
+          "https://api.deepseek.com/chat/completions",
           {
-            error: anthropicResponse.status === 429 ? "Rate limited" : "AI service error",
-            details: errorText.slice(0, 200),
-          },
-          status
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: DEEPSEEK_MODEL,
+              messages: [
+                { role: "system", content: systemPrompt },
+                ...messages,
+              ],
+              tools: TOOLS,
+              tool_choice: "auto",
+              max_tokens: 2048,
+            }),
+          }
         );
+
+        if (!apiResponse.ok) {
+          const errorText = await apiResponse.text();
+          console.error(
+            "DeepSeek API error:",
+            apiResponse.status,
+            errorText
+          );
+          const status = apiResponse.status === 429 ? 429 : 502;
+          return jsonResponse(
+            {
+              error:
+                apiResponse.status === 429
+                  ? "Rate limited"
+                  : "AI service error",
+              details: errorText.slice(0, 200),
+            },
+            status
+          );
+        }
+
+        const data = await apiResponse.json();
+
+        if (data.usage) {
+          totalInputTokens += data.usage.prompt_tokens ?? 0;
+          totalOutputTokens += data.usage.completion_tokens ?? 0;
+        }
+
+        const choice = data.choices?.[0];
+        if (!choice) {
+          console.error("No choices in response:", JSON.stringify(data).slice(0, 500));
+          return jsonResponse({ error: "AI returned empty response" }, 502);
+        }
+
+        const assistantMsg = choice.message;
+        messages.push(assistantMsg);
+
+        const toolCalls = assistantMsg.tool_calls;
+        if (!toolCalls || toolCalls.length === 0) {
+          console.warn(
+            `Round ${round}: model responded without tool call (finish_reason=${choice.finish_reason})`
+          );
+          break;
+        }
+
+        for (const tc of toolCalls) {
+          const fnName = tc.function?.name;
+          let args: Record<string, unknown>;
+          try {
+            args = JSON.parse(tc.function?.arguments ?? "{}");
+          } catch {
+            args = {};
+          }
+
+          if (fnName === "calculate_ethanol") {
+            const result = handleCalculateEthanol(
+              args as { drinks: PlanDrink[] },
+              catalogById,
+              validated.target_ethanol_ml
+            );
+            console.log(`Round ${round}: calculate_ethanol → ${result.split("\n")[2]}`);
+            messages.push({
+              role: "tool",
+              tool_call_id: tc.id,
+              content: result,
+            });
+          } else if (fnName === "submit_plan") {
+            plan = args as unknown as PlanResponse;
+            messages.push({
+              role: "tool",
+              tool_call_id: tc.id,
+              content: '{"status": "accepted"}',
+            });
+            break;
+          } else {
+            messages.push({
+              role: "tool",
+              tool_call_id: tc.id,
+              content: `Unknown tool: ${fnName}`,
+            });
+          }
+        }
+
+        if (plan) break;
       }
 
-      const data = await anthropicResponse.json();
+      console.log(
+        `tokens: in=${totalInputTokens} out=${totalOutputTokens} rounds=${messages.filter((m) => m.role === "assistant").length}`
+      );
 
-      if (data.usage) {
-        console.log(
-          `tokens: in=${data.usage.input_tokens} out=${data.usage.output_tokens} cache_read=${data.usage.cache_read_input_tokens ?? 0} cache_create=${data.usage.cache_creation_input_tokens ?? 0}`
+      if (!plan || !Array.isArray(plan.drinks)) {
+        console.error("No submit_plan call after all rounds");
+        return jsonResponse(
+          { error: "AI did not submit a plan after multiple rounds" },
+          502
         );
       }
-
-      const toolUseBlock = Array.isArray(data.content)
-        ? data.content.find(
-            (block: { type?: string; name?: string }) =>
-              block.type === "tool_use" && block.name === "submit_plan"
-          )
-        : null;
-
-      if (!toolUseBlock?.input) {
-        console.error(
-          "No submit_plan tool_use block in response:",
-          JSON.stringify(data).slice(0, 500)
-        );
-        return jsonResponse({ error: "AI returned unexpected response shape" }, 502);
-      }
-
-      const plan = toolUseBlock.input as PlanResponse;
 
       // Drop any drinks whose catalog_id isn't in the provided catalog.
-      const catalogById = new Map(validated.catalog.map((c) => [c.id, c]));
-      const cleanedDrinks = (plan.drinks ?? []).filter((d) => catalogById.has(d.catalog_id));
+      const cleanedDrinks = plan.drinks.filter((d) =>
+        catalogById.has(d.catalog_id)
+      );
 
-      if (cleanedDrinks.length !== (plan.drinks ?? []).length) {
+      if (cleanedDrinks.length !== plan.drinks.length) {
         console.warn(
-          `Dropped ${(plan.drinks ?? []).length - cleanedDrinks.length} drinks with unknown catalog_ids`
+          `Dropped ${plan.drinks.length - cleanedDrinks.length} drinks with unknown catalog_ids`
         );
       }
 
@@ -338,11 +462,12 @@ export default {
 
       const deficitPct =
         validated.target_ethanol_ml > 0
-          ? (validated.target_ethanol_ml - actualTotalEthanolMl) / validated.target_ethanol_ml
+          ? (validated.target_ethanol_ml - actualTotalEthanolMl) /
+            validated.target_ethanol_ml
           : 0;
 
       console.log(
-        `plan: drinks=${cleanedDrinks.length} actual=${actualTotalEthanolMl.toFixed(1)}ml target=${validated.target_ethanol_ml.toFixed(1)}ml deficit=${(deficitPct * 100).toFixed(1)}% model_claimed=${plan.actual_total_ethanol_ml ?? "n/a"}`
+        `plan: drinks=${cleanedDrinks.length} actual=${actualTotalEthanolMl.toFixed(1)}ml target=${validated.target_ethanol_ml.toFixed(1)}ml deficit=${(deficitPct * 100).toFixed(1)}%`
       );
 
       return jsonResponse({
