@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -201,60 +201,6 @@ export type Database = {
           created_at?: string
           drink_name?: string
           id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_drinks: {
-        Row: {
-          category: string
-          created_at: string
-          custom_abv: string | null
-          custom_name: string | null
-          drink: string
-          id: string
-          is_custom: boolean | null
-          mixer: string | null
-          mixer_quantity: string | null
-          mixer_unit: string | null
-          quantity: string
-          sort_order: number | null
-          unit: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          custom_abv?: string | null
-          custom_name?: string | null
-          drink: string
-          id?: string
-          is_custom?: boolean | null
-          mixer?: string | null
-          mixer_quantity?: string | null
-          mixer_unit?: string | null
-          quantity: string
-          sort_order?: number | null
-          unit?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          custom_abv?: string | null
-          custom_name?: string | null
-          drink?: string
-          id?: string
-          is_custom?: boolean | null
-          mixer?: string | null
-          mixer_quantity?: string | null
-          mixer_unit?: string | null
-          quantity?: string
-          sort_order?: number | null
-          unit?: string
-          updated_at?: string
           user_id?: string
         }
         Relationships: []

@@ -1,4 +1,4 @@
-project_id = "bdgfmcspurftimormevy"
+project_id = "vcbsvuaflefmnhkapoeq"
 
 # All functions use the @supabase/server withSupabase wrapper with
 # auth: 'user' mode, which requires a platform-validated JWT (anonymous OK).
