@@ -1,6 +1,7 @@
 import { withSupabase } from "@supabase/server";
 
-const DEEPSEEK_MODEL = "deepseek/v4-flash-0731";
+const DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash-0731";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_TOOL_ROUNDS = 5;
 
 const corsHeaders = {
@@ -295,9 +296,9 @@ export default {
     }
 
     try {
-      const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
-      if (!DEEPSEEK_API_KEY) {
-        console.error("DEEPSEEK_API_KEY not configured");
+      const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+      if (!OPENROUTER_API_KEY) {
+        console.error("OPENROUTER_API_KEY not configured");
         return jsonResponse({ error: "AI service not configured" }, 500);
       }
 
@@ -325,12 +326,10 @@ export default {
       let totalOutputTokens = 0;
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-        const apiResponse = await fetch(
-          "https://api.deepseek.com/chat/completions",
-          {
+        const apiResponse = await fetch(OPENROUTER_URL, {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({

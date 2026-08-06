@@ -1,12 +1,12 @@
 import { withSupabase } from "@supabase/server";
 
+const VISION_MODEL = "google/gemini-2.5-flash-preview";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
-const ANTHROPIC_VERSION = "2023-06-01";
 
 interface ParsedDrink {
   name: string;
@@ -55,40 +55,42 @@ Focus only on alcoholic drinks. Skip non-alcoholic items unless they're clearly 
 
 If you can see an establishment/venue name in the image, set suggestedName.
 
-Always invoke the extract_menu_drinks tool to return your output. Do not respond with plain text.`;
+Always call the extract_menu_drinks function to return your output. Do not respond with plain text.`;
 
 const EXTRACT_TOOL = {
-  name: 'extract_menu_drinks',
-  description: 'Extract drink information from a menu image.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      suggestedName: {
-        type: 'string',
-        description: 'The name of the establishment/venue if visible in the image',
-      },
-      drinks: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', description: 'Drink name' },
-            abv: { type: 'number', description: 'Alcohol percentage (0-100)' },
-            category: { type: 'string', description: 'Category slug' },
-            categoryLabel: { type: 'string', description: 'Human-readable category' },
-            price: { type: ['number', 'null'], description: 'Price as a number' },
-            volume: { type: ['number', 'null'], description: 'Volume amount' },
-            volumeUnit: { type: ['string', 'null'], description: 'Volume unit' },
+  type: 'function' as const,
+  function: {
+    name: 'extract_menu_drinks',
+    description: 'Extract drink information from a menu image.',
+    parameters: {
+      type: 'object',
+      properties: {
+        suggestedName: {
+          type: 'string',
+          description: 'The name of the establishment/venue if visible in the image',
+        },
+        drinks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Drink name' },
+              abv: { type: 'number', description: 'Alcohol percentage (0-100)' },
+              category: { type: 'string', description: 'Category slug' },
+              categoryLabel: { type: 'string', description: 'Human-readable category' },
+              price: { type: ['number', 'null'], description: 'Price as a number' },
+              volume: { type: ['number', 'null'], description: 'Volume amount' },
+              volumeUnit: { type: ['string', 'null'], description: 'Volume unit' },
+            },
+            required: ['name', 'abv', 'category', 'categoryLabel'],
           },
-          required: ['name', 'abv', 'category', 'categoryLabel'],
         },
       },
+      required: ['drinks'],
     },
-    required: ['drinks'],
   },
 };
 
-// Strip a data: URL prefix if present — Anthropic wants raw base64.
 function stripDataPrefix(base64: string): string {
   if (base64.startsWith('data:')) {
     const idx = base64.indexOf('base64,');
@@ -106,9 +108,9 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
     const user = ctx.userClaims;
     console.log(`User ${user?.id} is using menu scanner`);
 
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!ANTHROPIC_API_KEY) {
-      console.error('ANTHROPIC_API_KEY not configured');
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
+    if (!OPENROUTER_API_KEY) {
+      console.error('OPENROUTER_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -137,7 +139,6 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
     const errors: string[] = [];
     let suggestedName: string | null = null;
 
-    // Process each image one at a time. One bad image shouldn't kill the rest.
     for (let i = 0; i < images.length; i++) {
       const imageData = images[i];
       const cleanBase64 = stripDataPrefix(imageData.base64);
@@ -145,29 +146,24 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
       console.log(`Processing image ${i + 1}/${images.length}`);
 
       try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch(OPENROUTER_URL, {
           method: 'POST',
           headers: {
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': ANTHROPIC_VERSION,
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: ANTHROPIC_MODEL,
+            model: VISION_MODEL,
             max_tokens: 4096,
-            system: SYSTEM_PROMPT,
-            tools: [EXTRACT_TOOL],
-            tool_choice: { type: 'tool', name: 'extract_menu_drinks' },
             messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
               {
                 role: 'user',
                 content: [
                   {
-                    type: 'image',
-                    source: {
-                      type: 'base64',
-                      media_type: mimeType,
-                      data: cleanBase64,
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:${mimeType};base64,${cleanBase64}`,
                     },
                   },
                   {
@@ -177,12 +173,14 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
                 ],
               },
             ],
+            tools: [EXTRACT_TOOL],
+            tool_choice: { type: 'function', function: { name: 'extract_menu_drinks' } },
           }),
         });
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`Anthropic API error for image ${i + 1}:`, response.status, errorText);
+          console.error(`OpenRouter API error for image ${i + 1}:`, response.status, errorText);
 
           if (response.status === 429) {
             errors.push(`Image ${i + 1}: Rate limit exceeded. Please try again later.`);
@@ -201,32 +199,37 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
 
         if (data.usage) {
           console.log(
-            `Image ${i + 1} tokens: in=${data.usage.input_tokens} out=${data.usage.output_tokens}`
+            `Image ${i + 1} tokens: in=${data.usage.prompt_tokens} out=${data.usage.completion_tokens}`
           );
         }
 
-        // Extract the tool_use block from Anthropic's content array.
-        const toolUseBlock = Array.isArray(data.content)
-          ? data.content.find(
-              (block: { type?: string; name?: string }) =>
-                block.type === 'tool_use' && block.name === 'extract_menu_drinks'
-            )
-          : null;
+        const choice = data.choices?.[0];
+        const toolCalls = choice?.message?.tool_calls;
 
-        if (toolUseBlock?.input) {
-          const parsed = toolUseBlock.input as {
-            suggestedName?: string;
-            drinks?: ParsedDrink[];
-          };
+        if (toolCalls && toolCalls.length > 0) {
+          const tc = toolCalls.find(
+            (t: { function?: { name?: string } }) =>
+              t.function?.name === 'extract_menu_drinks'
+          );
+          if (tc?.function?.arguments) {
+            let parsed: { suggestedName?: string; drinks?: ParsedDrink[] };
+            try {
+              parsed = JSON.parse(tc.function.arguments);
+            } catch {
+              console.error(`Failed to parse tool arguments for image ${i + 1}`);
+              errors.push(`Image ${i + 1}: Failed to parse response`);
+              continue;
+            }
 
-          if (parsed.suggestedName && !suggestedName) {
-            suggestedName = parsed.suggestedName;
-          }
-          if (Array.isArray(parsed.drinks)) {
-            allDrinks.push(...parsed.drinks);
+            if (parsed.suggestedName && !suggestedName) {
+              suggestedName = parsed.suggestedName;
+            }
+            if (Array.isArray(parsed.drinks)) {
+              allDrinks.push(...parsed.drinks);
+            }
           }
         } else {
-          console.log(`No tool_use block in response for image ${i + 1}`);
+          console.log(`No tool call in response for image ${i + 1}`);
           errors.push(`Image ${i + 1}: No drinks extracted`);
         }
       } catch (imageError) {
@@ -237,7 +240,6 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
       }
     }
 
-    // Deduplicate drinks by name (case-insensitive, keep first occurrence).
     const seenNames = new Set<string>();
     const deduplicatedDrinks = allDrinks.filter((drink) => {
       const nameLower = drink.name.toLowerCase().trim();

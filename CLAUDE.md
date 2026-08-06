@@ -28,7 +28,7 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 1a. **Manual identity linking must be enabled** for the anonymous → permanent upgrade flow to work. Toggle it on at **Authentication → Providers → Manual linking**. If it's off, `updateUser({ email })` on `/auth` will return an error. We catch that specific error and surface a toast, but you still have to enable the setting.
 
-2. **`DEEPSEEK_API_KEY` must be a Supabase secret.** Set via `supabase secrets set DEEPSEEK_API_KEY=...`. If missing, the `generate-plan` edge function returns 500 — but `src/lib/generatePlan.ts` catches it and falls back to the greedy generator silently. You'll see "Built offline" toasts and no AI calls. Check the function logs for `DEEPSEEK_API_KEY not configured`.
+2. **`OPENROUTER_API_KEY` must be a Supabase secret.** Set via `supabase secrets set OPENROUTER_API_KEY=...`. Both `generate-plan` (DeepSeek V4 Flash) and `parse-menu` (Gemini 2.5 Flash) route through OpenRouter with this single key. If missing, both edge functions return 500. `generate-plan` falls back to the greedy generator silently — you'll see "Built offline" toasts. Check function logs for `OPENROUTER_API_KEY not configured`.
 
 3. **`types.ts` regeneration is scripted but still manual to run.** `npm run db:types` (project) or `npm run db:types:local` (local CLI) writes `src/integrations/supabase/types.ts` from the current schema. **There is no auto-trigger** — run it manually whenever you apply a migration. The file is committed because devs without the CLI configured still need to typecheck.
 
@@ -153,7 +153,7 @@ When setting up a fresh environment:
 5. Enable **Anonymous sign-ins** in the Supabase Auth dashboard.
 5a. Enable **Manual identity linking** at Authentication → Providers → Manual linking (required for anon → permanent account upgrade).
 6. Run all 11 migrations (the original 9 + the Phase 1 additive migration + the RLS auto-enable trigger).
-7. Set the secret: `supabase secrets set DEEPSEEK_API_KEY=sk-...`.
+7. Set the secret: `supabase secrets set OPENROUTER_API_KEY=sk-or-...`.
 8. Deploy edge functions: `supabase functions deploy generate-plan parse-menu submit-feedback`.
 9. (Optional) Regenerate types from the live schema: `npm run db:types` (reads `VITE_SUPABASE_PROJECT_ID` from your env).
 10. `npm run dev`.
