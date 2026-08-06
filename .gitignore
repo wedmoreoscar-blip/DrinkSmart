@@ -18,6 +18,10 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+# Windows alternate-data-stream junk, created when files are downloaded
+# through Windows and unpacked into WSL. Recurs on every download.
+*:Zone.Identifier
 *.suo
 *.ntvs*
 *.njsproj
