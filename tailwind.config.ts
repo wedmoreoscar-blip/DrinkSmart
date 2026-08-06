@@ -1,17 +1,13 @@
 import type { Config } from "tailwindcss";
 
 export default {
+  // next-themes toggles the `dark` class on <html>. Dark is the default and
+  // the theme the design was drawn for; :root carries a derived light theme.
   darkMode: ["class"],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
-    container: {
-      center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
-    },
+    container: { center: true, padding: "1rem", screens: { "2xl": "1400px" } },
     extend: {
       colors: {
         border: "hsl(var(--border))",
@@ -22,6 +18,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -30,6 +27,14 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -58,32 +63,54 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
       },
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+      },
+      // Mobile-first, dark-bar scale. `body` is the floor for legible text;
+      // `micro` is for optional detail only — never for the answer.
+      fontSize: {
+        micro: ["13px", { lineHeight: "1.4" }],
+        label: ["15px", { lineHeight: "1.2", letterSpacing: "0.09em" }],
+        body: ["19px", { lineHeight: "1.45" }],
+        lead: ["22px", { lineHeight: "1.3" }],
+        title: ["28px", { lineHeight: "1.15", letterSpacing: "-0.015em" }],
+        display: ["44px", { lineHeight: "1", letterSpacing: "-0.02em" }],
+        hero: ["76px", { lineHeight: "0.92", letterSpacing: "-0.03em" }],
+      },
+      spacing: {
+        // touch scale — `tap` is the minimum hit target, `act` the primary action
+        tap: "56px",
+        act: "64px",
+      },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "4px",
+        md: "8px",
+        lg: "var(--radius)",     // 14px
+        xl: "20px",
+        vessel: "28px",
+      },
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+      },
+      transitionTimingFunction: {
+        calm: "cubic-bezier(0.32, 0.72, 0, 1)",
+        liquid: "cubic-bezier(0.4, 0, 0.2, 1)",
       },
       keyframes: {
-        "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
-        },
-        "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
-        },
+        "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },
+        "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
+        // the meter settling to a new level — slow, once, no bounce
+        "liquid-rise": { from: { transform: "translateY(6%)", opacity: "0.6" }, to: { transform: "translateY(0)", opacity: "1" } },
+        // the now-marker breathing. 4s, barely visible. No pulse, no flash.
+        breathe: { "0%, 100%": { opacity: "0.55" }, "50%": { opacity: "1" } },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "liquid-rise": "liquid-rise 0.9s cubic-bezier(0.4, 0, 0.2, 1)",
+        breathe: "breathe 4s ease-in-out infinite",
       },
     },
   },
