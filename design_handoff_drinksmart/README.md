@@ -197,9 +197,26 @@ truncating.
 > ceiling drops from 8 to 7. Everything else in this section stands — the scale still
 > visibly ends, and the danger warning still goes.
 >
-> **Open: how 7 maps into the band UI.** Three bands × a binary softer/stronger nudge
-> covers exactly six levels, so 7 does not fit the existing pattern. Settle this before
-> building 1c; it does not affect the token layer.
+> **Settled 2026-08-06 (Oscar): a fourth band holding level 7 alone.**
+>
+> | Band | maps to `buzzLevels` | subtitle | BAC range shown |
+> | --- | --- | --- | --- |
+> | Light | 1–2 | warm, unchanged | 0.01–0.06% |
+> | Social | 3–4 | loose, still sharp | 0.06–0.12% |
+> | Loose | 5–6 | clumsy by the end | 0.12–0.20% |
+> | Heavy | 7 | gaps in the night | 0.20–0.25% |
+>
+> The fourth card is styled exactly like the other three — no warning colour, no red, no
+> extra affordance. It is the last card, and the *"the scale ends here"* rule sits directly
+> beneath it.
+>
+> **Nudge pair with a single-level band:** `softer` / `stronger` have nothing to act on when
+> Heavy is selected, so the pair is **hidden**, not disabled — an inert control that a drunk
+> thumb taps and gets nothing from is worse than no control. The resulting reflow is absorbed
+> by the `margin-top:auto` spacer above the target card, so the primary action does not move.
+>
+> *Band name and subtitle above are proposed, not drawn — confirm the wording, or ask Claude
+> Design to render the four-card variant.*
 
 **Layout**, top to bottom, 20px gutter, 64px top padding:
 
