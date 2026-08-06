@@ -42,6 +42,12 @@ type ProfileRow = {
   avatar_url: string | null;
 };
 
+// The app ships dark-only: the light palette in index.css is derived rather
+// than designed, so it is not exposed. Flip this to true once Claude Design
+// delivers a real light theme, and drop forcedTheme from the provider in
+// main.tsx at the same time. The theme plumbing below stays wired either way.
+const LIGHT_THEME_AVAILABLE = false;
+
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -85,8 +91,11 @@ const Profile = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sync persisted theme into next-themes on first load
+  // Sync persisted theme into next-themes on first load. Skipped while the app
+  // is dark-only, so a stored "light" is left untouched rather than being
+  // written over — it comes back intact when light mode ships.
   useEffect(() => {
+    if (!LIGHT_THEME_AVAILABLE) return;
     if (!metricsLoading && profileTheme && profileTheme !== theme) {
       setTheme(profileTheme);
     }
@@ -174,7 +183,9 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        {/* Theme */}
+        {/* Theme. Hidden while the app is dark-only — a switch that cannot
+            change anything is worse than no switch. See LIGHT_THEME_AVAILABLE. */}
+        {LIGHT_THEME_AVAILABLE && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -195,6 +206,7 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Stats */}
         <Card>

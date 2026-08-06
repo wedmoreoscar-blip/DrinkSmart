@@ -9,9 +9,16 @@ import App from "./App.tsx";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
-  // Dark is the baseline the design was drawn for, so it is the default rather
-  // than following the OS. Light stays available through the Profile toggle.
-  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+  // Dark is the only aesthetic that has actually been designed. The light
+  // theme in index.css is derived, not drawn, so it is not shipped: forcedTheme
+  // pins rendering to dark and overrides any stored or OS preference, including
+  // a stale profiles.theme = "light" on an existing account.
+  //
+  // The machinery below it stays wired on purpose. When Claude Design delivers
+  // a real light palette, drop it into the :root block in index.css, remove
+  // forcedTheme here, and flip LIGHT_THEME_AVAILABLE in Profile.tsx. Nothing
+  // else has to change.
+  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem forcedTheme="dark">
     <App />
   </ThemeProvider>
 );
