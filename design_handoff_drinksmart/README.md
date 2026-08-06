@@ -191,6 +191,16 @@ to warn about, so it is deleted. Below the three cards sits a fading rule with t
 *"the scale ends here"* (13px, `#75798c`) — the scale visibly stops rather than silently
 truncating.
 
+> **AMENDED 2026-08-06 (Oscar) — level 7 stays reachable.** The cap is **7**, not 6.
+> Levels **8–10 are unreachable** and should be deleted from `buzzLevels.ts` rather than
+> rendered as forbidden. Net effect versus the current app, which blocks only 9–10: the
+> ceiling drops from 8 to 7. Everything else in this section stands — the scale still
+> visibly ends, and the danger warning still goes.
+>
+> **Open: how 7 maps into the band UI.** Three bands × a binary softer/stronger nudge
+> covers exactly six levels, so 7 does not fit the existing pattern. Settle this before
+> building 1c; it does not affect the token layer.
+
 **Layout**, top to bottom, 20px gutter, 64px top padding:
 
 1. Label `TONIGHT` (15/0.09em uppercase, `#b2b6ca`), 20px below.
@@ -372,7 +382,9 @@ active / winding down).
 
 ## Assumptions — please challenge these
 
-- Band → level mapping (Light 1–2 / Social 3–4 / Loose 5–6) and the removal of 7–10.
+- ~~Band → level mapping (Light 1–2 / Social 3–4 / Loose 5–6) and the removal of 7–10.~~
+  **Challenged and settled 2026-08-06:** ceiling is 7, not 6; 8–10 are removed. The band
+  mapping itself is still open — see the amendment under 1c.
 - Demo profile: 82 kg, 180 cm, 28, male; 4 h session from 21:30. Watson TBW, UK units
   (568 ml pint, 175 ml glass, 25 ml shot, £).
 - Elimination 0.015 %/h for the sober-by estimate.
