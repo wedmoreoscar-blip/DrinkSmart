@@ -7,10 +7,13 @@ drinking session around a target blood alcohol concentration (BAC). The determin
 all alcohol, body-water, BAC, and pacing calculations. The application model may select catalog
 items, but it must never perform or replace that math.
 
-For settled design constraints read `docs/decisions.md`. For coding-agent roles read
-`docs/agent_roster.md`. For the current continuation read `tasks/next_session_kickoff.md`.
-The authority order is this file, then locked decisions and the roster, then the current kickoff.
-`CLAUDE.md` imports this file and adds Claude-specific project history and pitfalls.
+For settled design constraints read `docs/decisions.md`. For the current continuation read
+`tasks/next_session_kickoff.md`. The authority order is this file, then locked decisions, then the
+current kickoff. `CLAUDE.md` imports this file and adds Claude-specific project history and pitfalls.
+
+Delegated implementation is orchestrated by Traycer, not by client-native subagents. The `writespec`
+and `speccheck` skills are the ground truth for how work is handed to and accepted from a delegated
+coding agent, whichever vendor or harness runs it.
 
 ## Working rules
 
@@ -22,9 +25,12 @@ The authority order is this file, then locked decisions and the roster, then the
 - Make the smallest correct change. Reuse existing helpers, state patterns, and components before
   creating another abstraction.
 - Verify the changed behavior and inspect the complete diff before reporting completion.
-- Treat `tasks/route_state.md` as the durable switch for delegated implementation. When routing is
-  on, follow `docs/agent_workflow.md`; keep tiny context-cached changes inline when delegation would
-  cost more than the work.
+- Delegate through Traycer. Before dispatching an implementer, write the spec with `writespec`;
+  after the implementation returns, verify it with `speccheck` before accepting. Keep tiny
+  context-cached changes inline when delegation would cost more than the work.
+- Every delegation spec states its verification baseline explicitly (see
+  `docs/workflows/verification.md`): which commands must pass, which are known-failing and must not
+  change, and which are `BLOCKED` on unavailable infrastructure. The implementer cannot ask.
 - Follow `docs/workflows/change_safety.md` for writes, commits, worktrees, and integration. Follow
   `docs/workflows/verification.md` for evidence and live-backend limitations.
 - Never push, deploy Supabase functions, apply migrations to a remote database, rotate secrets, or
@@ -33,12 +39,12 @@ The authority order is this file, then locked decisions and the roster, then the
 ## Collaboration and isolation
 
 - The root checkout is for user-directed work, planning, inspection, and integration.
-- Put delegated code changes in `.worktrees/<client>-<task>` on an `agent/<client>/<task>` branch,
-  created by `tools/agent-worktree <codex|claude> <task-slug>`.
-- A task worktree has one writer at a time. The reviewer may claim it only after the implementer has
-  stopped writing and released the lease.
+- Run delegated implementations in Traycer-managed worktrees, never against the workspace folder
+  itself. Traycer owns worktree creation and per-folder run location; the main checkout stays
+  user-owned.
 - Serialize dependency changes, shared dev servers, Supabase-local mutations, and costly benchmarks
-  with `tools/agent-lock <scope> -- <command>`.
+  with `tools/agent-lock <scope> -- <command>`. Parallel delegated worktrees still contend for these
+  shared resources.
 - Do not commit `.env`, keys, tokens, `.claude/settings.local.json`, generated output, or local agent
   lifecycle state.
 
@@ -73,7 +79,7 @@ a build as functional verification. Remote Supabase, edge-function, notification
 ## Native workflows
 
 Repo-local skills are available to both clients: audit-context, bench, decision-check, handoff,
-healthcheck, kickoff, make-bench, route, skill-writing, teacher, unroute, and update-decisions.
-Codex invokes them with `$<skill>`; Claude Code invokes them with `/<skill>`. Their shared contracts
+healthcheck, kickoff, make-bench, skill-writing, speccheck, teacher, update-decisions, and
+writespec. Codex invokes them with `$<skill>`; Claude Code invokes them with `/<skill>`. Their shared contracts
 live under `docs/workflows/`, and cross-machine installation is documented in
 `docs/agent_setup/CROSS_MACHINE_SETUP.md`.

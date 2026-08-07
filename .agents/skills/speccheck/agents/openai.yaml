@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spec Check"
+  short_description: "Verify a delegated diff against its spec"
+  default_prompt: "Use $speccheck after a delegated implementation returns, before accepting the work."

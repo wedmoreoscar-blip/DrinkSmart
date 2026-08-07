@@ -20,25 +20,21 @@ EXPECTED_SKILLS = {
     "healthcheck",
     "kickoff",
     "make-bench",
-    "route",
     "skill-writing",
+    "speccheck",
     "teacher",
-    "unroute",
     "update-decisions",
+    "writespec",
 }
 REQUIRED = {
     "AGENTS.md",
     "CLAUDE.md",
     ".codex/config.toml",
     ".claude/settings.json",
-    "docs/agent_workflow.md",
-    "docs/agent_roster.md",
     "docs/decisions.md",
     "docs/agent_setup/CROSS_MACHINE_SETUP.md",
-    "tasks/route_state.md",
     "tasks/next_session_kickoff.md",
     "tools/agent-lock",
-    "tools/agent-worktree",
     "tools/test-project",
 }
 
@@ -83,11 +79,6 @@ def main() -> int:
 
     try:
         tomllib.loads((ROOT / ".codex/config.toml").read_text())
-        for path in sorted((ROOT / ".codex/agents").glob("*.toml")):
-            data = tomllib.loads(path.read_text())
-            for key in ("name", "description", "developer_instructions"):
-                if not data.get(key):
-                    fail(f"{path.relative_to(ROOT)} lacks {key}", failures)
     except tomllib.TOMLDecodeError as exc:
         fail(f"invalid Codex TOML: {exc}", failures)
 
@@ -118,7 +109,7 @@ def main() -> int:
         if not (codex_root / name / "agents/openai.yaml").is_file():
             fail(f"missing Codex UI metadata for {name}", failures)
 
-    for relative in ("tools/agent-lock", "tools/agent-worktree", "tools/test-project"):
+    for relative in ("tools/agent-lock", "tools/test-project"):
         mode = (ROOT / relative).stat().st_mode
         if not mode & stat.S_IXUSR:
             fail(f"{relative} is not executable", failures)

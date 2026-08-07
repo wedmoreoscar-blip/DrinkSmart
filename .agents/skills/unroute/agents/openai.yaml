@@ -1,4 +1,0 @@
-interface:
-  display_name: "Disable Routing"
-  short_description: "Disable implementation-review delegation"
-  default_prompt: "Use $unroute to turn off the project routing workflow."

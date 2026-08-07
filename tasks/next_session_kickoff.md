@@ -10,8 +10,6 @@ recorded in this baseline.
 - `AGENTS.md`
 - `CLAUDE.md` when using Claude Code
 - `docs/decisions.md`
-- `docs/agent_roster.md`
-- `tasks/route_state.md`
 
 ## PROMPT
 

@@ -27,7 +27,7 @@ Do the following:
    - `AGENTS.md`
    - `docs/agent_setup/CROSS_MACHINE_SETUP.md`
    - `docs/agent_setup/SKILL_CATALOG.md`
-   - `docs/agent_workflow.md`
+   - `docs/workflows/change_safety.md`
 
 2. Identify whether this session is running in Codex or Claude Code. Also detect whether `codex` and
    `claude` are installed on this machine. Do not install a missing client; report it instead. Read the
@@ -40,10 +40,10 @@ Do the following:
    layers:
 
    - shared authority and project rules in `AGENTS.md`, with Claude's `CLAUDE.md` extension;
-   - Codex configuration and roles in `.codex/`, plus project skills in `.agents/skills/`;
-   - Claude settings and roles in `.claude/`, plus project skills in `.claude/skills/`;
-   - shared decisions, routing, handoff/kickoff, verification, locking, and worktree tooling under
-     `docs/`, `tasks/`, and `tools/`.
+   - Codex configuration in `.codex/`, plus project skills in `.agents/skills/`;
+   - Claude settings in `.claude/`, plus project skills in `.claude/skills/`;
+   - shared decisions, the delegation spec workflow (`writespec`/`speccheck`), handoff/kickoff,
+     verification, and locking under `docs/`, `tasks/`, and `tools/`.
 
 4. If repository trust or workspace trust is required, tell me the exact client action needed. Do not
    weaken global permissions to bypass trust. Run:
@@ -52,14 +52,16 @@ Do the following:
 
    Stop and diagnose any failure before copying personal skills.
 
-5. Install the following six generic skills user-wide for every coding client that is installed:
+5. Install the following eight generic skills user-wide for every coding client that is installed:
 
    - `audit-context`
    - `handoff`
    - `healthcheck`
    - `kickoff`
    - `skill-writing`
+   - `speccheck`
    - `teacher`
+   - `writespec`
 
    Use these source and destination mappings:
 
@@ -76,8 +78,6 @@ Do the following:
    - `bench`
    - `make-bench`
    - `decision-check`
-   - `route`
-   - `unroute`
    - `update-decisions`
 
    They remain available inside DrinkSmart through the repo-local skill directories. Other repositories,

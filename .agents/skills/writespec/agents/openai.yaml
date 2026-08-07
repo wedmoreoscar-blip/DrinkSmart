@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Spec"
+  short_description: "Write a delegation spec for an implementer"
+  default_prompt: "Use $writespec before handing work to a coding agent that does not share this session's context."

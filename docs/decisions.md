@@ -45,8 +45,30 @@ workflow. Keep history: supersede an entry instead of deleting it.
   native-device verification are distinct evidence categories.
 - Missing infrastructure is `BLOCKED`, never `PASS`.
 
+## LOCKED — Traycer-orchestrated delegation (2026-08-07)
+
+- Traycer orchestrates all delegated implementation. Client-native subagent roles are retired; the
+  spec, not shared session context, is the only channel to a delegated agent.
+- `writespec` commissions every delegation: full paths and exact signatures, scope stated in both
+  directions, checkable acceptance criteria, an explicit verification baseline, and the fixed
+  scope/closing blocks appended verbatim.
+- `speccheck` gates acceptance: enumerate clauses before reading the diff, map clauses to hunks and
+  hunks to clauses, derive tests from the spec rather than the code, fix small failures inline, and
+  hand back only for a missing clause or a wrong approach.
+- The implementer never writes or modifies tests; the checker owns test authorship.
+- Delegated runs use Traycer-managed worktrees, never the workspace folder itself.
+
+## SUPERSEDED — Native subagent routing (2026-08-07)
+
+- The planner/implementer/mechanical-worker/reviewer roster, the `route`/`unroute` switch,
+  `tasks/route_state.md`, the `docs/agent_workflow.md` lifecycle state machine, and
+  `tools/agent-worktree` write leases are superseded by Traycer-orchestrated delegation above.
+  Their history remains in Git before this entry's commit.
+
 ## PENDING
 
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
 - Unit coverage for the deterministic engine, `computeTargetEthanolMl`, and greedy fallback.
+- A test runner (vitest is the natural fit for Vite) so `speccheck`'s spec-derived tests are
+  runnable; adding it needs explicit approval as a new dev dependency.

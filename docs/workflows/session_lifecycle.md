@@ -4,8 +4,7 @@
 
 Kickoff is read-only:
 
-1. Read `tasks/next_session_kickoff.md`, `docs/decisions.md`, `docs/agent_roster.md`,
-   `tasks/route_state.md`, and current Git status.
+1. Read `tasks/next_session_kickoff.md`, `docs/decisions.md`, and current Git status.
 2. Extract the fenced text beneath `## PROMPT` and treat it as the requested continuation.
 3. Flag a missing, malformed, visibly stale, or higher-authority-conflicting kickoff before acting.
 4. Do not rewrite or archive session files during kickoff.

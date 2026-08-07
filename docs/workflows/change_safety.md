@@ -11,22 +11,22 @@
 
 ## Isolated delegated writes
 
-Use `.worktrees/<client>-<task>` on `agent/<client>/<task>` for delegated implementation. Each task has
-one authenticated write lease. A writer stops all writing processes and releases before a reviewer
-claims. A failed reviewer releases before the original writer gets the single repair attempt.
-
-State under `.worktrees/.state/` is local coordination data, not a project ledger. Do not edit it by
-hand to bypass a rejected transition.
+Delegated implementations run through Traycer in Traycer-managed worktrees, never against the
+workspace folder itself. The main checkout stays user-owned. Every delegation is commissioned by a
+spec written with the `writespec` skill; the spec names the only files the implementer may modify.
 
 ## Review and integration
 
-- Review the actual diff against the approved plan and independently run relevant checks.
+- Verify every delegated diff with the `speccheck` skill before accepting it: enumerate the spec's
+  clauses, map clauses to hunks and hunks to clauses, and write acceptance tests from the spec, not
+  the code.
+- The checker fixes small failures inline; work goes back to the implementer only for a missing
+  clause or a wrong approach.
 - Retain focused regression tests when they protect real behavior.
-- Record `READY_TO_INTEGRATE` only for the reviewer-cleared commit.
-- Integrate into a clean, non-overlapping target. Stop if the target moved incompatibly or user changes
-  overlap.
-- Re-run relevant verification from the integrated checkout before recording `INTEGRATED`.
-- Keep the worktree until integration verification succeeds. Cleanup refuses dirty or active work.
+- Integrate only spec-checked work into a clean, non-overlapping target. Stop if the target moved
+  incompatibly or user changes overlap.
+- Re-run relevant verification from the integrated checkout before reporting integration.
+- Keep the delegated worktree until integration verification succeeds.
 
 ## External and destructive operations
 

@@ -8,16 +8,16 @@ documentation helpers are installed by their client and are not copied here.
 |---|---|---|---|
 | `audit-context` | legal repo | Safe personal or project | `docs/workflows/context_audit.md` for project mode |
 | `bench` | legal repo | Project | Benchmark convention and resource lock |
-| `decision-check` | legal repo | Project | `docs/decisions.md`, `docs/agent_roster.md` |
+| `decision-check` | legal repo | Project | `docs/decisions.md` |
 | `handoff` | legal repo | Safe personal or project | Defers to repo lifecycle; otherwise writes a minimal root handoff |
 | `healthcheck` | `~/.claude/commands/healthcheck.md` | Safe personal or project | None; current-session jobs only |
 | `kickoff` | legal repo | Safe personal or project | Discovers the repo's continuation source |
 | `make-bench` | legal repo | Project | benchmark convention and safety contract |
-| `route` | legal repo | Project | route state, role definitions, worktree tooling |
 | `skill-writing` | `~/.claude/skills/skill-writing/SKILL.md` | Safe personal or project | portable authoring contract; client creator recommended |
+| `speccheck` | `~/.claude/skills/speccheck/SKILL.md` | Safe personal or project | The commissioning spec and the delegated diff |
 | `teacher` | legal repo | Safe personal or project | Current code or subject material |
-| `unroute` | legal repo | Project | route state and active lifecycle |
-| `update-decisions` | legal repo | Project | decision ledger and roster |
+| `update-decisions` | legal repo | Project | decision ledger |
+| `writespec` | `~/.claude/skills/writespec/SKILL.md` | Safe personal or project | `blocks/` fixed scope and closing blocks shipped with the skill |
 
 ## Invocation
 
@@ -34,10 +34,11 @@ The project copies deliberately share portable frontmatter and instruction bodie
 Do not assume project and personal skills with the same name merge. Claude Code gives a personal
 skill precedence over a project skill. Codex may expose both rather than merge them. The six generic
 packages therefore inspect and apply additional rules from a same-name project package before running
-their portable fallback. Even with that safeguard:
+their portable fallback. `writespec` and `speccheck` have no such deference clause; keep their
+personal and project copies byte-identical instead. Even with that safeguard:
 
-- install only the six generic skills user-wide;
-- keep routing, decisions, and benchmarking project-local;
+- install only the eight generic skills user-wide;
+- keep decisions and benchmarking project-local;
 - preserve and review the target repository's own same-name skill because it remains the project
   extension;
 - compare before replacing an existing package.
