@@ -65,8 +65,51 @@ workflow. Keep history: supersede an entry instead of deleting it.
   `tools/agent-worktree` write leases are superseded by Traycer-orchestrated delegation above.
   Their history remains in Git before this entry's commit.
 
+## LOCKED — Frontend redesign source of truth (2026-08-07)
+
+- `design_handoff_drinksmart/` is the authority for the frontend redesign. `README.md` is the spec
+  and is self-sufficient; `screens/*.png` are the ground truth for appearance; `screens/*.html` are
+  inline-styled prototypes to port into React, never to paste in; `tokens/` alone is production code.
+- Do not read or parse `DrinkSmart-design-reference.html` (1.3 MB compiled output, for a human).
+- Design output reaches the repo by **Share → Export → Handoff to Claude Code** from Claude Design,
+  unpacked into the repo. `/design-sync` cannot deliver it: the DesignSync tool is filtered to
+  design-system projects, and the redesign lives in a regular project.
+- Two in-repo amendments to the bundled README (2026-08-06) are part of the spec and must be honoured
+  over the unamended prose above them.
+
+## LOCKED — Dark-only, light theme wired but unreachable (2026-08-07)
+
+- The shipped aesthetic is the handoff's dark palette, applied verbatim in `.dark` in `src/index.css`.
+- The spec called for `.dark` to be identical to `:root`. We deviated deliberately: `:root` carries a
+  **derived** light palette so a Claude-Design-drawn light theme can drop in later without re-plumbing.
+- Light is unreachable at runtime by two independent guards, and both must stay until a real light
+  theme is drawn: `forcedTheme="dark"` on the `ThemeProvider` in `src/main.tsx`, and
+  `LIGHT_THEME_AVAILABLE = false` in `src/pages/Profile.tsx`, which hides the Appearance card and
+  short-circuits the `profiles.theme` sync effect.
+- Non-colour tokens (type, spacing, touch, motion) are theme-independent and declared once in `:root`.
+- Inter is self-hosted via `@fontsource/inter` (400, 500) imported in `src/main.tsx`. No CDN font.
+
+## LOCKED — Buzz ceiling is level 7, in four bands (2026-08-06)
+
+- Levels **8–10 are removed**, not rendered as forbidden. `buzzLevels.ts` still contains them; deleting
+  them is part of the 1c work and is not yet done.
+- Four bands: Light (1–2), Social (3–4), Loose (5–6), Heavy (7 alone). The fourth card is styled
+  exactly like the other three — no warning colour, no red, no extra affordance.
+- Because the scale ends at a reachable level, the danger warning in `PlanTab.tsx` is deleted, and a
+  fading rule reading *"the scale ends here"* sits beneath the last card.
+- With a single-level band selected, the `softer` / `stronger` nudge pair is **hidden, not disabled**.
+
 ## PENDING
 
+- Band names and subtitles for the four-band picker are proposed, not drawn. Confirm the wording or
+  ask Claude Design to render the four-card variant.
+- Light theme values in `:root` are derived, not designed. Replace wholesale on the next export.
+- Timeline layout 1e (proportional time axis) is an option, not a requirement. Ship 1d unless the whole
+  night is guaranteed to fit without scrolling.
+- Meter form: 1h continuous is recommended for the Plan target card, 1j mid-session for the Timeline.
+  Pick one object and use it everywhere.
+- Nothing in the redesign has been rendered in a browser. `npm run dev` has not been run since the
+  token layer landed.
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
 - Unit coverage for the deterministic engine, `computeTargetEthanolMl`, and greedy fallback.
