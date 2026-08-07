@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Skills"
+  short_description: "Create portable Agent Skills packages"
+  default_prompt: "Use $skill-writing to create or revise a portable skill."

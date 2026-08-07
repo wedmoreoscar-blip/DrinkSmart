@@ -1,0 +1,4 @@
+interface:
+  display_name: "Health Check"
+  short_description: "Inspect active background work once"
+  default_prompt: "Use $healthcheck for one lightweight check of active background work."

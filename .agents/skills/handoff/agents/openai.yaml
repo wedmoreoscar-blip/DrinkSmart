@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Handoff"
+  short_description: "Archive a safe, resumable project handoff"
+  default_prompt: "Use $handoff to close this session and prepare the next kickoff."

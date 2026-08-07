@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decision Check"
+  short_description: "Answer from locked project decisions only"
+  default_prompt: "Use $decision-check to answer this from the locked project records."

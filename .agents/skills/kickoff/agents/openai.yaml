@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Kickoff"
+  short_description: "Resume the recorded project continuation"
+  default_prompt: "Use $kickoff to load and follow the recorded continuation task."

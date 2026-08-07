@@ -35,3 +35,9 @@ supabase documentation/
 # Supabase CLI working directory
 supabase/.temp/
 
+# Agent-client local state. Shared skills, agents, and project settings remain tracked.
+.worktrees/
+.codex-log/
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/agent-memory-local/

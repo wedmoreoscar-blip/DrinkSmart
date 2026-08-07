@@ -1,0 +1,47 @@
+# Custom Skill Catalog
+
+The table inventories every user-authored editable workflow found on the source machine and adapted
+into this repository. Vendor-bundled skills such as client `doctor`, `code-review`, image, or official
+documentation helpers are installed by their client and are not copied here.
+
+| Skill | Origin on source machine | Portable scope | Required project support |
+|---|---|---|---|
+| `audit-context` | legal repo | Safe personal or project | `docs/workflows/context_audit.md` for project mode |
+| `bench` | legal repo | Project | Benchmark convention and resource lock |
+| `decision-check` | legal repo | Project | `docs/decisions.md`, `docs/agent_roster.md` |
+| `handoff` | legal repo | Safe personal or project | Defers to repo lifecycle; otherwise writes a minimal root handoff |
+| `healthcheck` | `~/.claude/commands/healthcheck.md` | Safe personal or project | None; current-session jobs only |
+| `kickoff` | legal repo | Safe personal or project | Discovers the repo's continuation source |
+| `make-bench` | legal repo | Project | benchmark convention and safety contract |
+| `route` | legal repo | Project | route state, role definitions, worktree tooling |
+| `skill-writing` | `~/.claude/skills/skill-writing/SKILL.md` | Safe personal or project | portable authoring contract; client creator recommended |
+| `teacher` | legal repo | Safe personal or project | Current code or subject material |
+| `unroute` | legal repo | Project | route state and active lifecycle |
+| `update-decisions` | legal repo | Project | decision ledger and roster |
+
+## Invocation
+
+| Client | Explicit syntax | Project source | Personal source |
+|---|---|---|---|
+| Codex | `$skill-name` or `/skills` | `.agents/skills/` | `~/.agents/skills/` |
+| Claude Code | `/skill-name` | `.claude/skills/` | `~/.claude/skills/` |
+
+The project copies deliberately share portable frontmatter and instruction bodies. Codex-only
+`agents/openai.yaml` files add interface metadata without changing workflow behavior.
+
+## Precedence warning
+
+Do not assume project and personal skills with the same name merge. Claude Code gives a personal
+skill precedence over a project skill. Codex may expose both rather than merge them. The six generic
+packages therefore inspect and apply additional rules from a same-name project package before running
+their portable fallback. Even with that safeguard:
+
+- install only the six generic skills user-wide;
+- keep routing, decisions, and benchmarking project-local;
+- preserve and review the target repository's own same-name skill because it remains the project
+  extension;
+- compare before replacing an existing package.
+
+For `legal-graph-db-rag`, clone the current repository and use its project-local versions. They encode
+legal-repo benchmark paths, resource locks, decisions, and handoff authority that a generic personal
+copy cannot reproduce safely.

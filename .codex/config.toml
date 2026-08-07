@@ -1,0 +1,10 @@
+# Shared defaults for trusted DrinkSmart clones. Authentication and personal preferences stay in
+# the user's ~/.codex/config.toml.
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 6

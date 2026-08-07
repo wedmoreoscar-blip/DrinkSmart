@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit Context"
+  short_description: "Reconcile code, records, and project context"
+  default_prompt: "Use $audit-context to perform a read-only project context audit."

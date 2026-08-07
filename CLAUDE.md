@@ -1,6 +1,10 @@
+@AGENTS.md
+
 # CLAUDE.md — DrinkSmart
 
-Notes for future Claude instances working on this codebase. Focused on **non-obvious things** that bit us during the Phase 1 + Phase 2 refactor.
+This file extends the shared `AGENTS.md` contract with Claude-specific project history and the
+non-obvious things that bit us during the Phase 1 + Phase 2 refactor. When this file and
+`AGENTS.md` disagree, follow `AGENTS.md`, then `docs/decisions.md`.
 
 ## Project overview
 
@@ -10,12 +14,16 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 **The math engine** (`src/contexts/AppContext.tsx`) is the source of truth for BAC and pacing. **Do not have the LLM do math** — it picks drinks from a catalog; the deterministic engine does everything quantitative.
 
-## Build status (as of last refactor commit)
+## Verification baseline (2026-08-07)
 
 - `npx tsc --noEmit` passes clean.
-- `npm run lint` has not been run; do this before any release.
+- `npm run lint` currently fails with 9 errors and reports 12 warnings in pre-existing application
+  files. Treat lint as a known baseline failure until those issues are fixed; do not report the quick
+  verification profile as passing.
+- `npm run build` passes after a complete dependency install.
 - No automated tests exist for the new code. The deterministic engine (`calculateDrinkTimeline` in `AppContext.tsx`), `computeTargetEthanolMl`, and `greedyPlanFallback` are the natural unit-test candidates.
-- `npm install` reports 17 pre-existing dependency vulnerabilities (8 moderate, 9 high). They predate this refactor; triage with `npm audit` before going to prod.
+- The latest local `npm install` reports 17 dependency vulnerabilities (3 moderate, 14 high). This
+  integration does not apply `npm audit fix`; triage upgrades separately before production.
 - The codebase was updated to current Supabase patterns (mid-2026): RLS policies wrap `auth.uid()` in `(select ...)` for ~95% perf gain; the edge function uses `@supabase/server`'s `withSupabase` wrapper; the anonymous-upgrade flow is two-step (email link, then password-reset link); a `db:types` npm script regenerates `types.ts` from the live schema.
 
 ---
@@ -77,7 +85,7 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 ### AI generation
 
-18. **The LLM never does math.** `src/supabase/functions/generate-plan/index.ts` gives Claude a pre-computed `target_ethanol_ml` and asks for catalog picks via tool-use (forced structured JSON). The client validates that every returned `catalog_id` exists in the input catalog and drops hallucinated ones.
+18. **The LLM never does math.** `supabase/functions/generate-plan/index.ts` gives the model a pre-computed `target_ethanol_ml` and asks for catalog picks via tool use. The server validates every returned `catalog_id`, recomputes the actual ethanol total, and drops invalid items.
 
 19. **No prompt caching with DeepSeek.** The API doesn't support Anthropic-style `cache_control` blocks. DeepSeek V4 Flash is cheap enough that this isn't a cost concern. The catalog is sent in full on every call as part of the system prompt.
 
@@ -85,7 +93,7 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 21. **Greedy fallback's category sweet/strong axes (`CATEGORY_AXES` in `greedyPlanFallback.ts`) are hand-tuned.** If new categories get added to `drinksData.ts`, add entries to that table or scoring defaults will kick in (sweet=0.5, strong=0.5).
 
-22. **The model is `deepseek/v4-flash-0731`** via the DeepSeek API (OpenAI-compatible format). To change: update `DEEPSEEK_MODEL` at the top of `generate-plan/index.ts`. The edge function uses multi-turn tool calling: the model drafts picks, calls `calculate_ethanol` to verify its total against the budget, adjusts if needed, then calls `submit_plan`. Max 5 tool rounds.
+22. **The model is `deepseek/deepseek-v4-flash-0731`** through OpenRouter's OpenAI-compatible API. To change it, update `DEEPSEEK_MODEL` at the top of `generate-plan/index.ts`. The edge function uses multi-turn tool calling: the model drafts picks, calls `calculate_ethanol` to verify its total against the budget, adjusts if needed, then calls `submit_plan`. Max 5 tool rounds.
 
 22a. **The catalog block includes a precomputed `ethanol_ml` column** per row (`id | name | abv% | typical_ml | ethanol_ml | category`). The model uses the `calculate_ethanol` tool to verify its picks rather than doing arithmetic itself. Don't drop the column — it's still useful context for the model's selection decisions.
 

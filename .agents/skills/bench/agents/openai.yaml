@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run Benchmark"
+  short_description: "Run and report an existing project benchmark"
+  default_prompt: "Use $bench to run an existing benchmark with smoke testing and evidence."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Decisions"
+  short_description: "Record durable project decisions and roles"
+  default_prompt: "Use $update-decisions to update the locked project records."

@@ -4,7 +4,7 @@
 
 ## What this app does
 
-DrinkSmart helps people **plan a night out so they hit a target buzz** without overshooting. The user picks a target inebriation level (1–10) and a drinking duration; the app computes how much pure ethanol they need based on body composition (Watson TBW or FFM method), then either lets them pick drinks manually or has an AI (Claude Haiku) select drinks from a catalog. The output is a paced timeline showing what to drink and when.
+DrinkSmart helps people **plan a night out so they hit a target buzz** without overshooting. The user picks a target inebriation level (1–10) and a drinking duration; the app computes how much pure ethanol they need based on body composition (Watson TBW or FFM method), then either lets them pick drinks manually or has an AI model select drinks from a catalog. The output is a paced timeline showing what to drink and when.
 
 It is **not** a calorie or sobriety tracker. It is forward-planning: input → drinks + schedule.
 
@@ -13,7 +13,7 @@ It is **not** a calorie or sobriety tracker. It is forward-planning: input → d
 - **Frontend:** React 18 + Vite + TypeScript + Tailwind + shadcn-ui
 - **State:** React Context (for the math engine) + React Query (for Supabase-backed data) + localStorage (for the active drinking session)
 - **Backend:** Supabase — Postgres + Auth (anonymous-first) + Storage + Deno edge functions
-- **AI:** Anthropic Claude Haiku 4.5, called from a Supabase edge function with prompt caching on the catalog + tool-use for structured output
+- **AI:** DeepSeek V4 Flash through OpenRouter, called from a Supabase edge function with multi-turn tool use and server-side total recomputation
 - **Mobile:** Capacitor (notifications already use `@capacitor/local-notifications`)
 
 ## Current state
@@ -48,7 +48,7 @@ See `CLAUDE.md` for the detailed pitfalls list and known follow-ups.
 ## Things I will commonly ask about
 
 - Supabase setup / RLS / migrations / edge function deployment
-- The AI generation flow (the edge function, prompt caching, fallback behaviour)
+- The AI generation flow (the edge function, tool calls, server-side validation, fallback behaviour)
 - Mobile / Capacitor integration (notifications, build, deploy)
 - The 3-tab UI and onboarding flow
 - React Query patterns and hook staleness

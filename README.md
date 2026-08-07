@@ -54,3 +54,10 @@ npm run preview
 ```
 
 For mobile builds, see the Capacitor documentation and ensure `capacitor.config.ts` points to the correct server URL.
+
+## Codex and Claude Code
+
+The repository contains a shared workflow layer for both coding clients. Start with `AGENTS.md`, then
+follow `docs/agent_setup/CROSS_MACHINE_SETUP.md` when preparing a new laptop or clone. Repo-local
+skills, custom agents, routing, isolated worktrees, verification, and handoff/kickoff records are
+versioned with the project; authentication, secrets, local permissions, and chat memory are not.

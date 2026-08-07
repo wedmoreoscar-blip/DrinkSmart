@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Benchmark"
+  short_description: "Design and scaffold a new project benchmark"
+  default_prompt: "Use $make-bench to design a focused benchmark for this project."

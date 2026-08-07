@@ -1,0 +1,4 @@
+interface:
+  display_name: "Teach Code"
+  short_description: "Teach project code incrementally"
+  default_prompt: "Use $teacher to teach me this project component interactively."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enable Routing"
+  short_description: "Enable implementation and independent review"
+  default_prompt: "Use $route to enable the project implementation-review workflow."
