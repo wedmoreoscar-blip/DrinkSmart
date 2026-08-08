@@ -53,6 +53,23 @@ agents must still pass `--model gpt-5.6-luna --reasoning-effort max` explicitly*
 the repo config supplies them. Codex autonomy is separately covered by
 `approvals_reviewer = "auto_review"` in `~/.codex/config.toml`.
 
+## Confirm the agent before dispatching
+
+`traycer agent create` can return `WebSocket frame timed out after 15000ms` and **still create the
+agent — with none of the requested flags applied.** It appears in `agent list` and runs normally, on
+the wrong provider, model, and variant. It fails open, and nothing downstream reveals it.
+
+So, every time:
+
+1. Confirm `create` returned an agent id cleanly. If it timed out, delete the agent and retry —
+   do not dispatch to it.
+2. After the first turn, verify what actually ran:
+   `opencode session list` → `opencode export <sessionID>`, and check `providerID`, `modelID`,
+   `variant`. A correct DeepSeek implementer reads
+   `deepseek / deepseek-v4-flash / max`.
+
+Never take the create command or the agent's own self-report as evidence of which model is running.
+
 ## Surface
 
 Always `--surface gui` for implementers. Agent-to-agent messaging on `--surface tui` is

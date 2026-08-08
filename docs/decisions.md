@@ -144,6 +144,21 @@ Verified empirically; each point cost attempts to discover.
 - **`tui` agents pin their worktree**; deleting one from the sidebar leaves its process, bash child,
   and `traycer monitor` running, and the lease blocks `worktree delete` until they are killed.
   `gui` agents release when idle. There is no CLI command to terminate an agent.
+- **A timed-out `traycer agent create` yields a silently misconfigured agent** (2026-08-08). When
+  `create` returns `WebSocket frame timed out after 15000ms`, the agent is still created — it
+  appears in `agent list`, accepts messages, and runs — but **none of the `--model`,
+  `--reasoning-effort`, or related flags are applied**. Observed: a create that timed out produced
+  `providerID: opencode / modelID: big-pickle / variant: default` instead of the requested
+  `deepseek / deepseek-v4-flash / max`. It fails open, not closed, and nothing downstream surfaces
+  it. **Always confirm `create` returned an agent id cleanly before dispatching a spec**, and
+  verify the model actually used with `opencode export <sessionID>` (fields `providerID`,
+  `modelID`, `variant`) rather than trusting the create command or the agent's self-report.
+  Cross-check `opencode session list` for the session id.
+- A `gui` agent blocked on an `auto_accept_edits` approval prompt counts as an **active session**
+  and pins its worktree, exactly as a `tui` agent does. There is no local process to kill — the
+  state is Traycer-side — so only answering the prompt or removing the agent from the sidebar
+  releases it. Traycer does surface the stall as an inbox inactivity notice, so it is detectable
+  rather than silent.
 - **Permission parity is enforced per harness, in each harness's own layer.** `opencode.json` denies
   `git commit`/`git push`/`supabase db push`/`supabase functions deploy` and `.env` reads for
   implementers. `.claude/settings.json` mirrors the hard deny on pushing — `Bash(git push)`,
