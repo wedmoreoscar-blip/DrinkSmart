@@ -34,10 +34,14 @@ REQUIRED = {
     "opencode.json",
     "docs/decisions.md",
     "docs/agent_setup/CROSS_MACHINE_SETUP.md",
+    "docs/workflows/agent_selection.md",
     "tasks/next_session_kickoff.md",
     "tools/agent-lock",
     "tools/test-project",
+    "tools/writespec-guard",
 }
+# Traycer serves the selection guide from this machine-global path; the repo copy is canonical.
+TRAYCER_SELECTION_GUIDE = Path.home() / ".traycer/agent-selection-guide.md"
 
 
 def fail(message: str, failures: list[str]) -> None:
@@ -118,10 +122,19 @@ def main() -> int:
         if not (codex_root / name / "agents/openai.yaml").is_file():
             fail(f"missing Codex UI metadata for {name}", failures)
 
-    for relative in ("tools/agent-lock", "tools/test-project"):
+    for relative in ("tools/agent-lock", "tools/test-project", "tools/writespec-guard"):
         mode = (ROOT / relative).stat().st_mode
         if not mode & stat.S_IXUSR:
             fail(f"{relative} is not executable", failures)
+
+    # The selection guide lives in two places. Absent is fine (fresh machine); divergent is not.
+    canonical = (ROOT / "docs/workflows/agent_selection.md").read_bytes()
+    if not TRAYCER_SELECTION_GUIDE.is_file():
+        print(f"WARN selection guide not installed at {TRAYCER_SELECTION_GUIDE}; "
+              f"copy docs/workflows/agent_selection.md there")
+    elif TRAYCER_SELECTION_GUIDE.read_bytes() != canonical:
+        fail(f"selection-guide drift: {TRAYCER_SELECTION_GUIDE} differs from "
+             f"docs/workflows/agent_selection.md", failures)
 
     if failures:
         print(f"\n{len(failures)} agent-setup validation failure(s).")

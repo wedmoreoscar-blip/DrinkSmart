@@ -73,6 +73,34 @@ workflow. Keep history: supersede an entry instead of deleting it.
 - The guard matches `traycer agent send` only. Delegation driven outside Traycer — `codex exec`,
   `deepseek -p` — bypasses it, and the matcher must be widened before either becomes a real route.
 
+## LOCKED — Orchestrator and implementer roles (2026-08-08)
+
+- **Orchestrator: Claude Code on Opus 5 or Fable 5**, `tui` surface. It plans, authors specs,
+  runs `speccheck`, integrates, and commits. Orchestration, spec authorship, and acceptance are
+  never delegated.
+- **Default implementer: DeepSeek V4 Flash via the `opencode` harness**, `--reasoning-effort max`,
+  auto mode, `--surface gui`. Served by DeepSeek's own API through configured credentials — not the
+  `opencode:*-free` tier, which may serve a pre-0731 build. Spawn several in parallel when the work
+  splits into independent specs.
+- **Escalation implementer: GPT-5.6 Luna via the `codex` harness**, `--reasoning-effort max`,
+  `--surface gui`, billed to the ChatGPT Plus subscription. Pulled for exactly two reasons, kept
+  deliberately distinct:
+  - **Visual input** (screenshots, design comparison, mockups, rendered output) — DeepSeek cannot
+    ingest images at all. A hard capability gap.
+  - **Spatial reasoning** (layout, geometry, coordinate systems, canvas/SVG, visual diffing) —
+    third-party testing shows DeepSeek V4 still trails Luna and comparable models here. A quality
+    margin, not a capability gap.
+
+  Collapsing the two lets "spatial-ish" drift into habitual use of the costlier model. If neither
+  applies, use DeepSeek.
+- `docs/workflows/agent_selection.md` is the canonical guide. Traycer serves a byte-identical
+  mirror from `~/.traycer/agent-selection-guide.md`; `tools/check-agent-setup` fails on drift
+  between them and warns when the mirror is absent (fresh machine). The machine copy is not
+  versioned — edit the repo copy and sync.
+- The guide deliberately does **not** ask children to run `traycer-implement`: the `writespec`
+  `closing.md` block already governs how a child verifies and reports, and two instruction sets
+  would conflict.
+
 ## LOCKED — Multi-harness delegation and permission parity (2026-08-08)
 
 Verified empirically; each point cost attempts to discover.
