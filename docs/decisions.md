@@ -206,6 +206,32 @@ Verified empirically; each point cost attempts to discover.
 - Two in-repo amendments to the bundled README (2026-08-06) are part of the spec and must be honoured
   over the unamended prose above them.
 
+**Precedence ladder (amended 2026-08-08).** Claude Design entities are ground truth for UI, and for
+backend design concerning those entities. Where sources disagree, the higher rank wins outright and
+the lower is treated as stale — no reconciliation, no averaging:
+
+1. `design_handoff_drinksmart/tokens/` — production code; already applied.
+2. `screens/*.html` — literal inline values (sizes, radii, colours, weights, copy). Authoritative
+   for **values**.
+3. `screens/*.png` — authoritative for **appearance**; the visual check on 2.
+4. `README.md` prose — rationale and intent. Stale wherever it disagrees with 2 or 3.
+5. `tasks/todo.md` acceptance criteria — derived planning notes.
+6. Implementer judgement — only where all of the above are silent.
+
+The README backs this itself: colours, type, spacing, radii, touch targets, motion and copy are
+declared "final and exact". Verified conflicts where prose lost (2026-08-08): meter radius is **28px**
+per `1h-meter-continuous.html` and the pre-existing `rounded-vessel` token, not the prose's 12; meter
+fill is **.9** opacity, not .85; badges are **13px / radius 8 / padding 8px 12px** per
+`1k-primitives.html`, not the prose's 11px / radius 6 / 5px 8px. The prose's "radius 12" was a leak
+from the `softer`/`stronger` nudge control, which is genuinely 12px.
+
+- A **fresh export is expected to contradict the current code**, and is still ground truth. A Claude
+  Design edit or redesign supersedes what is already built; contradiction is the mechanism, not a
+  defect. Re-export for freshness and coverage — it does not fix prose-vs-markup drift, because any
+  narrative layer can reintroduce it. The ladder is what makes such drift non-blocking.
+- `radius 12` (nudge controls) has **no** Tailwind token; the scale is `sm 4 · md 8 · lg 14 · xl 20 ·
+  vessel 28`. Add one or use an arbitrary value when 1c lands.
+
 ## LOCKED — Dark-only, light theme wired but unreachable (2026-08-07)
 
 - The shipped aesthetic is the handoff's dark palette, applied verbatim in `.dark` in `src/index.css`.
@@ -228,8 +254,37 @@ Verified empirically; each point cost attempts to discover.
   fading rule reading *"the scale ends here"* sits beneath the last card.
 - With a single-level band selected, the `softer` / `stronger` nudge pair is **hidden, not disabled**.
 
+## LOCKED — Whole-app redesign, global scale, primitives first (2026-08-08)
+
+- The redesign is **whole-app and global**, not screen-by-screen. The current UI is to be brought to
+  the Claude Design appearance everywhere it reaches.
+- **No dual size scale.** The design's touch scale replaces the shadcn defaults outright:
+  `tap` 56px is the floor for anything tappable, `act` 64px is the one primary action per screen,
+  icon buttons are 56×56 at radius 12. Both `h-tap` and `h-act` already exist in `tailwind.config.ts`.
+  A transitional "leave `sm`/`default` alone and migrate per screen" approach was considered and
+  **rejected**: it knowingly violates the 56px floor for the duration of the migration, and the floor
+  is the accessibility core of the design.
+- Consequence, accepted deliberately: restyling `src/components/ui/*` reflows every screen at once,
+  including screens with no redesign step of their own (`Auth`, `MenuScannerTab`, admin,
+  `StatsForm`, `DrinkFilterPopover`). Layout fallout on those screens is expected work, not a
+  regression. Measured 2026-08-08: 68 `<Button>` usages, of which 22 `sm`, 14 `icon`, 4 `lg`; every
+  one currently sits below the 56px floor.
+- **Primitives land before screens.** Every screen consumes `src/components/ui/*`, so that work is
+  the one serialization point; screen work parallelises freely behind it.
+- Delegation runs in **waves**. Within a wave, specs must own **disjoint file sets** — file-level
+  ownership is what prevents interference, and it removes the need for agent-to-agent chat between
+  implementers. Reserve a2a for cases where two implementers must agree on an interface, which
+  correct partitioning should avoid.
+- The shadcn top-tabs pattern is not used anywhere. The three tabs live in the bottom bar;
+  `src/components/ui/tabs.tsx` is owned by that work alone, not by the primitives pass.
+
 ## PENDING
 
+- **Roughly half the app has no Claude Design entity.** The bundle's "Not designed yet" list is
+  Profile / onboarding (`StatsForm`, `PreferencesPicker`), drink picker, menu scanner, establishment
+  browsing, and auth — and it offers "ask and they'll be drawn". Under the precedence ladder these
+  screens otherwise fall to rank 6, implementer judgement, which is what the ladder exists to
+  prevent. Request drawings before redesigning them, or explicitly accept token-extrapolated work.
 - Band names and subtitles for the four-band picker are proposed, not drawn. Confirm the wording or
   ask Claude Design to render the four-card variant.
 - Light theme values in `:root` are derived, not designed. Replace wholesale on the next export.
