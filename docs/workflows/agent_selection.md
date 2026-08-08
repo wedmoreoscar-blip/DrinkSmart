@@ -25,8 +25,10 @@ Served by DeepSeek's own API through configured credentials, not the `opencode:*
 free variant may serve a pre-0731 build of V4 Flash. Use for essentially all implementation work,
 and spawn several in parallel when the work splits into independent specs.
 
-Effort and autonomy come from **config, not from this command** — see "Permission and effort
-layers" below. Pass `--reasoning-effort max` anyway; it is belt-and-braces, not the sole source.
+`--reasoning-effort max` is **required**, not redundant: A/B testing showed that with it the agent
+runs at max, and without it at low, on identical `opencode.json`. The config's
+`agent.build.variant` does not reach a Traycer-launched agent on its own. Autonomy is the opposite —
+that *is* config-driven. See "Permission and effort layers" below.
 
 ### 2. GPT-5.6 Luna via codex — escalation only
 
@@ -112,10 +114,15 @@ Consequences worth stating plainly:
   `--surface gui`, so **those arguments never apply to a delegated implementer**. Since opencode
   and codex cannot do agent-to-agent messaging on the terminal surface at all, that field is
   irrelevant to delegation and matters only for hand-launched terminal tabs.
-- Autonomy therefore comes from `opencode.json`'s `permission` block: `"*": "allow"` with explicit
-  denies. That is the config form of `--auto`, and it is surface-independent.
-- Effort comes from `opencode.json`'s `agent.build.variant`, with `--reasoning-effort max` on the
-  create command as redundancy. Do not rely on the create flag alone.
+- Autonomy comes from `opencode.json`'s `permission` block: `"*": "allow"` with explicit denies.
+  That is the config form of `--auto`, and it is surface-independent.
+- **Effort comes from `--reasoning-effort` on `create` and nothing else.** Verified by A/B on
+  identical config: no flag → GUI reports low; flag → GUI reports max. Keep
+  `agent.build.variant: "max"` as a fallback, but never rely on it alone. Note the session export
+  reports `variant: max` either way, so it is not a usable effort signal.
+- DeepSeek is opencode's **built-in** provider, authenticated by API key via
+  `opencode providers login`, so it hits DeepSeek's official endpoint and serves the current
+  (0731) build. No custom provider block is needed in `opencode.json`.
 - Note opencode's own model syntax uses a **slash** (`deepseek/deepseek-v4-flash`) while Traycer's
   `--model` uses a **colon** (`deepseek:deepseek-v4-flash`). Both are correct in their own place.
 

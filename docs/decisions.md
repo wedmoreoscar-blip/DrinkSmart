@@ -81,13 +81,22 @@ workflow. Keep history: supersede an entry instead of deleting it.
 - **Default implementer: DeepSeek V4 Flash via the `opencode` harness**, `--surface gui`. Served by
   DeepSeek's own API through configured credentials — not the `opencode:*-free` tier, which may
   serve a pre-0731 build. Spawn several in parallel when the work splits into independent specs.
-- **Effort and autonomy are config, not create-command flags.** Traycer's Settings "Terminal
-  interface CLI arguments" (`--model … --variant max --auto`) apply *only* to terminal-interface
-  launches and never reach a `gui` agent — and since opencode/codex cannot do a2a on the terminal
-  surface, that field is irrelevant to delegation. Autonomy therefore comes from `opencode.json`'s
-  `permission` block (`"*": "allow"` plus explicit denies — the config form of `--auto`) and effort
-  from `agent.build.variant`, both surface-independent. Pass `--reasoning-effort max` on `create`
-  as redundancy, never as the sole source.
+- **Effort comes from `--reasoning-effort` on `create`, and nothing else** (settled 2026-08-08 by
+  A/B). Two runs with identical `opencode.json` (`agent.build.variant: "max"`): without the flag the
+  GUI reported **low**; with the flag it reported **max**. `agent.build.variant` alone does **not**
+  reach a Traycer-launched agent. Always pass `--reasoning-effort max`; keep the config value as the
+  redundant half, not the primary. (The session export reports `variant: max` in both cases, so the
+  export is not a reliable effort signal — only the create flag is.)
+- Autonomy is separate and *is* config-driven: `opencode.json`'s `permission` block (`"*": "allow"`
+  plus explicit denies) is the config form of `--auto` and applies on every surface.
+- Traycer's Settings "Terminal interface CLI arguments" (`--model … --variant max --auto`) apply
+  *only* to terminal-interface launches and never reach a `gui` agent — and since opencode/codex
+  cannot do a2a on the terminal surface, that field is irrelevant to delegation entirely.
+- **DeepSeek reaches opencode as a built-in provider**, authenticated by API key via
+  `opencode providers login` (stored in `~/.local/share/opencode/auth.json`), not a custom provider
+  block in `opencode.json`. It therefore hits DeepSeek's official endpoint, and
+  `deepseek-v4-flash` is their canonical name serving the current build (0731) — which was the point
+  of avoiding the `opencode:*-free` tier.
 - opencode's model syntax uses a slash (`deepseek/deepseek-v4-flash`); Traycer's `--model` uses a
   colon (`deepseek:deepseek-v4-flash`). Both correct in their own place.
 - **`--permission-mode auto_accept_edits` for both implementers** (Oscar, 2026-08-08). Traycer's
