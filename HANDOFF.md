@@ -1,7 +1,8 @@
 # Session Handoff — 2026-08-08, delegation made enforceable and multi-harness
 
 Mode: **normal**. Canonical continuation is `tasks/next_session_kickoff.md`; this session's copy is
-archived at `tasks/kickoff_history/2026-08-08_0256.md`.
+archived at `tasks/kickoff_history/2026-08-08_0330.md`. (An earlier snapshot at `_0256.md` predates
+the config findings below.)
 
 The redesign was **not** touched. The recorded continuation (step 2 of 8) is unchanged and carried
 forward. This session made the delegation path that step 2's prompt depends on actually work.
@@ -62,6 +63,27 @@ deliberately ungated: standing permission granted this session. Implementers use
 `--permission-mode auto_accept_edits` at explicit user instruction, with the tradeoff recorded — a
 stalled implementer awaiting an unanswered prompt is indistinguishable from one still working.
 
+**Config findings that only surfaced by testing** (`062ab06`, `17439bc`). Three things were assumed
+and turned out false:
+
+- A timed-out `traycer agent create` **still creates the agent, with none of the flags applied**. One
+  ran `opencode/big-pickle` at default effort instead of DeepSeek at max. It fails open, and nothing
+  downstream reveals it — caught only because the user read the sidebar label. Always confirm a
+  clean agent id before dispatching.
+- **`--reasoning-effort max` is load-bearing.** A/B on identical `opencode.json`: without the flag,
+  low; with it, max. `agent.build.variant` does not reach a Traycer-launched agent on its own. The
+  earlier claim that effort was config-driven was wrong and is corrected in the ledger.
+- `opencode export` reports `variant: max` regardless, so it verifies **provider and model** but is
+  useless as an effort signal. Only the GUI shows true effort.
+
+DeepSeek reaches opencode as a **built-in provider** authenticated via `opencode providers login`
+(`~/.local/share/opencode/auth.json`), not a custom provider block — so it hits DeepSeek's official
+endpoint and serves the current 0731 build.
+
+**Parallel delegation proven.** DeepSeek (opencode) and GPT-5.6 Luna (codex) ran simultaneously in
+separate worktrees on separate branches. Both passed, no cross-contamination, neither committed.
+Two harnesses, two providers, two billing accounts, concurrently.
+
 ## Verification boundary — important
 
 **There is no `node_modules` in any checkout**, main or worktree. Confirmed independently by two
@@ -99,9 +121,16 @@ Untracked/unmodified elsewhere: none. Working tree clean at handoff.
 - `~/.traycer/agent-selection-guide.md` is machine-local and will not travel to another machine.
 - Codex trust in `~/.codex/config.toml` names `/home/oscar` and `/home/oscar/DrinkSmart` but not the
   Traycer worktree paths. User has said they will handle this manually if it bites.
-- `opencode.json`'s `agent.build.variant: "max"` is schema-valid but has not been observed taking
-  effect on a real GUI run.
-- This branch is 7 commits ahead of `main` and unpushed.
+- `agent.build.variant: "max"` is kept as a fallback but is **not** what drives effort — the
+  `--reasoning-effort` flag is. Do not drop the flag on the assumption config covers it.
+- `auto_accept_edits` stalled on the first bash call in two runs, then did not stall in the two
+  parallel runs. Intermittent, not guaranteed; each stall pins its worktree until cleared.
+- `traycer agent list` keeps showing agents after the sidebar is cleared. Stale display only —
+  their worktrees delete fine.
+- `speccheck` was applied informally to tonight's throwaway tests: implementations were read before
+  tests were written, which is the ordering the skill exists to prevent. Invoke the skill properly
+  on real work.
+- This branch is 12 commits ahead of `main` and unpushed.
 
 ## PROMPT
 
