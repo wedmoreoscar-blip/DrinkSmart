@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export type LastSessionDrink = {
   id: string;
@@ -83,7 +84,7 @@ export const useLastSession = () => {
           user_id: userId,
           duration_minutes,
           buzz_level,
-          drinks: drinks as unknown as Record<string, unknown>[],
+          drinks: drinks as unknown as Json,
         },
         { onConflict: "user_id" }
       );
