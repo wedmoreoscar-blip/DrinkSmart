@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": [".agents/skills", ".claude/skills"]
+  },
+  "permission": {
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow"
+    },
+    "bash": {
+      "*": "allow",
+      "git commit *": "deny",
+      "git push *": "deny",
+      "supabase db push *": "deny",
+      "supabase functions deploy *": "deny"
+    }
+  }
+}

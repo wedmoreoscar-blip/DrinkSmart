@@ -8,6 +8,8 @@ tools. No chat import is required to recreate the project setup.
 
 - Codex: `AGENTS.md`, `.codex/config.toml`, and `.agents/skills/`.
 - Claude Code: `CLAUDE.md` importing `AGENTS.md`, `.claude/settings.json`, and `.claude/skills/`.
+- opencode: `AGENTS.md`, `opencode.json` (registers both skill trees and the change-safety deny
+  rules), and both `.agents/skills/` and `.claude/skills/`.
 - Both: decisions, the delegation spec workflow (`writespec`/`speccheck` for Traycer-orchestrated
   implementation), handoff/kickoff lifecycle, resource locks, verification profiles, and benchmark
   conventions.
@@ -39,7 +41,8 @@ do not replace them with DrinkSmart's generic variants. Clone that repository, l
 its root, and run its own setup check or inspect its `.agents/skills` and `.claude/skills` directories.
 
 If a third repository has no workflow layer, copy and adapt the complete integration as a unit:
-`AGENTS.md`, the Claude import, `.agents`, `.claude`, `.codex`, `docs/workflows/`, `tasks/`, and
+`AGENTS.md`, the Claude import, `.agents`, `.claude`, `.codex`, `opencode.json`,
+`docs/workflows/`, `tasks/`, and
 `tools/agent-*`. Copying only `bench` or `handoff` leaves dangling references and is not a valid
 installation.
 
