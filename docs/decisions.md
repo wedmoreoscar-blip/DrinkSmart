@@ -213,8 +213,23 @@ Verified empirically; each point cost attempts to discover.
   inline-styled prototypes to port into React, never to paste in; `tokens/` alone is production code.
 - Do not read or parse `DrinkSmart-design-reference.html` (1.3 MB compiled output, for a human).
 - Design output reaches the repo by **Share → Export → Handoff to Claude Code** from Claude Design,
-  unpacked into the repo. `/design-sync` cannot deliver it: the DesignSync tool is filtered to
-  design-system projects, and the redesign lives in a regular project.
+  unpacked into the repo. Pushing via DesignSync is impossible — it requires
+  `PROJECT_TYPE_DESIGN_SYSTEM` and the redesign is a regular project, a type immutable at creation.
+- **Correction 2026-08-08: DesignSync *reads* do work on the regular project.** `get_project`,
+  `list_files` and `get_file` all succeed against `20b0a55d-9e61-42b1-b03d-d677ea6143ad`; only
+  writes are gated. Use `list_files` to check cheaply what an export contains before asking for a
+  zip. Prefer the zip for the content itself — a local `git diff` against the existing bundle costs
+  no context, whereas `get_file` pulls whole files into it.
+- **An export cannot repeal a locked product decision.** The 2026-08-08 export deleted both
+  in-repo README amendments (level-7 cap, four-band table, hidden nudge pair) because they live only
+  in the repo copy and were never sent upstream. They were restored. The precedence ladder ranks
+  design sources against *each other*; it does not let a drawing overrule a decision recorded here.
+  When an export regresses an amendment, restore the amendment and consider sending it upstream.
+- **The canonical bundle path is `design_handoff_drinksmart/{README.md,screens/,tokens/}`.** Exports
+  may nest it deeper; lift it back, because docs and specs reference those paths directly. The wider
+  project export (`DrinkSmart.dc.html`, `_ds/`, `ios-frame.jsx`, `support.js`, `uploads/`) sits under
+  `design_handoff_drinksmart/project/`. Strip `:Zone.Identifier` files when unzipping on Windows
+  into WSL.
 - Two in-repo amendments to the bundled README (2026-08-06) are part of the spec and must be honoured
   over the unamended prose above them.
 
@@ -265,6 +280,24 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
 - Because the scale ends at a reachable level, the danger warning in `PlanTab.tsx` is deleted, and a
   fading rule reading *"the scale ends here"* sits beneath the last card.
 - With a single-level band selected, the `softer` / `stronger` nudge pair is **hidden, not disabled**.
+
+## LOCKED — Specs live in the repo, not in Traycer artifacts (2026-08-08)
+
+- **Traycer artifacts are epic-scoped and do not survive a new session.** They are a review surface:
+  use them when the spec should be read and commented on before dispatch (`traycer comments list`
+  reads anchored threads). They are not storage.
+- **Delegation specs are written to `docs/specs/` and committed**, with pointers from
+  `tasks/next_session_kickoff.md`. A handoff can land before implementation does, so a spec that
+  exists only as an artifact is lost to the session that has to run it.
+- Delete an artifact only after its durable content is in the repo, and only with the user's
+  agreement at the time.
+- `tools/writespec-guard` denies any `traycer agent send` lacking the verbatim `writespec` blocks.
+  Replies (`--response-id`) and messages marked `[no-spec]` pass. Use `[no-spec]` for pings,
+  acknowledgements and stand-downs — never to skip commissioning real work.
+- **The orchestrator pre-installs `node_modules` in each worktree before dispatch**, sequentially.
+  `tools/agent-lock` uses `flock -n` and fails fast (exit 75) rather than queueing, so parallel
+  implementers running their own installs would see one succeed and the rest hard-fail. Specs
+  forbid dependency changes, which also keeps `package-lock.json` out of every delegated diff.
 
 ## LOCKED — Whole-app redesign, global scale, primitives first (2026-08-08)
 

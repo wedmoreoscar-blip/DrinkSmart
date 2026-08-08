@@ -1,137 +1,93 @@
-# Session Handoff — 2026-08-08, delegation made enforceable and multi-harness
+# HANDOFF — 2026-08-08 22:24 BST
 
-Mode: **normal**. Canonical continuation is `tasks/next_session_kickoff.md`; this session's copy is
-archived at `tasks/kickoff_history/2026-08-08_0330.md`. (An earlier snapshot at `_0256.md` predates
-the config findings below.)
+Current state of the repo. The continuation lives in `tasks/next_session_kickoff.md`; this file is
+the summary. Authority order: `AGENTS.md`, then `docs/decisions.md`, then the kickoff.
 
-The redesign was **not** touched. The recorded continuation (step 2 of 8) is unchanged and carried
-forward. This session made the delegation path that step 2's prompt depends on actually work.
+## Where things stand
 
-## What this session did
+**Wave 1 of the whole-app redesign is integrated and verified.** The redesign was rescoped this
+session from a screen-by-screen sequence to a global, whole-app change. `tasks/todo.md`'s step
+numbering is superseded by `docs/visual/02-planned-changes.md`.
 
-**Delegation is now machine-enforced, not advisory** (`611e546`). `writespec`/`speccheck` were the
-documented contract but nothing checked them, and two slips proved the gap live: the fixed blocks
-were retyped from memory instead of `cat`-appended, then the verification of that retyping was
-itself wrong. `tools/writespec-guard`, a `PreToolUse`/`Bash` hook, now denies any `traycer agent
-send` whose spec lacks the verbatim `scope.md` + `closing.md` blocks. Replies (`--response-id`) are
-exempt; it fails open on malformed input. It uses `python3` because **`jq` is not installed on this
-host** — the stock jq-based hook patterns would silently no-op.
+10 commits, `47d5970..fe112cd`. `main` is ~22 commits ahead of `origin/main`, deliberately unpushed.
 
-What is *not* enforced is recorded alongside it: spec quality, the honesty of a verification
-baseline, and whether `speccheck` runs at all remain agent-side discipline.
+| Area | State |
+| --- | --- |
+| Primitives (`button`, `card`, `badge`, `slider`) | Restyled to design 1k, merged `afa6c5e` |
+| Vessel meter | New `ui/vessel-meter.tsx`, battery meter gone, merged `eff7f94` |
+| Chrome (bottom tab bar) | Not started — Wave 2 |
+| Form controls to 56px | **Deferred**, blocked on undrawn designs |
+| Undesigned screens | **Blocked** — no drawings exist |
 
-**Delegation exercised end to end, three times.** Throwaway specs to haiku (Claude), GPT-5.6 Luna
-(codex), and DeepSeek V4 Flash (opencode). All three passed `speccheck` — clause-to-hunk both
-directions, tests derived from the spec — and all three correctly reported blocked verification
-rather than working around it. The DeepSeek run independently reached for
-`node --experimental-strip-types` to verify without a toolchain.
+**The last red and green are out of the product.** Three of the five recorded visual violations in
+`docs/visual/01-current-state.md` are now fixed.
 
-**Multi-harness findings, each empirically established** (`docs/decisions.md`):
+## The finding that matters most
 
-- Agent-to-agent messaging on `--surface tui` is **Claude-Code-only**. `codex` and `opencode` both
-  fail with `TARGET_TUI_UNSUPPORTED`. Non-Claude implementers must use `--surface gui`.
-- Custom harness providers **do** reach Traycer — a provider defined in `opencode.json` appears in
-  `list-harness-models` and is accepted. Traycer is not limited to its curated list.
-- Model ids are `provider:model` with a **colon**; opencode's own CLI uses a **slash**.
-- Traycer infra (epic, a2a, artifacts, worktrees) is forfeited only by driving a model *outside*
-  Traycer (`codex exec`, `deepseek -p`), not by surface choice. `traycer config env` is
-  machine-global, so an env-level model re-point cannot be confined to implementers.
-- `tui` agents pin their worktree. Deleting one from the sidebar leaves its process, bash child, and
-  `traycer monitor` running; the lease blocks `worktree delete` until they are killed. There is no
-  CLI agent-delete.
+**`npx tsc --noEmit` was a no-op for the entire life of this project.** The root `tsconfig.json` is
+`"files": []` plus project references; without `-b` it compiles zero files and exits 0. Every
+recorded "typecheck PASS" was evidence of nothing.
 
-**Agent roles fixed and versioned** (`780d404`, `60e44af`, `42f3a51`). `docs/workflows/
-agent_selection.md` is canonical, mirrored to `~/.traycer/agent-selection-guide.md`, with drift
-**failing** `tools/check-agent-setup` and an absent mirror only warning. Claude Code orchestrates;
-DeepSeek V4 Flash via opencode is the default implementer; GPT-5.6 Luna via codex is escalation-only
-for visual input (DeepSeek cannot ingest images — a hard capability gap) or spatial reasoning (a
-quality margin). The two triggers are kept deliberately distinct so "spatial-ish" does not become
-habitual use of the costlier model.
+It concealed four real errors — `preferences` and `drinks` cast to `Record<string, unknown>` where
+the generated Supabase client expects `Json`, mistyping every write to `profiles` and
+`user_sessions` — and it passed a delegated diff that had introduced four more.
 
-**A live bug found by the user's challenge.** The guide claimed implementers ran with "max effort
-and auto mode from the start". Traycer's Settings "Terminal interface CLI arguments" apply *only* to
-terminal-interface launches and never reach a `gui` agent — and since opencode/codex cannot do a2a
-on the terminal surface at all, that field is irrelevant to delegation entirely. Effort reached the
-DeepSeek run only via `--reasoning-effort max` on `create`; auto mode was never on. Fixed by moving
-effort into `opencode.json` `agent.build.variant`; autonomy was already covered by its `permission`
-block, which is the config form of `--auto` and is surface-independent.
+`npm run typecheck` is now `tsc -b --noEmit`, proven by injecting a deliberate error and confirming
+it was caught. The general rule is now locked in `docs/decisions.md`: **a green check is only
+evidence if the command has been shown capable of going red.**
 
-**Permissions hardened** (`eabfcdb`, `42f3a51`). `git push` is in `permissions.deny` across three
-patterns — pushing is the user's alone and not delegable by request. Remote Supabase operations sit
-in `permissions.ask`, since `AGENTS.md` permits those on explicit request. `git commit` is
-deliberately ungated: standing permission granted this session. Implementers use
-`--permission-mode auto_accept_edits` at explicit user instruction, with the tradeoff recorded — a
-stalled implementer awaiting an unanswered prompt is indistinguishable from one still working.
+## Verification, confirmed on `main`
 
-**Config findings that only surfaced by testing** (`062ab06`, `17439bc`). Three things were assumed
-and turned out false:
+- `npm run typecheck` (`tsc -b --noEmit`) — **PASS, 0 errors**
+- `npm run lint` — **known FAIL, exactly 9 errors / 12 warnings.** Must not get worse.
+- `npm run build` — **PASS** (~16–26s)
+- `npm audit` — 18 vulnerabilities (3 moderate, 15 high). Not addressed.
+- Browser, Supabase, edge-function, native — **BLOCKED**.
 
-- A timed-out `traycer agent create` **still creates the agent, with none of the flags applied**. One
-  ran `opencode/big-pickle` at default effort instead of DeepSeek at max. It fails open, and nothing
-  downstream reveals it — caught only because the user read the sidebar label. Always confirm a
-  clean agent id before dispatching.
-- **`--reasoning-effort max` is load-bearing.** A/B on identical `opencode.json`: without the flag,
-  low; with it, max. `agent.build.variant` does not reach a Traycer-launched agent on its own. The
-  earlier claim that effort was config-driven was wrong and is corrected in the ledger.
-- `opencode export` reports `variant: max` regardless, so it verifies **provider and model** but is
-  useless as an effort signal. Only the GUI shows true effort.
-
-DeepSeek reaches opencode as a **built-in provider** authenticated via `opencode providers login`
-(`~/.local/share/opencode/auth.json`), not a custom provider block — so it hits DeepSeek's official
-endpoint and serves the current 0731 build.
-
-**Parallel delegation proven.** DeepSeek (opencode) and GPT-5.6 Luna (codex) ran simultaneously in
-separate worktrees on separate branches. Both passed, no cross-contamination, neither committed.
-Two harnesses, two providers, two billing accounts, concurrently.
-
-## Verification boundary — important
-
-**There is no `node_modules` in any checkout**, main or worktree. Confirmed independently by two
-delegated agents and directly. `npx tsc --noEmit`, `npm run lint`, and `npm run build` are all
-**BLOCKED** until `npm install` runs. The previous kickoff's "typecheck PASS as of 2026-08-07" is
-not currently reproducible, and `CLAUDE.md`'s verification baseline asserts the same stale claim.
-
-`tools/check-agent-setup` → **PASS: 12 mirrored skills and required configs** (needs no deps).
-
-Nothing in this session was functionally verified against a browser, Supabase, or a device.
-
-## Changed files
-
-Committed on `traycer/stellar-raven`, 7 commits ahead of `main`:
-
-- `tools/writespec-guard` (new), `tools/check-agent-setup`
-- `.claude/settings.json` — hook registration, `deny` on push, `ask` on Supabase ops
-- `docs/workflows/agent_selection.md` (new), `docs/decisions.md`, `AGENTS.md`, `opencode.json`
-- `HANDOFF.md`, `tasks/next_session_kickoff.md`, `tasks/kickoff_history/2026-08-08_0256.md`
-
-Untracked/unmodified elsewhere: none. Working tree clean at handoff.
+**Nothing has been rendered in a browser.** Wave 1 is typechecked and built, never seen. This is the
+largest unverified area and is a deliberate choice, not an oversight.
 
 ## Unresolved risks
 
-- **`node_modules` absent** — the single biggest blocker for the next session. Run `npm install`.
-  Note `git worktree create` does not bring `node_modules` with it, so every delegated worktree
-  starts without one; `worktree.symlinkDirectories` in Claude Code settings can fix that if several
-  implementers are run.
-- `CLAUDE.md`'s verification baseline now carries an explicit BLOCKED note (fixed 2026-08-08) rather
-  than asserting a stale PASS. The underlying results still need re-establishing after `npm install`.
-- `writespec-guard` matches the substring `traycer agent send` anywhere in a command, so an `echo`
-  or `grep` mentioning it is also denied. Fails safe, occasionally annoying.
-- The guard does not cover `codex exec` / `deepseek -p`. The user has said those will not be used
-  (everything goes through opencode/codex chat interfaces), so this is dormant, not fixed.
-- `~/.traycer/agent-selection-guide.md` is machine-local and will not travel to another machine.
-- Codex trust in `~/.codex/config.toml` names `/home/oscar` and `/home/oscar/DrinkSmart` but not the
-  Traycer worktree paths. User has said they will handle this manually if it bites.
-- `agent.build.variant: "max"` is kept as a fallback but is **not** what drives effort — the
-  `--reasoning-effort` flag is. Do not drop the flag on the assumption config covers it.
-- `auto_accept_edits` stalled on the first bash call in two runs, then did not stall in the two
-  parallel runs. Intermittent, not guaranteed; each stall pins its worktree until cleared.
-- `traycer agent list` keeps showing agents after the sidebar is cleared. Stale display only —
-  their worktrees delete fine.
-- `speccheck` was applied informally to tonight's throwaway tests: implementations were read before
-  tests were written, which is the ordering the skill exists to prevent. Invoke the skill properly
-  on real work.
-- This branch is 12 commits ahead of `main` and unpushed.
+1. **Half the app has no design entity.** The 2026-08-08 Claude Design export brought **no new
+   design ids** — still only 1b–1k. The brief in `docs/visual/03-design-requests.md` is unanswered,
+   so W1-C and Wave 4 stay blocked. Everything else in Wave 2 can proceed without it.
+2. **Wave 1 changed shared primitives globally**, so screens with no redesign step of their own
+   (`Auth`, `MenuScannerTab`, `StatsForm`, `DrinkFilterPopover`, admin) now mix 56px buttons with
+   40px inputs. Accepted cost, closes when §A is drawn.
+3. **A design export can silently regress in-repo amendments.** This export deleted both 2026-08-06
+   README amendments (level-7 cap, four-band table, hidden nudge pair) because they were never sent
+   upstream. Restored this session. Check for this on every future export.
+4. The `entries` reduce in `DrinksTab` duplicates the volume/ABV computation near
+   `DrinksTab.tsx:198–235`, and `VesselMeter` recomputes `plannedMl` independently of
+   `pureAlcoholChosen`. They agree today; they could drift.
+5. Button `sm`/`lg` are aliases of `tap`. Call sites should migrate to explicit `tap`/`act`.
 
-## PROMPT
+## Process changes made this session
 
-See `tasks/next_session_kickoff.md` for the canonical continuation.
+- **Specs go in `docs/specs/` and are committed.** Traycer artifacts are epic-scoped and vanish
+  with the session; they are a review surface only, useful because `traycer comments` gives anchored
+  feedback threads no repo file can.
+- **Claude Design entities are ground truth**, ranked: `tokens/` → `screens/*.html` → `*.png` →
+  README prose → `tasks/todo.md` → implementer judgement. Prose has lost every conflict so far.
+- **Read prototype `<script>` blocks** — they carry copy and formatting rules, not just markup.
+- **The orchestrator pre-installs each worktree.** `agent-lock` uses `flock -n` and fails fast, so
+  parallel implementers must not run their own `npm install`.
+- `writespec-guard` now passes messages marked `[no-spec]` — pings and stand-downs, never real work.
+- Specs that remove a variant or prop key must name the affected call sites: that is a breaking API
+  change, not a visual one, and `speccheck` caught it only because the diff was read clause by clause.
+
+## Two implementers are alive and warm
+
+Reuse rather than respawn — both worktrees are merged, clean, and already have `node_modules`.
+
+- DeepSeek `a0b2fcaa-5bbb-4076-97e5-680928a1e542` — opencode, `traycer-redesign-step2-primitives`
+- Luna `da47f88c-30cb-4b0e-ae9a-ac0b4d15ed74` — codex, `traycer-w1b-vessel-meter`
+
+Codex quota was ~80% for the week. `screens/*.html` is plain text, so DeepSeek can implement
+designed screens without visual input; reserve Luna for genuine appearance judgement.
+
+## Next step
+
+Wave 2 — bottom tab bar, Plan/buzz picker (1c), Timeline (1d). Three specs, disjoint file sets,
+parallelisable. Full continuation and prompt in `tasks/next_session_kickoff.md`.
