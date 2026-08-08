@@ -43,6 +43,12 @@ coding agent, whichever vendor or harness runs it.
 ## Collaboration and isolation
 
 - The root checkout is for user-directed work, planning, inspection, and integration.
+- **The orchestrator always writes to the integration target — `/home/oscar/DrinkSmart` on `main` —
+  even when Traycer has launched it inside a worktree.** Being placed in a worktree does not make
+  that worktree your working tree. Commit orchestration output (decisions, docs, kickoff, specs,
+  integration merges) to the root checkout; leave your own worktree untouched and expect it to fall
+  behind `main`. An orchestrator that commits into its own worktree invents a merge step before it
+  can dispatch anything, and risks handing a stale tree to the next session.
 - Run delegated implementations in Traycer-managed worktrees, never against the workspace folder
   itself. Traycer owns worktree creation and per-folder run location; the main checkout stays
   user-owned.

@@ -26,6 +26,15 @@ errors plus four more introduced by a delegated diff.
 **Never quote bare `tsc --noEmit` as evidence.** The general rule, now locked: a green check is only
 evidence if the command has been shown capable of going red.
 
+## Where to work — read this before your first write
+
+**Write to `/home/oscar/DrinkSmart` on `main`. That is the integration target.**
+
+Traycer may launch you inside a worktree. That does not make the worktree your working tree. The
+previous orchestrator ran from `traycer-stellar-raven` and committed everything to
+`/home/oscar/DrinkSmart`; its own worktree ended 13 commits behind `main` and was simply discarded.
+Do the same. Delegated implementers work in worktrees — orchestrators do not.
+
 ## READ FIRST
 
 - `AGENTS.md`, then `CLAUDE.md` (verification baseline rewritten 2026-08-08)
@@ -70,8 +79,21 @@ evidence if the command has been shown capable of going red.
 | DeepSeek (did W1-A) | `a0b2fcaa-5bbb-4076-97e5-680928a1e542` | opencode | `traycer-redesign-step2-primitives` |
 | Luna (did W1-B) | `da47f88c-30cb-4b0e-ae9a-ac0b4d15ed74` | codex | `traycer-w1b-vessel-meter` |
 
-Both worktrees are merged, clean and **already have `node_modules`**. Spawn a third DeepSeek if you
-need three parallel specs.
+Both worktrees are merged, clean and **already have `node_modules`**. There are four specs, so
+**spawn exactly two more implementers — both DeepSeek** — and pre-install their worktrees yourself.
+
+Suggested routing:
+
+| Spec | Agent |
+| --- | --- |
+| W1-C form controls (`1l`/`1m`) | existing DeepSeek `a0b2fcaa` |
+| W2-C Timeline (`1d`) | existing Luna `da47f88c` — spine geometry genuinely needs appearance judgement |
+| W2-A bottom tab bar | new DeepSeek |
+| W2-B buzz picker (`1n`/`1o`) | new DeepSeek |
+
+W2-B looks like Luna work because it compares two frames, but it is not: extract the primary
+action's offset from both `1n` and `1o` markup and **state the number in the spec**. Once the value
+is written down it is a text task, and Luna is better spent on the timeline.
 
 - `--permission-mode full_access` for these waves. Deliberate per-wave override of the
   `auto_accept_edits` default in `agent_selection.md`; **do not change that default.**
