@@ -90,10 +90,18 @@ workflow. Keep history: supersede an entry instead of deleting it.
   as redundancy, never as the sole source.
 - opencode's model syntax uses a slash (`deepseek/deepseek-v4-flash`); Traycer's `--model` uses a
   colon (`deepseek:deepseek-v4-flash`). Both correct in their own place.
-- **`--permission-mode full_access` for implementers is deliberate.** A delegated implementer runs
-  unattended, so `supervised`/`auto_accept_edits` risk a silent stall on a prompt nobody is
-  watching. Containment comes from worktree isolation and the `opencode.json` denies, which hold in
-  every mode. Traycer's enum has no `auto` value.
+- **`--permission-mode auto_accept_edits` for both implementers** (Oscar, 2026-08-08). Traycer's
+  enum is `full_access | supervised | auto_accept_edits` — there is no `auto`. An explicit
+  instruction in the selection guide is the sanctioned override to the `full_access` default;
+  inferring a restrictive mode from the task or the parent's mode remains forbidden.
+  Accepted tradeoff: an implementer waiting on an unanswered prompt is indistinguishable from one
+  still working, so a stall does not announce itself. Viable because Oscar watches both agents and
+  approves in-session; revisit if delegations are ever run unattended or several in parallel.
+  Containment is mode-independent — worktree isolation plus the `opencode.json` denies.
+- The repo's `.codex/config.toml` pins `gpt-5.6-sol` at `high` for Oscar's own direct codex
+  sessions. Traycer-launched codex agents must pass `--model gpt-5.6-luna --reasoning-effort max`
+  explicitly rather than relying on repo config. Codex autonomy comes from
+  `approvals_reviewer = "auto_review"` in `~/.codex/config.toml`.
 - **Escalation implementer: GPT-5.6 Luna via the `codex` harness**, `--reasoning-effort max`,
   `--surface gui`, billed to the ChatGPT Plus subscription. Pulled for exactly two reasons, kept
   deliberately distinct:

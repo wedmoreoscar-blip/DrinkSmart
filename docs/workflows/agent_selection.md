@@ -18,7 +18,7 @@ Two options. Default to the first.
 
 ```
 traycer agent create --harness opencode --model deepseek:deepseek-v4-flash \
-  --reasoning-effort max --surface gui --cwd <worktree> --permission-mode full_access
+  --reasoning-effort max --surface gui --cwd <worktree> --permission-mode auto_accept_edits
 ```
 
 Served by DeepSeek's own API through configured credentials, not the `opencode:*-free` tier — the
@@ -32,7 +32,7 @@ layers" below. Pass `--reasoning-effort max` anyway; it is belt-and-braces, not 
 
 ```
 traycer agent create --harness codex --model gpt-5.6-luna \
-  --reasoning-effort max --surface gui --cwd <worktree> --permission-mode full_access
+  --reasoning-effort max --surface gui --cwd <worktree> --permission-mode auto_accept_edits
 ```
 
 Billed against the ChatGPT Plus subscription. Two triggers, and only these:
@@ -46,6 +46,12 @@ Keep these distinct. The image gap is binary — Luna or nothing. The spatial ga
 margin. Collapsing them lets "spatial-ish" drift into a habit of reaching for the costlier model.
 
 If neither applies, use DeepSeek.
+
+The repo's `.codex/config.toml` pins `model = "gpt-5.6-sol"` and `model_reasoning_effort = "high"`.
+That is deliberate and governs Oscar's own direct codex sessions on this repo. **Traycer-launched
+agents must still pass `--model gpt-5.6-luna --reasoning-effort max` explicitly** — do not assume
+the repo config supplies them. Codex autonomy is separately covered by
+`approvals_reviewer = "auto_review"` in `~/.codex/config.toml`.
 
 ## Surface
 
@@ -96,8 +102,18 @@ Consequences worth stating plainly:
 - Note opencode's own model syntax uses a **slash** (`deepseek/deepseek-v4-flash`) while Traycer's
   `--model` uses a **colon** (`deepseek:deepseek-v4-flash`). Both are correct in their own place.
 
-Use `--permission-mode full_access` for implementers. This is deliberate, not a default: a
-delegated implementer runs unattended, so a prompting mode (`supervised`, `auto_accept_edits`)
-risks a silent stall waiting on approval nobody is watching for. Containment comes from the
-worktree and the `opencode.json` deny rules, which hold in every mode. Never infer a more
-restrictive mode from the task, the parent's mode, or a general safety preference.
+**Use `--permission-mode auto_accept_edits` for both implementers.** This is an explicit user
+instruction (Oscar, 2026-08-08), which is the sanctioned override to Traycer's `full_access`
+default — not an inference from the task or a general safety preference, which remain forbidden
+grounds for restricting the mode.
+
+Edits apply without prompting; anything further surfaces for approval. This is workable because
+Oscar watches both the orchestrator and the implementer and approves in-session. Be aware of the
+tradeoff it buys: an implementer waiting on an unanswered prompt looks identical to one still
+working, so a stalled agent is not self-announcing. If delegations are ever run unattended — or
+several in parallel with nobody watching — revisit this, because that is the case `full_access`
+existed to serve.
+
+Containment does not depend on this setting either way: worktree isolation and the `opencode.json`
+deny rules (`git commit`, `git push`, `supabase db push`, `supabase functions deploy`) are enforced
+one layer down, in every mode.
