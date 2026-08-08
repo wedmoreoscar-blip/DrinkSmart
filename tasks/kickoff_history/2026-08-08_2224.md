@@ -128,53 +128,75 @@ is written down it is a text task, and Luna is better spent on the timeline.
 
 ## PROMPT
 
+Specs are already written and committed at `2dab3a4`; all four worktrees exist with `node_modules`
+installed. The next session only has to dispatch. Verified 2026-08-08 23:45.
+
 ```text
-Continue the DrinkSmart whole-app redesign with Wave 2, per docs/visual/02-planned-changes.md.
+Continue DrinkSmart Wave 2 from /home/oscar/DrinkSmart on main.
 
-Four specs with disjoint file sets, so they can all run in parallel without interfering:
+Read first:
+- AGENTS.md
+- docs/decisions.md
+- tasks/next_session_kickoff.md
+- docs/visual/02-planned-changes.md
+- the four committed specs under docs/specs/
 
-  W1-C  form controls           src/components/ui/{input,select,textarea,dialog,popover}.tsx
-  W2-A  bottom tab bar          Dashboard.tsx, src/components/ui/tabs.tsx
-  W2-B  Plan / buzz picker      src/components/tabs/PlanTab.tsx, src/data/buzzLevels.ts
-  W2-C  Timeline (1d)           src/components/tabs/TimelineTab.tsx, SortableTimelineItem.tsx
+Current state:
+- main is clean; commissioning specs committed as 2dab3a4.
+- Do not rewrite the kickoff before dispatch.
+- Do not push.
 
-W1-C was blocked until 2026-08-08 and is now unblocked: build it from screens/1l-form-primitives,
-plus 1m-sheet-radio-time-toast for sheet, radio group, word-stops, time picker and toast. Doing it
-early matters — every screen currently mixes 56px buttons with 40px inputs.
+Dispatch this single parallel batch:
 
-W2-B builds from screens/1n-buzz-picker-four-band and 1o-buzz-picker-heavy. NOT from 1c, which
-README section 1n/1o supersedes outright. The two frames are a pair: 1o exists so you can verify
-that hiding the softer/stronger nudge pair on the single-level Heavy band does not move the 64px
-primary action. Check that offset across both frames — it is the acceptance criterion.
+1. W1-C -> existing DeepSeek GUI agent
+   id: a0b2fcaa-5bbb-4076-97e5-680928a1e542
+   worktree: traycer-redesign-step2-primitives
+   spec: docs/specs/2026-08-08-w1c-form-controls.md
 
-Read docs/visual/01-current-state.md and 02-planned-changes.md first, then AGENTS.md, CLAUDE.md and
-docs/decisions.md. Take every value from design_handoff_drinksmart/screens/*.html, including the
-trailing <script> blocks, which carry copy and formatting rules. The README prose loses to the
-markup wherever they disagree.
+2. W2-C -> existing Luna GUI agent
+   id: da47f88c-30cb-4b0e-ae9a-ac0b4d15ed74
+   worktree: traycer-w1b-vessel-meter
+   spec: docs/specs/2026-08-08-w2c-timeline.md
 
-Write each spec with the writespec skill, keeping to roughly five clauses, appending the fixed
-scope/closing blocks with cat. Save them to docs/specs/ and commit them before dispatching — do not
-leave them only as Traycer artifacts, which do not survive a session. Optionally publish them as
-artifacts too so Oscar can comment before dispatch.
+These existing worktrees need no preparation or reinstall. Send their specs directly.
 
-Two implementers are already alive with warm context: DeepSeek a0b2fcaa-5bbb-4076-97e5-680928a1e542
-and Luna da47f88c-30cb-4b0e-ae9a-ac0b4d15ed74. Reuse them. Per agent_selection.md, W2-A and W2-B go
-to DeepSeek (the prototype markup is text, so no visual input is needed) and W2-C goes to Luna,
-whose timeline spine geometry genuinely needs appearance judgement. Use --permission-mode
-full_access. Pre-install any new worktree yourself; agent-lock fails fast so implementers must not.
+Create exactly two new DeepSeek GUI agents in these already-created, dependency-prepared worktrees:
 
-W2-B carries a hazard: getBACForLevel throws on an unknown level, so deleting levels 8-10 must not
-strand a persisted drinksmart.session.v1 or a profiles row pointing at a deleted level. Clamp to 7
-and do not bump the localStorage version.
+3. W2-A
+   worktree: /home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/traycer-w2a-bottom-tab-bar
+   spec: docs/specs/2026-08-08-w2a-bottom-tab-bar.md
 
-State the verification baseline in every spec: npm run typecheck (tsc -b --noEmit) must PASS at 0
-errors, lint is a known FAIL at exactly 9 errors and 12 warnings and must not get worse, build must
-PASS, and browser verification is BLOCKED. Never use bare tsc --noEmit; it compiles nothing.
+4. W2-B
+   worktree: /home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/traycer-w2b-plan-buzz-picker
+   spec: docs/specs/2026-08-08-w2b-plan-buzz-picker.md
 
-Verify each returned diff with speccheck before accepting: enumerate clauses before reading the
-diff, and derive tests from the clause list rather than the implementation. Watch specifically for
-removed variant or prop keys, which are breaking API changes rather than visual ones and must name
-their call sites.
+For both new agents use:
+--harness opencode
+--model deepseek:deepseek-v4-flash
+--reasoning-effort max
+--surface gui
+--permission-mode full_access
 
-Confirm the plan with Oscar before dispatching.
+Confirm each create returns a clean agent id. Dispatch all four specs with --expect-reply before
+waiting. The specs already contain the mandatory verbatim writespec blocks.
+
+On return, run the speccheck skill separately against every implementation before accepting it.
+Integrate only checked work into root main, preserve unrelated changes, and verify:
+- npm run typecheck (tsc -b --noEmit): PASS, 0 errors. NEVER bare tsc --noEmit; it compiles nothing.
+- npm run lint: known FAIL at exactly 9 errors / 12 warnings; must not worsen
+- npm run build: PASS
+- browser/live/native verification: BLOCKED
+
+Do not alter BAC formulas, refactor DrinksTab, add dependencies, or push. Keep each worktree until
+its integration verification succeeds.
 ```
+
+## Known Traycer quirks
+
+- **Killing a Traycer agent's processes does not remove it.** The host supervisor respawns the
+  app-server within seconds. There is no `traycer agent delete`; removal is UI-only.
+- Agent `5420734b-b6c2-4a17-8664-fb7f7508d85c` (a Sol orchestrator) is a phantom: running, invisible
+  in the sidebar and not in the archive. It pins the stale `traycer-stellar-raven` worktree. It is
+  harmless and blocks nothing.
+- Codex writes two rollout files per session under `~/.codex/sessions/`. A lost session can be read
+  straight off disk, which is how this prompt was recovered.
