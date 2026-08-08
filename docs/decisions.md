@@ -78,10 +78,22 @@ workflow. Keep history: supersede an entry instead of deleting it.
 - **Orchestrator: Claude Code on Opus 5 or Fable 5**, `tui` surface. It plans, authors specs,
   runs `speccheck`, integrates, and commits. Orchestration, spec authorship, and acceptance are
   never delegated.
-- **Default implementer: DeepSeek V4 Flash via the `opencode` harness**, `--reasoning-effort max`,
-  auto mode, `--surface gui`. Served by DeepSeek's own API through configured credentials — not the
-  `opencode:*-free` tier, which may serve a pre-0731 build. Spawn several in parallel when the work
-  splits into independent specs.
+- **Default implementer: DeepSeek V4 Flash via the `opencode` harness**, `--surface gui`. Served by
+  DeepSeek's own API through configured credentials — not the `opencode:*-free` tier, which may
+  serve a pre-0731 build. Spawn several in parallel when the work splits into independent specs.
+- **Effort and autonomy are config, not create-command flags.** Traycer's Settings "Terminal
+  interface CLI arguments" (`--model … --variant max --auto`) apply *only* to terminal-interface
+  launches and never reach a `gui` agent — and since opencode/codex cannot do a2a on the terminal
+  surface, that field is irrelevant to delegation. Autonomy therefore comes from `opencode.json`'s
+  `permission` block (`"*": "allow"` plus explicit denies — the config form of `--auto`) and effort
+  from `agent.build.variant`, both surface-independent. Pass `--reasoning-effort max` on `create`
+  as redundancy, never as the sole source.
+- opencode's model syntax uses a slash (`deepseek/deepseek-v4-flash`); Traycer's `--model` uses a
+  colon (`deepseek:deepseek-v4-flash`). Both correct in their own place.
+- **`--permission-mode full_access` for implementers is deliberate.** A delegated implementer runs
+  unattended, so `supervised`/`auto_accept_edits` risk a silent stall on a prompt nobody is
+  watching. Containment comes from worktree isolation and the `opencode.json` denies, which hold in
+  every mode. Traycer's enum has no `auto` value.
 - **Escalation implementer: GPT-5.6 Luna via the `codex` harness**, `--reasoning-effort max`,
   `--surface gui`, billed to the ChatGPT Plus subscription. Pulled for exactly two reasons, kept
   deliberately distinct:

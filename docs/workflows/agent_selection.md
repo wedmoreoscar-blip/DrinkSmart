@@ -22,9 +22,11 @@ traycer agent create --harness opencode --model deepseek:deepseek-v4-flash \
 ```
 
 Served by DeepSeek's own API through configured credentials, not the `opencode:*-free` tier — the
-free variant may serve a pre-0731 build of V4 Flash. Max effort and auto mode from the start.
-Use for essentially all implementation work, and spawn several in parallel when the work splits
-into independent specs.
+free variant may serve a pre-0731 build of V4 Flash. Use for essentially all implementation work,
+and spawn several in parallel when the work splits into independent specs.
+
+Effort and autonomy come from **config, not from this command** — see "Permission and effort
+layers" below. Pass `--reasoning-effort max` anyway; it is belt-and-braces, not the sole source.
 
 ### 2. GPT-5.6 Luna via codex — escalation only
 
@@ -70,7 +72,32 @@ Every implementer runs in its own worktree from `traycer worktree create`, never
 folder. Delete the worktree after `speccheck` passes and the work is integrated. Note that `gui`
 agents release their worktree when idle; `tui` agents pin it until their process exits.
 
-## Permission mode
+## Permission and effort layers
 
-Use `full_access` unless the user explicitly instructs `supervised` or `auto_accept_edits`; never
-infer a more restrictive mode from the task, the parent's mode, or a general safety preference.
+Three separate layers, frequently confused. They stack; they do not override one another.
+
+| Layer | Set where | Applies to |
+| --- | --- | --- |
+| Traycer `--permission-mode` | `traycer agent create` | Whether Traycer prompts the **user** to approve the child's actions. Values: `full_access`, `supervised`, `auto_accept_edits`. There is no `auto`. |
+| Harness autonomy + effort | `opencode.json` (`agent.build`, `permission`) | The child itself, on **every** surface. |
+| Traycer terminal CLI arguments | Traycer Settings ▸ provider selection | **Terminal-interface launches only.** Never reaches a `gui` agent. |
+
+Consequences worth stating plainly:
+
+- The Settings "Terminal interface CLI arguments" field — `--model … --variant max --auto` — is
+  appended only when starting an agent on the Terminal interface. Every implementer here is
+  `--surface gui`, so **those arguments never apply to a delegated implementer**. Since opencode
+  and codex cannot do agent-to-agent messaging on the terminal surface at all, that field is
+  irrelevant to delegation and matters only for hand-launched terminal tabs.
+- Autonomy therefore comes from `opencode.json`'s `permission` block: `"*": "allow"` with explicit
+  denies. That is the config form of `--auto`, and it is surface-independent.
+- Effort comes from `opencode.json`'s `agent.build.variant`, with `--reasoning-effort max` on the
+  create command as redundancy. Do not rely on the create flag alone.
+- Note opencode's own model syntax uses a **slash** (`deepseek/deepseek-v4-flash`) while Traycer's
+  `--model` uses a **colon** (`deepseek:deepseek-v4-flash`). Both are correct in their own place.
+
+Use `--permission-mode full_access` for implementers. This is deliberate, not a default: a
+delegated implementer runs unattended, so a prompting mode (`supervised`, `auto_accept_edits`)
+risks a silent stall waiting on approval nobody is watching for. Containment comes from the
+worktree and the `opencode.json` deny rules, which hold in every mode. Never infer a more
+restrictive mode from the task, the parent's mode, or a general safety preference.

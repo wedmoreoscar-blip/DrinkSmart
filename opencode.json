@@ -3,6 +3,12 @@
   "skills": {
     "paths": [".agents/skills", ".claude/skills"]
   },
+  "agent": {
+    "build": {
+      "model": "deepseek/deepseek-v4-flash",
+      "variant": "max"
+    }
+  },
   "permission": {
     "read": {
       "*": "allow",
