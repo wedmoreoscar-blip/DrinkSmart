@@ -5,27 +5,29 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        default:
+          "border border-primary text-primary-hover active:border-[#b5abfc] active:bg-[rgba(145,132,217,.14)] active:text-[#d2cefd] disabled:border-secondary disabled:text-[#5f6377]",
+        destructive: "border border-warning text-warning disabled:opacity-50",
+        outline: "border border-border text-foreground disabled:opacity-50",
+        secondary: "border border-border text-foreground disabled:opacity-50",
+        ghost: "text-muted-foreground disabled:opacity-50",
+        link: "text-primary underline-offset-4 hover:underline disabled:opacity-50",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        act: "h-act rounded-lg px-6 text-lead font-medium",
+        tap: "h-tap rounded-lg px-6 text-body font-normal",
+        sm: "h-tap rounded-lg px-6 text-body font-normal",
+        lg: "h-tap rounded-lg px-6 text-body font-normal",
+        icon: "h-tap w-tap rounded-[12px]",
       },
     },
     defaultVariants: {
       variant: "default",
-      size: "default",
+      size: "tap",
     },
   },
 );
