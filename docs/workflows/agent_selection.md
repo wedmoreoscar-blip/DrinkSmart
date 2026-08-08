@@ -75,7 +75,13 @@ Never take the create command or the agent's own self-report as evidence of whic
 ## Surface
 
 Always `--surface gui` for implementers. Agent-to-agent messaging on `--surface tui` is
-Claude-Code-only; `codex` and `opencode` both fail `agent.create` with `TARGET_TUI_UNSUPPORTED`.
+Claude-Code-only; `codex` and `opencode` both fail `agent.create` with `TARGET_TUI_UNSUPPORTED —
+harness cannot participate in agent-to-agent messaging`.
+
+Traycer's docs list all three as Terminal-capable, which is not a contradiction: that matrix covers
+harnesses backing a **human-driven** terminal session and says nothing about agent-to-agent
+messaging. You can launch codex or opencode in a terminal tab yourself; another agent cannot message
+one there. Delegation requires the latter, hence `gui`.
 
 ## Commissioning and acceptance
 

@@ -137,6 +137,12 @@ Verified empirically; each point cost attempts to discover.
 - **Agent-to-agent messaging on `--surface tui` is Claude-Code-only.** `codex` and `opencode` both
   fail `agent.create` with `TARGET_TUI_UNSUPPORTED — harness cannot participate in agent-to-agent
   messaging`. Non-Claude implementers must use `--surface gui`.
+  This does **not** contradict `docs.traycer.ai/agents-and-models/coding-agents`, which lists Claude
+  Code, Codex, and OpenCode as Terminal-interface capable. That matrix is about which harnesses can
+  *back a terminal session a human drives*. It documents nothing about agent-to-agent messaging.
+  Both are true: you can launch codex or opencode in a terminal tab yourself; you cannot have
+  another agent message one there and get a structured reply. Delegation needs the second, so it
+  needs `gui`.
 - **Custom harness providers do reach Traycer.** A provider defined in `opencode.json` /
   `~/.config/opencode/` appears in `traycer agent list-harness-models opencode` and is accepted by
   `--model`. Traycer is not restricted to its own curated list.
