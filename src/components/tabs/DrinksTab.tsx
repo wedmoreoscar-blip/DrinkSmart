@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { VesselMeter } from "@/components/ui/vessel-meter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAppContext } from "@/contexts/AppContext";
-import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Battery, Bookmark, ChevronDown, ChevronRight, Store, Clock, DollarSign } from "lucide-react";
+import { ArrowRight, Plus, X, RefreshCw, Check, ChevronsUpDown, RotateCcw, Bookmark, ChevronDown, ChevronRight, Store, Clock, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useState, useMemo } from "react";
@@ -875,113 +876,58 @@ const DrinksTab = ({ onNext }: { onNext: () => void }) => {
         </Card>
       )}
 
-      {/* Pure Alcohol Progress Meter */}
+      {/* Pure Alcohol Vessel Meter */}
       {totalPureAlcoholNeeded !== null && pureAlcoholChosen > 0 && (
-        <Card className={cn(
-          "p-6 space-y-4 bg-gradient-to-br transition-colors duration-500",
-          progressPercentage >= 110 
-            ? "from-red-500/10 to-red-600/10 border-red-500/30" 
-            : "from-green-500/10 to-green-600/10 border-green-500/30"
-        )}>
-          <div className="flex items-center gap-2 mb-2">
-            <Battery className={cn(
-              "w-5 h-5 transition-colors duration-500",
-              progressPercentage >= 110 ? "text-red-600" : "text-green-600"
-            )} />
-            <h3 className="font-semibold text-lg">Drinks Target</h3>
-          </div>
-          
-          {/* Battery/Tank Visual */}
-          <div className="space-y-2">
-            <div className={cn(
-              "relative w-full h-12 bg-muted rounded-lg border-2 overflow-hidden transition-colors duration-500",
-              progressPercentage >= 110 ? "border-red-600/50" : "border-green-600/50"
-            )}>
-              {/* Fill */}
-              <div
-                className={cn(
-                  "absolute top-0 left-0 h-full bg-gradient-to-r transition-all duration-500 ease-out animate-fade-in",
-                  progressPercentage >= 110 
-                    ? "from-red-500 to-red-600" 
-                    : "from-green-500 to-green-600"
-                )}
-                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-              />
-              
-              {/* Percentage Text */}
-              <div className="absolute inset-0 flex items-center justify-center font-bold text-sm z-10">
-                <span className={cn(
-                  progressPercentage > 50 ? "text-white" : "text-foreground"
-                )}>
-                  {progressPercentage.toFixed(1)}%
-                </span>
-              </div>
-              
-              {/* Battery Terminal */}
-              <div className={cn(
-                "absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-6 rounded-r transition-colors duration-500",
-                progressPercentage >= 110 ? "bg-red-600/50" : "bg-green-600/50"
-              )} />
-            </div>
+        <Card className="p-6">
+          <VesselMeter
+            targetMl={totalPureAlcoholNeeded}
+            entries={drinks.reduce<{ label: string; ml: number }[]>((entries, drink) => {
+              if (!drink.quantity) return entries;
+              if (!drink.isCustom && !drink.drink) return entries;
+              if (drink.isCustom && (!drink.customName || !drink.customABV)) return entries;
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 text-center text-sm">
-              <div>
-                <p className="text-muted-foreground">Consumed</p>
-                <p className={cn(
-                  "font-bold transition-colors duration-500",
-                  progressPercentage >= 110 ? "text-red-600" : "text-green-600"
-                )}>{pureAlcoholChosen.toFixed(1)} ml</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Remaining</p>
-                <p className={cn(
-                  "font-bold",
-                  remainingPureAlcohol && remainingPureAlcohol < 0 ? "text-red-500" : "text-foreground"
-                )}>
-                  {remainingPureAlcohol !== null ? remainingPureAlcohol.toFixed(1) : "0"} ml
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Target</p>
-                <p className="font-bold">{totalPureAlcoholNeeded.toFixed(1)} ml</p>
-              </div>
-            </div>
+              const quantity = parseFloat(drink.quantity);
+              if (isNaN(quantity)) return entries;
 
-            {/* Warning if over */}
-            {progressPercentage > 100 && (
-              <div className="text-sm text-red-500 font-medium text-center animate-fade-in">
-                ⚠️ You've exceeded your target! Consider drinking water and slowing down.
-              </div>
-            )}
+              let volumeMl = 0;
+              switch (drink.unit) {
+                case "pints":
+                  volumeMl = quantity * PINT_ML;
+                  break;
+                case "oz":
+                  volumeMl = quantity * OZ_ML;
+                  break;
+                case "shots":
+                  volumeMl = quantity * SHOT_ML;
+                  break;
+                case "glass":
+                  volumeMl = quantity * 175;
+                  break;
+                case "ml":
+                  volumeMl = quantity;
+                  break;
+              }
 
-            {/* Warning if under target */}
-            {progressPercentage < 97.5 && progressPercentage > 0 && (
-              <div className="text-sm text-amber-600 font-medium text-center animate-fade-in">
-                ℹ️ Note: Your current selection is below target. You may not reach your desired buzz level.
-              </div>
-            )}
-          </div>
+              let abv = 0;
+              if (drink.isCustom) {
+                abv = parseFloat(drink.customABV || "0");
+              } else {
+                const drinkData = allDrinks.find((d) => d.name === drink.drink);
+                abv = drinkData?.abv || 0;
+              }
+
+              const count = quantity.toString();
+              let label = drink.isCustom ? drink.customName || drink.drink : drink.drink;
+              if (drink.unit === "pints") label = quantity === 1 ? "pint" : `${count} pints`;
+              if (drink.unit === "shots") label = quantity === 1 ? "shot" : `${count} shots`;
+              if (drink.unit === "glass") label = quantity === 1 ? "glass" : `${count} glasses`;
+              if (drink.unit === "oz") label = quantity === 1 ? "oz" : `${count} oz`;
+
+              entries.push({ label, ml: volumeMl * (abv / 100) });
+              return entries;
+            }, [])}
+          />
         </Card>
-      )}
-
-      {/* Adjustment Info */}
-      {progressPercentage > 100 && progressPercentage <= 120 && state.adjustedTargetMl && (
-        <Alert className="animate-fade-in border-blue-500/30 bg-blue-500/10">
-          <AlertDescription>
-            ℹ️ <strong>Timeline Auto-Adjusted:</strong> Your drinks will be distributed based on {state.adjustedTargetMl.toFixed(1)}ml 
-            (your actual selection) rather than the original {totalPureAlcoholNeeded?.toFixed(1)}ml target, ensuring all drinks fit within your timeframe.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Critical Warning if over 120% */}
-      {progressPercentage > 120 && (
-        <Alert variant="destructive" className="animate-fade-in">
-          <AlertDescription>
-            ⚠️ <strong>CRITICAL:</strong> Your alcohol selection exceeds 120% of your target. Please either increase your desired buzz level or increase your timeframe.
-          </AlertDescription>
-        </Alert>
       )}
 
       {/* Action Buttons */}
