@@ -87,7 +87,11 @@ Untracked/unmodified elsewhere: none. Working tree clean at handoff.
 ## Unresolved risks
 
 - **`node_modules` absent** — the single biggest blocker for the next session. Run `npm install`.
-- `CLAUDE.md` still claims typecheck passes clean; that is stale until deps are installed.
+  Note `git worktree create` does not bring `node_modules` with it, so every delegated worktree
+  starts without one; `worktree.symlinkDirectories` in Claude Code settings can fix that if several
+  implementers are run.
+- `CLAUDE.md`'s verification baseline now carries an explicit BLOCKED note (fixed 2026-08-08) rather
+  than asserting a stale PASS. The underlying results still need re-establishing after `npm install`.
 - `writespec-guard` matches the substring `traycer agent send` anywhere in a command, so an `echo`
   or `grep` mentioning it is also denied. Fails safe, occasionally annoying.
 - The guard does not cover `codex exec` / `deepseek -p`. The user has said those will not be used

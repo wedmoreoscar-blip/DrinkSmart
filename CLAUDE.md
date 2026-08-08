@@ -14,13 +14,20 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 **The math engine** (`src/contexts/AppContext.tsx`) is the source of truth for BAC and pacing. **Do not have the LLM do math** — it picks drinks from a catalog; the deterministic engine does everything quantitative.
 
-## Verification baseline (2026-08-07)
+## Verification baseline (last confirmed 2026-08-07; see the BLOCKED note below)
 
-- `npx tsc --noEmit` passes clean.
-- `npm run lint` currently fails with 9 errors and reports 12 warnings in pre-existing application
+> **As of 2026-08-08 there is no `node_modules` in any checkout, main or worktree.** Every command
+> below is therefore `BLOCKED`, not passing, until `npm install` runs. The results recorded here
+> were true on 2026-08-07 and have not been re-established since. Do not copy them into a
+> delegation spec as if they were current — state them as BLOCKED, or run `npm install` first and
+> re-confirm. `git worktree create` does not bring `node_modules` with it, so a fresh delegated
+> worktree never has one.
+
+- `npx tsc --noEmit` passed clean on 2026-08-07. Currently BLOCKED.
+- `npm run lint` fails with 9 errors and reports 12 warnings in pre-existing application
   files. Treat lint as a known baseline failure until those issues are fixed; do not report the quick
-  verification profile as passing.
-- `npm run build` passes after a complete dependency install.
+  verification profile as passing. Currently BLOCKED.
+- `npm run build` passes after a complete dependency install. Currently BLOCKED.
 - No automated tests exist for the new code. The deterministic engine (`calculateDrinkTimeline` in `AppContext.tsx`), `computeTargetEthanolMl`, and `greedyPlanFallback` are the natural unit-test candidates.
 - The latest local `npm install` reports 17 dependency vulnerabilities (3 moderate, 14 high). This
   integration does not apply `npm audit fix`; triage upgrades separately before production.
