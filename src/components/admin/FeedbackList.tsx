@@ -192,7 +192,7 @@ const FeedbackList = () => {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={feedback.status === "new" ? "default" : "secondary"}
+                          variant={feedback.status === "new" ? "now" : "had"}
                         >
                           {feedback.status}
                         </Badge>
@@ -280,7 +280,7 @@ const FeedbackList = () => {
             )}
             <div className="flex items-center gap-2 pt-4">
               <Badge
-                variant={selectedFeedback?.status === "new" ? "default" : "secondary"}
+                variant={selectedFeedback?.status === "new" ? "now" : "had"}
               >
                 {selectedFeedback?.status}
               </Badge>
