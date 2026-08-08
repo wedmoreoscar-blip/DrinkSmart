@@ -98,11 +98,16 @@ Verified empirically; each point cost attempts to discover.
   `gui` agents release when idle. There is no CLI command to terminate an agent.
 - **Permission parity is enforced per harness, in each harness's own layer.** `opencode.json` denies
   `git commit`/`git push`/`supabase db push`/`supabase functions deploy` and `.env` reads for
-  implementers. `.claude/settings.json` uses `permissions.ask` — not `deny` — for `git push`,
-  `supabase db push`, `supabase functions deploy`, `supabase secrets set`, and `supabase migration
-  up`. The asymmetry is deliberate: an implementer must never perform these, while the orchestrator
-  may on an explicit user request, which `ask` forces into a prompt. `git commit` is deliberately
-  not gated for the orchestrator.
+  implementers. `.claude/settings.json` mirrors the hard deny on pushing — `Bash(git push)`,
+  `Bash(git push *)`, `Bash(git -C * push *)` are in `permissions.deny`, so no agent can push in any
+  mode. **Pushing is the user's alone** (Oscar, 2026-08-08); it is not delegable by request, and
+  lifting it means editing this file deliberately.
+- Remote Supabase operations sit in `permissions.ask`, not `deny`: `supabase db push`, `functions
+  deploy`, `secrets set`, `migration up`. `AGENTS.md` permits these on an explicit user request, and
+  `ask` forces exactly that prompt rather than blocking outright.
+- `git commit` is deliberately ungated for the orchestrator: Oscar granted standing permission to
+  commit locally without asking (2026-08-08), on a non-default branch with the diff reviewed and
+  explicit paths staged. Implementers remain denied `git commit` in `opencode.json`.
 
 ## SUPERSEDED — Native subagent routing (2026-08-07)
 
