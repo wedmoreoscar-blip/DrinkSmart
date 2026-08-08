@@ -57,6 +57,52 @@ workflow. Keep history: supersede an entry instead of deleting it.
   hand back only for a missing clause or a wrong approach.
 - The implementer never writes or modifies tests; the checker owns test authorship.
 - Delegated runs use Traycer-managed worktrees, never the workspace folder itself.
+- **Precedence over bundled Traycer skills.** The bundled `traycer-*` skills carry their own
+  delegation flow that does not reference these two skills. Where they overlap, `writespec` and
+  `speccheck` win: no delegation is commissioned except by a `writespec` spec, and none is accepted
+  except through a `speccheck` pass, whatever a bundled skill's own procedure says.
+- **Artifact structure remains Traycer's.** The `traycer-*` skills stay authoritative for artifact
+  shape and lifecycle — the `spec`/`ticket`/`review`/`story` kinds, `status` transitions, nesting,
+  and epic layout. The split is deliberate: Traycer owns transport, isolation, and durable structure;
+  `writespec`/`speccheck` own the content contract and the acceptance gate.
+- **Commissioning is machine-enforced (2026-08-08).** `tools/writespec-guard`, registered as a
+  `PreToolUse`/`Bash` hook in `.claude/settings.json`, denies any `traycer agent send` whose spec
+  lacks the verbatim `scope.md` + `closing.md` blocks. Replies (`--response-id`) are exempt. Nothing
+  else in this workflow is mechanically enforced: spec quality, the honesty of a verification
+  baseline, and whether `speccheck` runs at all remain agent-side discipline.
+- The guard matches `traycer agent send` only. Delegation driven outside Traycer — `codex exec`,
+  `deepseek -p` — bypasses it, and the matcher must be widened before either becomes a real route.
+
+## LOCKED — Multi-harness delegation and permission parity (2026-08-08)
+
+Verified empirically; each point cost attempts to discover.
+
+- **Agent-to-agent messaging on `--surface tui` is Claude-Code-only.** `codex` and `opencode` both
+  fail `agent.create` with `TARGET_TUI_UNSUPPORTED — harness cannot participate in agent-to-agent
+  messaging`. Non-Claude implementers must use `--surface gui`.
+- **Custom harness providers do reach Traycer.** A provider defined in `opencode.json` /
+  `~/.config/opencode/` appears in `traycer agent list-harness-models opencode` and is accepted by
+  `--model`. Traycer is not restricted to its own curated list.
+- **Model ids are `provider:model` with a colon**, not a slash: `deepseek:deepseek-v4-flash`.
+  A slash returns `model ... is not available for harness`.
+- Working recipe: `traycer worktree create` → `traycer agent create --harness opencode --model
+  deepseek:deepseek-v4-flash --reasoning-effort max --surface gui --cwd <worktree>` →
+  `traycer agent send --expect-reply` with a `writespec` spec → `speccheck` → `worktree delete`.
+- **Traycer infra is per-agent, not per-surface.** Epic membership, a2a, artifacts, and managed
+  worktrees hold in both `tui` and `gui` whenever Traycer spawns the agent. They are forfeited only
+  by driving a model outside Traycer (`codex exec`, `deepseek -p`). `traycer config env` is
+  machine-global with no per-agent scope, so an env-level model re-point cannot be confined to
+  implementers.
+- **`tui` agents pin their worktree**; deleting one from the sidebar leaves its process, bash child,
+  and `traycer monitor` running, and the lease blocks `worktree delete` until they are killed.
+  `gui` agents release when idle. There is no CLI command to terminate an agent.
+- **Permission parity is enforced per harness, in each harness's own layer.** `opencode.json` denies
+  `git commit`/`git push`/`supabase db push`/`supabase functions deploy` and `.env` reads for
+  implementers. `.claude/settings.json` uses `permissions.ask` — not `deny` — for `git push`,
+  `supabase db push`, `supabase functions deploy`, `supabase secrets set`, and `supabase migration
+  up`. The asymmetry is deliberate: an implementer must never perform these, while the orchestrator
+  may on an explicit user request, which `ask` forces into a prompt. `git commit` is deliberately
+  not gated for the orchestrator.
 
 ## SUPERSEDED — Native subagent routing (2026-08-07)
 

@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""PreToolUse guard: no delegation is commissioned without a writespec spec.
+
+Enforces the LOCKED "Traycer-orchestrated delegation" entry in docs/decisions.md.
+Reads a Claude Code PreToolUse hook payload on stdin and denies any
+`traycer agent send` that commissions work without the verbatim
+writespec scope.md + closing.md blocks.
+
+Replies (--response-id) are not commissions and pass through.
+"""
+import json
+import os
+import re
+import sys
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BLOCKS = os.path.join(REPO, ".claude", "skills", "writespec", "blocks")
+
+
+def allow():
+    sys.exit(0)
+
+
+def deny(reason):
+    json.dump({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    }}, sys.stdout)
+    sys.exit(0)
+
+
+def norm(s):
+    """Collapse whitespace so shell quoting and indentation don't cause false denials."""
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def main():
+    try:
+        payload = json.load(sys.stdin)
+    except Exception:
+        allow()  # never break the session on a malformed payload
+
+    if payload.get("tool_name") != "Bash":
+        allow()
+
+    cmd = payload.get("tool_input", {}).get("command", "")
+    if "traycer agent send" not in cmd:
+        allow()
+    if "--response-id" in cmd:
+        allow()  # a reply, not a commission
+
+    try:
+        with open(os.path.join(BLOCKS, "scope.md")) as f:
+            scope = f.read()
+        with open(os.path.join(BLOCKS, "closing.md")) as f:
+            closing = f.read()
+    except OSError as e:
+        deny(f"writespec-guard cannot read the fixed blocks ({e}). "
+             f"Expected them under {BLOCKS}.")
+
+    # The spec is usually interpolated from a file rather than inlined, so search
+    # the command text plus the contents of any file it reads.
+    haystack = [cmd]
+    for path in re.findall(r"(?:\$\(\s*cat\s+|\$\(\s*<\s*|\bcat\s+)([\"']?)([^\s\"';)]+)\1", cmd):
+        candidate = path[1]
+        if not os.path.isabs(candidate):
+            candidate = os.path.join(os.getcwd(), candidate)
+        try:
+            with open(candidate) as f:
+                haystack.append(f.read())
+        except OSError:
+            pass
+
+    blob = norm("\n".join(haystack))
+    missing = [name for name, block in (("scope.md", scope), ("closing.md", closing))
+               if norm(block) not in blob]
+
+    if missing:
+        deny(
+            "Blocked by writespec-guard: this `traycer agent send` commissions a "
+            "delegation but the spec is missing the verbatim " + " and ".join(missing) +
+            " block(s).\n\n"
+            "docs/decisions.md (LOCKED - Traycer-orchestrated delegation) requires every "
+            "delegation to be commissioned by a writespec spec, with the fixed blocks "
+            "APPENDED, not retyped:\n\n"
+            f"    cat {BLOCKS}/scope.md >> <spec-file>\n"
+            f"    cat {BLOCKS}/closing.md >> <spec-file>\n\n"
+            "Then re-send. If this is a reply rather than a commission, use --response-id."
+        )
+
+    allow()
+
+
+if __name__ == "__main__":
+    main()
