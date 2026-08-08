@@ -31,6 +31,7 @@ REQUIRED = {
     "CLAUDE.md",
     ".codex/config.toml",
     ".claude/settings.json",
+    "opencode.json",
     "docs/decisions.md",
     "docs/agent_setup/CROSS_MACHINE_SETUP.md",
     "tasks/next_session_kickoff.md",
@@ -86,6 +87,14 @@ def main() -> int:
         json.loads((ROOT / ".claude/settings.json").read_text())
     except json.JSONDecodeError as exc:
         fail(f"invalid Claude settings JSON: {exc}", failures)
+
+    try:
+        opencode_cfg = json.loads((ROOT / "opencode.json").read_text())
+    except json.JSONDecodeError as exc:
+        fail(f"invalid opencode config JSON: {exc}", failures)
+    opencode_paths = opencode_cfg.get("skills", {}).get("paths", [])
+    if ".agents/skills" not in opencode_paths or ".claude/skills" not in opencode_paths:
+        fail("opencode.json must register both .agents/skills and .claude/skills", failures)
 
     codex_root = ROOT / ".agents/skills"
     claude_root = ROOT / ".claude/skills"

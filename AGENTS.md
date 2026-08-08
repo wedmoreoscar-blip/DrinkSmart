@@ -80,6 +80,8 @@ a build as functional verification. Remote Supabase, edge-function, notification
 
 Repo-local skills are available to both clients: audit-context, bench, decision-check, handoff,
 healthcheck, kickoff, make-bench, skill-writing, speccheck, teacher, update-decisions, and
-writespec. Codex invokes them with `$<skill>`; Claude Code invokes them with `/<skill>`. Their shared contracts
+writespec. Codex invokes them with `$<skill>`; Claude Code invokes them with `/<skill>`. opencode
+invokes them by name through its skill tool; its project config registers both skill trees and its
+permission rules enforce the change-safety deny list. Their shared contracts
 live under `docs/workflows/`, and cross-machine installation is documented in
 `docs/agent_setup/CROSS_MACHINE_SETUP.md`.

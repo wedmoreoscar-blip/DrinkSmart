@@ -25,6 +25,7 @@ documentation helpers are installed by their client and are not copied here.
 |---|---|---|---|
 | Codex | `$skill-name` or `/skills` | `.agents/skills/` | `~/.agents/skills/` |
 | Claude Code | `/skill-name` | `.claude/skills/` | `~/.claude/skills/` |
+| opencode | skill tool by name (no prefix) | `.agents/skills/` + `.claude/skills/` via `opencode.json` | `~/.agents/skills/` + `~/.claude/skills/` via `~/.config/opencode/opencode.jsonc` |
 
 The project copies deliberately share portable frontmatter and instruction bodies. Codex-only
 `agents/openai.yaml` files add interface metadata without changing workflow behavior.
