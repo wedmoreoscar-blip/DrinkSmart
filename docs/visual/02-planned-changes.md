@@ -27,13 +27,27 @@ interface — correct partitioning should avoid that.
 
 ## Wave 1 — Foundation
 
-Status: **specs being written.** Nothing dispatched.
+Status: **W1-A and W1-B integrated 2026-08-08.** W1-C still deferred.
 
-| Spec | Files | Clauses | Agent | Status |
-| --- | --- | --- | --- | --- |
-| W1-A primitives | `ui/{button,card,badge,slider}.tsx` | 4 | DeepSeek | spec drafting |
-| W1-B vessel meter | new meter component + `DrinksTab.tsx:878–966` | 3 | Luna | spec drafting |
-| W1-C form controls | `ui/{input,select,textarea,dialog,popover}.tsx` | ~5 | — | **deferred** |
+| Spec | Files | Agent | Status |
+| --- | --- | --- | --- |
+| W1-A primitives | `ui/{button,card,badge,slider}.tsx` | DeepSeek | **DONE** — `ad0f172`, merged `afa6c5e` |
+| W1-B vessel meter | `ui/vessel-meter.tsx` + `DrinksTab.tsx` | Luna | **DONE** — `bb3a27a`, merged `eff7f94` |
+| W1-C form controls | `ui/{input,select,textarea,dialog,popover}.tsx` | — | **deferred**, blocked on §A |
+
+**Both specs passed `speccheck` with fixes applied inline.** What the checks caught, since the
+pattern will recur:
+
+- **Removing a variant key is a breaking API change, not a visual one.** W1-A deleted Button's
+  `default` size and Badge's `default`/`secondary`/`destructive`/`outline` variants, breaking four
+  call sites. The spec had said "call sites will break visually — do not fix them", so the
+  implementer correctly left them. **Future specs that remove keys must name the call sites.**
+- **Quoting design copy as an example of tone reads as literal copy.** W1-B hardcoded "Drop the
+  extra shot to land on target.", which would tell a user over by a pint to drop a shot. The real
+  copy was in the 1k prototype's trailing `<script>` block — **the script blocks carry copy and
+  formatting rules, not just markup.** Read them.
+- **A prototype's buttons are full-width, so they carry no horizontal padding.** Ported literally,
+  inline buttons had text flush to the border. Padding needs stating explicitly.
 
 **W1-C is deferred on purpose.** Claude Design never drew the form vocabulary, so building it now
 means inventing values — rank 6 on the precedence ladder, which is exactly what the ladder demotes.

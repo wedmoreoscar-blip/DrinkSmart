@@ -45,6 +45,18 @@ workflow. Keep history: supersede an entry instead of deleting it.
   native-device verification are distinct evidence categories.
 - Missing infrastructure is `BLOCKED`, never `PASS`.
 
+**Typecheck command (amended 2026-08-08).** The typecheck is `npm run typecheck`, which is
+`tsc -b --noEmit`. **Bare `tsc --noEmit` is a no-op in this repository** and must never be used or
+quoted as evidence: the root `tsconfig.json` is `"files": []` plus project references, so without
+`-b` it compiles zero files and exits 0 vacuously. It did so for the entire life of the project,
+concealing four real errors (Supabase `Json` mistyping in `useUserMetrics` and `useLastSession`)
+and passing a delegated diff that had introduced four more.
+
+The general lesson, which outlives this specific bug: **a green check is only evidence if the
+command has been shown to be capable of going red.** When adopting or trusting a verification
+command, prove it fails on a deliberate fault before treating its success as meaningful. Applies
+equally to lint, tests, and any future runner.
+
 ## LOCKED — Traycer-orchestrated delegation (2026-08-07)
 
 - Traycer orchestrates all delegated implementation. Client-native subagent roles are retired; the
