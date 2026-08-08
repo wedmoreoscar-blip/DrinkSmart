@@ -230,8 +230,12 @@ Verified empirically; each point cost attempts to discover.
   project export (`DrinkSmart.dc.html`, `_ds/`, `ios-frame.jsx`, `support.js`, `uploads/`) sits under
   `design_handoff_drinksmart/project/`. Strip `:Zone.Identifier` files when unzipping on Windows
   into WSL.
-- Two in-repo amendments to the bundled README (2026-08-06) are part of the spec and must be honoured
-  over the unamended prose above them.
+- ~~Two in-repo amendments to the bundled README (2026-08-06) are part of the spec.~~
+  **Superseded 2026-08-08 by designs `1n`/`1o`.** The amendments held the four-band scale as prose;
+  it is now drawn, and README §1n/1o states *"supersedes 1c"* and carries the whole spec. Prose
+  replaced by a drawing is a promotion up this ladder, so the amendments are **not** restored. The
+  general rule from the earlier export still stands: an export that *deletes* an amendment without
+  drawing its content is a regression and must be restored.
 
 **Precedence ladder (amended 2026-08-08).** Claude Design entities are ground truth for UI, and for
 backend design concerning those entities. Where sources disagree, the higher rank wins outright and
@@ -271,7 +275,12 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
 - Non-colour tokens (type, spacing, touch, motion) are theme-independent and declared once in `:root`.
 - Inter is self-hosted via `@fontsource/inter` (400, 500) imported in `src/main.tsx`. No CDN font.
 
-## LOCKED — Buzz ceiling is level 7, in four bands (2026-08-06)
+## LOCKED — Buzz ceiling is level 7, in four bands (2026-08-06; drawn 2026-08-08)
+
+> **Build from `screens/1n-buzz-picker-four-band.html` and `1o-buzz-picker-heavy.html`, not from
+> this entry or from `1c`.** README §1n/1o supersedes 1c outright. The two frames are a pair: `1o`
+> exists so the hidden-nudge reflow can be verified rather than inferred.
+
 
 - Levels **8–10 are removed**, not rendered as forbidden. `buzzLevels.ts` still contains them; deleting
   them is part of the 1c work and is not yet done.
@@ -325,13 +334,14 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
 
 ## PENDING
 
-- **Roughly half the app has no Claude Design entity.** The bundle's "Not designed yet" list is
-  Profile / onboarding (`StatsForm`, `PreferencesPicker`), drink picker, menu scanner, establishment
-  browsing, and auth — and it offers "ask and they'll be drawn". Under the precedence ladder these
-  screens otherwise fall to rank 6, implementer judgement, which is what the ladder exists to
-  prevent. Request drawings before redesigning them, or explicitly accept token-extrapolated work.
-- Band names and subtitles for the four-band picker are proposed, not drawn. Confirm the wording or
-  ask Claude Design to render the four-card variant.
+- **Still undrawn after the 2026-08-08 export:** Profile / onboarding (`StatsForm`,
+  `PreferencesPicker`), drink picker, menu scanner, establishment browsing, and auth. Under the
+  precedence ladder these fall to rank 6, implementer judgement, which is what the ladder exists to
+  prevent. **Wave 4 stays blocked** until they are drawn. Form primitives (`1l`, `1m`) and the
+  four-band picker (`1n`, `1o`) were delivered and are no longer blockers.
+- ~~Band names and subtitles for the four-band picker are proposed, not drawn.~~ **Closed
+  2026-08-08** — drawn as `1n`/`1o`, wording as proposed (Light / Social / Loose / Heavy, "gaps in
+  the night" for Heavy).
 - Light theme values in `:root` are derived, not designed. Replace wholesale on the next export.
 - Timeline layout 1e (proportional time axis) is an option, not a requirement. Ship 1d unless the whole
   night is guaranteed to fit without scrolling.

@@ -33,7 +33,7 @@ Status: **W1-A and W1-B integrated 2026-08-08.** W1-C still deferred.
 | --- | --- | --- | --- |
 | W1-A primitives | `ui/{button,card,badge,slider}.tsx` | DeepSeek | **DONE** — `ad0f172`, merged `afa6c5e` |
 | W1-B vessel meter | `ui/vessel-meter.tsx` + `DrinksTab.tsx` | Luna | **DONE** — `bb3a27a`, merged `eff7f94` |
-| W1-C form controls | `ui/{input,select,textarea,dialog,popover}.tsx` | — | **deferred**, blocked on §A |
+| W1-C form controls | `ui/{input,select,textarea,dialog,popover}.tsx` | DeepSeek | **UNBLOCKED 2026-08-08** — build from `1l`, and `1m` for sheet/radio/time/toast |
 
 **Both specs passed `speccheck` with fixes applied inline.** What the checks caught, since the
 pattern will recur:
@@ -65,7 +65,7 @@ Blocked until Wave 1 integrates.
 | Spec | Files | Agent |
 | --- | --- | --- |
 | W2-A bottom tab bar | `Dashboard.tsx`, `ui/tabs.tsx` | DeepSeek |
-| W2-B Plan / buzz picker (1c) | `PlanTab.tsx`, `data/buzzLevels.ts` | DeepSeek |
+| W2-B Plan / buzz picker (**1n/1o**, not 1c) | `PlanTab.tsx`, `data/buzzLevels.ts` | DeepSeek |
 | W2-C Timeline (1d) | `TimelineTab.tsx`, `SortableTimelineItem.tsx` | Luna |
 
 W2-B carries a live hazard: `getBACForLevel` throws on an unknown level, and deleting levels 8–10

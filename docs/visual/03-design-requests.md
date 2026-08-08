@@ -144,13 +144,51 @@ several places — meter radius, fill opacity, and badge size, radius and paddin
 right every time.
 ```
 
-### What came back
+### What came back — 2026-08-08, partial
 
-*Not yet received. Fill in on arrival: new design ids, which sections A–G were covered, any token
-diff, and anything the designer pushed back on or reorganised.*
+**Delivered:**
+
+- `1l-form-primitives` — §A, the form-control vocabulary 1k never covered. **Unblocks W1-C.**
+- `1m-sheet-radio-time-toast` — sheet, radio group, word-stops, time picker, toast. The sheet
+  matches the "sheet over catalog" call for custom drink entry.
+
+**Not delivered:** §B onboarding, §C Profile, §D drink picker, §E auth, §F menu scanner,
+§G establishment browsing. **Wave 4 stays blocked.**
+
+An earlier export (same day) contained no new ids at all and was the Claude Design *project source*
+rather than a handoff pack — worth checking `list_files` via DesignSync before unpacking, to tell
+the two apart cheaply.
 
 ### What was implemented
 
 *Fill in as each drawing lands in code: design id → spec → commit. Note any place the
 implementation deviated from the drawing and why, since under the precedence ladder a deviation is
 a debt against the design, not a decision.*
+
+---
+
+## Request 2 — redraw 1c for the four-band scale
+
+- **Sent:** 2026-08-08 · **Delivered:** 2026-08-08 as `1n` + `1o`
+- **Why:** the level-7 cap and four-band picker were settled 2026-08-06 as an in-repo README
+  amendment, and the amendment itself said the four-card variant was *"proposed, not drawn"*. W2-B
+  would otherwise have built it from prose — rank 4 on the ladder.
+
+Asked for two frames rather than one, because the hidden-nudge reflow (the `softer`/`stronger` pair
+disappearing when Heavy is selected, without the 64px primary action moving) cannot be verified
+from a single frame.
+
+### What came back
+
+- `1n-buzz-picker-four-band` — default state, four cards, nudge pair visible
+- `1o-buzz-picker-heavy` — Heavy selected, nudge pair gone
+
+README §1n/1o **supersedes 1c outright** and absorbs the whole 2026-08-06 amendment: ceiling 7,
+levels 8–10 removed, the four-band table, no warning treatment on Heavy, the nudge pair *removed
+from the DOM* rather than disabled, and the "scale ends here" fading rule. Band names and subtitles
+came back as proposed, closing that PENDING entry.
+
+**The amendments were therefore not restored into the README — they were superseded.** Prose
+replaced by a drawing is a promotion up the ladder. This is the opposite of the earlier export,
+which deleted the same amendments without drawing their content; that one was a regression and was
+restored.

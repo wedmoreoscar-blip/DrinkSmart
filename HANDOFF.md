@@ -9,15 +9,16 @@ the summary. Authority order: `AGENTS.md`, then `docs/decisions.md`, then the ki
 session from a screen-by-screen sequence to a global, whole-app change. `tasks/todo.md`'s step
 numbering is superseded by `docs/visual/02-planned-changes.md`.
 
-10 commits, `47d5970..fe112cd`. `main` is ~22 commits ahead of `origin/main`, deliberately unpushed.
+`main` is ~29 commits ahead of `origin/main`, deliberately unpushed.
 
 | Area | State |
 | --- | --- |
 | Primitives (`button`, `card`, `badge`, `slider`) | Restyled to design 1k, merged `afa6c5e` |
 | Vessel meter | New `ui/vessel-meter.tsx`, battery meter gone, merged `eff7f94` |
 | Chrome (bottom tab bar) | Not started — Wave 2 |
-| Form controls to 56px | **Deferred**, blocked on undrawn designs |
-| Undesigned screens | **Blocked** — no drawings exist |
+| Form controls to 56px | **Unblocked** — build from `1l`/`1m`, not yet started |
+| Plan / buzz picker | **Unblocked** — `1n`/`1o` supersede `1c` |
+| Wave 4 screens | **Blocked** — no drawings exist |
 
 **The last red and green are out of the product.** Three of the five recorded visual violations in
 `docs/visual/01-current-state.md` are now fixed.
@@ -49,15 +50,18 @@ largest unverified area and is a deliberate choice, not an oversight.
 
 ## Unresolved risks
 
-1. **Half the app has no design entity.** The 2026-08-08 Claude Design export brought **no new
-   design ids** — still only 1b–1k. The brief in `docs/visual/03-design-requests.md` is unanswered,
-   so W1-C and Wave 4 stay blocked. Everything else in Wave 2 can proceed without it.
+1. **Wave 4 has no design entity.** The second 2026-08-08 export delivered `1l`/`1m` (form
+   primitives) and `1n`/`1o` (four-band picker), unblocking **W1-C and W2-B**. Still undrawn:
+   onboarding, Profile, drink picker, auth, menu scanner, establishment browsing — so Wave 4 alone
+   stays blocked. See `docs/visual/03-design-requests.md`.
 2. **Wave 1 changed shared primitives globally**, so screens with no redesign step of their own
    (`Auth`, `MenuScannerTab`, `StatsForm`, `DrinkFilterPopover`, admin) now mix 56px buttons with
-   40px inputs. Accepted cost, closes when §A is drawn.
-3. **A design export can silently regress in-repo amendments.** This export deleted both 2026-08-06
-   README amendments (level-7 cap, four-band table, hidden nudge pair) because they were never sent
-   upstream. Restored this session. Check for this on every future export.
+   40px inputs. Accepted cost; `1l`/`1m` now exist, so W1-C closes it whenever it runs.
+3. **A design export can silently regress in-repo amendments.** The first 2026-08-08 export deleted
+   both 2026-08-06 README amendments because they were never sent upstream; they were restored. The
+   second export removed them again, but that time correctly — `1n`/`1o` draw their content and
+   supersede `1c`. Distinguish the two cases on every future export: deleted-and-drawn is a
+   promotion, deleted-and-not-drawn is a regression to restore.
 4. The `entries` reduce in `DrinksTab` duplicates the volume/ABV computation near
    `DrinksTab.tsx:198–235`, and `VesselMeter` recomputes `plannedMl` independently of
    `pureAlcoholChosen`. They agree today; they could drift.
@@ -84,10 +88,11 @@ Reuse rather than respawn — both worktrees are merged, clean, and already have
 - DeepSeek `a0b2fcaa-5bbb-4076-97e5-680928a1e542` — opencode, `traycer-redesign-step2-primitives`
 - Luna `da47f88c-30cb-4b0e-ae9a-ac0b4d15ed74` — codex, `traycer-w1b-vessel-meter`
 
-Codex quota was ~80% for the week. `screens/*.html` is plain text, so DeepSeek can implement
+Codex quota refreshed 2026-08-08. `screens/*.html` is plain text, so DeepSeek can implement
 designed screens without visual input; reserve Luna for genuine appearance judgement.
 
 ## Next step
 
-Wave 2 — bottom tab bar, Plan/buzz picker (1c), Timeline (1d). Three specs, disjoint file sets,
-parallelisable. Full continuation and prompt in `tasks/next_session_kickoff.md`.
+**Four** specs with disjoint file sets, all parallelisable: W1-C form controls (`1l`/`1m`),
+W2-A bottom tab bar, W2-B Plan/buzz picker (**`1n`/`1o`**, which supersede `1c`), W2-C Timeline
+(`1d`). Full continuation and prompt in `tasks/next_session_kickoff.md`.

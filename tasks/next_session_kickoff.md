@@ -89,10 +89,8 @@ need three parallel specs.
 
 - **Do not push.** Enforced by `permissions.deny`. `main` is ~22 commits ahead of `origin/main`,
   deliberately.
-- **W1-C (form controls to the touch scale) is deferred, not forgotten.** It is blocked on §A of the
-  design request. Building it now means inventing values — rank 6 on the ladder.
-- **Wave 4 (undesigned screens) is blocked** on the same request. The 2026-08-08 export brought **no
-  new design ids** — still only 1b–1k — so nothing there is unblocked yet.
+- **Wave 4 (undesigned screens) is still blocked.** Onboarding, Profile, drink picker, auth, menu
+  scanner and establishment browsing have no drawing. Do not build them from tokens alone.
 - Do not start wind-down/engine work without raising the test-runner question; vitest needs
   explicit approval.
 - Not in scope: auth, menu scanner, establishment browsing, a `DrinksTab.tsx` refactor beyond the
@@ -111,11 +109,21 @@ need three parallel specs.
 ```text
 Continue the DrinkSmart whole-app redesign with Wave 2, per docs/visual/02-planned-changes.md.
 
-Wave 2 is three specs with disjoint file sets, so they can run in parallel without interfering:
+Four specs with disjoint file sets, so they can all run in parallel without interfering:
 
+  W1-C  form controls           src/components/ui/{input,select,textarea,dialog,popover}.tsx
   W2-A  bottom tab bar          Dashboard.tsx, src/components/ui/tabs.tsx
-  W2-B  Plan / buzz picker (1c) src/components/tabs/PlanTab.tsx, src/data/buzzLevels.ts
+  W2-B  Plan / buzz picker      src/components/tabs/PlanTab.tsx, src/data/buzzLevels.ts
   W2-C  Timeline (1d)           src/components/tabs/TimelineTab.tsx, SortableTimelineItem.tsx
+
+W1-C was blocked until 2026-08-08 and is now unblocked: build it from screens/1l-form-primitives,
+plus 1m-sheet-radio-time-toast for sheet, radio group, word-stops, time picker and toast. Doing it
+early matters — every screen currently mixes 56px buttons with 40px inputs.
+
+W2-B builds from screens/1n-buzz-picker-four-band and 1o-buzz-picker-heavy. NOT from 1c, which
+README section 1n/1o supersedes outright. The two frames are a pair: 1o exists so you can verify
+that hiding the softer/stronger nudge pair on the single-level Heavy band does not move the 64px
+primary action. Check that offset across both frames — it is the acceptance criterion.
 
 Read docs/visual/01-current-state.md and 02-planned-changes.md first, then AGENTS.md, CLAUDE.md and
 docs/decisions.md. Take every value from design_handoff_drinksmart/screens/*.html, including the
