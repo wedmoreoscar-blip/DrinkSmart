@@ -402,41 +402,98 @@ export function pruneStaleActionState(
  * Deterministic rescheduling of the existing drink set. Consumed entries
  * never move. Kept, unconsumed entries scheduled strictly after `now` remain
  * absolute anchors; any unconsumed entry scheduled at/before `now` reflows to
- * no earlier than `now`. Later entries redistribute monotonically around
- * anchors, advancing the plan end rather than colliding.
+ * no earlier than `now`, even when its drink selection is kept. Flexible
+ * entries redistribute monotonically around the anchors, compressing into the
+ * window before an anchor rather than displacing it, and advancing the plan
+ * end rather than colliding.
+ *
+ * `keptSourceIds` carries the locked drink ids. Omitting it means no entry is
+ * an anchor and every unconsumed entry is treated as remaining work.
  */
 export function rescheduleTimeline(input: {
   timeline: TimelineEntry[];
   consumed: ConsumedSnapshot[];
   delayedMinutes: Record<string, number>;
+  keptSourceIds?: string[];
   now: Date;
   targetEndTime: Date | null;
 }): { timeline: TimelineEntry[]; effectivePlanEndTime: Date | null } {
   const { timeline, consumed, delayedMinutes, now, targetEndTime } = input;
   const consumedIds = new Set(consumed.map((snapshot) => snapshot.entryId));
+  const keptSources = new Set(input.keptSourceIds ?? []);
   const nowMs = now.getTime();
+
+  const delayMsOf = (entryId: string): number => {
+    const minutes = delayedMinutes[entryId];
+    return typeof minutes === "number" && Number.isFinite(minutes) && minutes > 0
+      ? minutes * 60000
+      : 0;
+  };
+  const durationMsOf = (entry: TimelineEntry): number =>
+    entry.kind === "break" ? entry.durationMinutes * 60000 : entry.intervalMinutes * 60000;
+
+  // Classify each entry as immovable or flexible. A consumed entry never
+  // moves. A kept, unconsumed entry whose delayed time is strictly after
+  // `now` is an absolute anchor. Anything else unconsumed — including a kept
+  // entry scheduled at or before `now` — is remaining work that reflows.
+  const fixedTimeMs: (number | null)[] = timeline.map((entry) => {
+    if (consumedIds.has(entry.entryId)) return entry.time.getTime();
+    if (entry.kind !== "alcohol" || !keptSources.has(entry.drinkId)) return null;
+    const anchored = entry.time.getTime() + delayMsOf(entry.entryId);
+    return anchored > nowMs ? anchored : null;
+  });
+
   const rescheduled: TimelineEntry[] = [];
   let floor = nowMs;
+  let index = 0;
 
-  for (const entry of timeline) {
-    if (consumedIds.has(entry.entryId)) {
-      floor = Math.max(floor, entry.time.getTime());
-      rescheduled.push({ ...entry });
+  while (index < timeline.length) {
+    const fixedAt = fixedTimeMs[index];
+
+    if (fixedAt !== null) {
+      const entry = timeline[index];
+      // An anchor yields only to something already immovably later; it is
+      // never pulled backwards.
+      const placed = Math.max(fixedAt, floor);
+      rescheduled.push({ ...entry, time: new Date(placed) });
+      floor = consumedIds.has(entry.entryId)
+        ? Math.max(floor, placed)
+        : placed + durationMsOf(entry);
+      index += 1;
       continue;
     }
 
-    const delayedMs =
-      typeof delayedMinutes[entry.entryId] === "number" &&
-      Number.isFinite(delayedMinutes[entry.entryId]) &&
-      delayedMinutes[entry.entryId] > 0
-        ? delayedMinutes[entry.entryId] * 60000
-        : 0;
+    // Gather the run of flexible entries up to the next immovable one, then
+    // lay them out between the current floor and that anchor.
+    let end = index;
+    while (end < timeline.length && fixedTimeMs[end] === null) end += 1;
+    const nextFixedMs = end < timeline.length ? (fixedTimeMs[end] as number) : null;
 
-    const entryTime = Math.max(entry.time.getTime() + delayedMs, floor);
-    const durationMs =
-      entry.kind === "break" ? entry.durationMinutes * 60000 : entry.intervalMinutes * 60000;
-    floor = entryTime + durationMs;
-    rescheduled.push({ ...entry, time: new Date(entryTime) });
+    const naturalTimes: number[] = [];
+    let cursor = floor;
+    for (let k = index; k < end; k += 1) {
+      const placed = Math.max(timeline[k].time.getTime() + delayMsOf(timeline[k].entryId), cursor);
+      naturalTimes.push(placed);
+      cursor = placed + durationMsOf(timeline[k]);
+    }
+
+    if (nextFixedMs === null || cursor <= nextFixedMs) {
+      for (let k = index; k < end; k += 1) {
+        rescheduled.push({ ...timeline[k], time: new Date(naturalTimes[k - index]) });
+      }
+      floor = cursor;
+    } else {
+      // The run overruns the anchor. Compress it evenly into the remaining
+      // window rather than displacing the anchor.
+      const count = end - index;
+      const step = Math.max(0, nextFixedMs - floor) / count;
+      for (let k = index; k < end; k += 1) {
+        rescheduled.push({ ...timeline[k], time: new Date(floor + step * (k - index)) });
+      }
+      floor = nextFixedMs;
+    }
+
+    index = end;
   }
 
   let effectivePlanEndTime: Date | null = targetEndTime;

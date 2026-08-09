@@ -399,7 +399,10 @@ describe("rescheduleTimeline", () => {
     expect(result.timeline[0].time.getTime()).toBe(0);
   });
 
-  it("redistributes later entries monotonically around preserved anchors", () => {
+  // Renamed during acceptance: this fixture contains no kept entry and so no
+  // anchor. It covers the no-anchor case only; real anchor coverage is in the
+  // "absolute anchors" block below.
+  it("leaves later unconsumed entries alone when the floor never reaches them", () => {
     const timeline: TimelineEntry[] = [
       {
         kind: "alcohol",
@@ -792,5 +795,100 @@ describe("timelineEntryId", () => {
     expect(sourceDrinkIdFromEntryId("drink-abc:unit:2")).toBe("drink-abc");
     expect(sourceDrinkIdFromEntryId("no-separator")).toBeNull();
     expect(sourceDrinkIdFromEntryId(":unit:1")).toBeNull();
+  });
+});
+
+// Derived from spec Req 3 during acceptance, not from the implementation.
+// The submitted suite named a test for this clause but exercised no anchor,
+// and the clause was absent: rescheduleTimeline took no kept ids at all.
+describe("rescheduleTimeline absolute anchors", () => {
+  const MIN = 60000;
+  const at = (
+    entryId: string,
+    sourceId: string,
+    minutes: number,
+    intervalMinutes: number
+  ): TimelineEntry => ({
+    kind: "alcohol",
+    entryId,
+    drinkId: sourceId,
+    drinkName: sourceId,
+    unitNumber: 1,
+    totalUnits: 1,
+    time: new Date(minutes * MIN),
+    pureAlcoholMl: 10,
+    percentageOfTarget: 25,
+    icon: "",
+    unit: "ml",
+    intervalMinutes,
+  });
+
+  const run = (
+    timeline: TimelineEntry[],
+    keptSourceIds: string[],
+    nowMinutes: number,
+    delayedMinutes: Record<string, number> = {}
+  ) =>
+    rescheduleTimeline({
+      timeline,
+      consumed: [],
+      delayedMinutes,
+      keptSourceIds,
+      now: new Date(nowMinutes * MIN),
+      targetEndTime: new Date(120 * MIN),
+    });
+
+  it("holds a kept, unconsumed entry scheduled strictly after now", () => {
+    // A reflows from 0 to now=10 and its 30-minute interval would push the
+    // floor to 40, which previously dragged the kept entry B from 30 to 40.
+    const result = run([at("a1", "A", 0, 30), at("b1", "B", 30, 5)], ["B"], 10);
+    expect(result.timeline[0].time.getTime()).toBe(10 * MIN);
+    expect(result.timeline[1].time.getTime()).toBe(30 * MIN);
+  });
+
+  it("treats a kept entry scheduled at or before now as remaining work", () => {
+    // Kept selection does not exempt it: it is in the past, so it reflows.
+    const result = run([at("b1", "B", 5, 5)], ["B"], 10);
+    expect(result.timeline[0].time.getTime()).toBe(10 * MIN);
+  });
+
+  it("compresses a flexible run into the window before an anchor", () => {
+    // Two flexible entries with 30-minute intervals cannot fit before the
+    // anchor at 30; they compress rather than displacing it.
+    const result = run(
+      [at("a1", "A", 0, 30), at("c1", "C", 5, 30), at("b1", "B", 30, 5)],
+      ["B"],
+      0
+    );
+    expect(result.timeline[2].time.getTime()).toBe(30 * MIN);
+    expect(result.timeline[0].time.getTime()).toBe(0);
+    expect(result.timeline[1].time.getTime()).toBe(15 * MIN);
+  });
+
+  it("never emits decreasing timestamps around anchors", () => {
+    const result = run(
+      [at("a1", "A", 0, 45), at("c1", "C", 2, 45), at("b1", "B", 20, 5), at("d1", "D", 25, 5)],
+      ["B"],
+      0
+    );
+    const times = result.timeline.map((entry) => entry.time.getTime());
+    for (let i = 1; i < times.length; i += 1) {
+      expect(times[i]).toBeGreaterThanOrEqual(times[i - 1]);
+    }
+  });
+
+  it("moves a delayed anchor by exactly its delay and then holds it there", () => {
+    const result = run(
+      [at("a1", "A", 0, 30), at("b1", "B", 30, 5)],
+      ["B"],
+      10,
+      { b1: 15 }
+    );
+    expect(result.timeline[1].time.getTime()).toBe(45 * MIN);
+  });
+
+  it("treats every unconsumed entry as flexible when no kept ids are supplied", () => {
+    const result = run([at("a1", "A", 0, 30), at("b1", "B", 30, 5)], [], 10);
+    expect(result.timeline[1].time.getTime()).toBe(40 * MIN);
   });
 });

@@ -376,6 +376,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       timeline: base.drinkTimeline,
       consumed: prev.consumedTimelineEntries,
       delayedMinutes: prev.delayedEntryMinutes,
+      keptSourceIds: prev.lockedDrinkIds,
       now,
       targetEndTime: drinkingTargetTime,
     });
