@@ -1,6 +1,10 @@
 # Agent Selection
 
-Canonical source for which agent runs which role. Traycer reads its copy from the machine-global
+Canonical source for which agent runs which role. For *how* a delegation runs end to end —
+provisioning, commissioning, review, and integration sequencing — see
+`docs/workflows/delegation.md`, which this file defers to on ordering.
+
+Traycer reads its copy from the machine-global
 `~/.traycer/agent-selection-guide.md` (served by `traycer agent selection-guide`); that file is a
 mirror of this one. **Edit this file, then copy it across.** `tools/check-agent-setup` reports
 drift between the two.
@@ -130,8 +134,19 @@ was oversized — split it rather than resuming the agent.
 ## Isolation
 
 Every implementer runs in its own worktree from `traycer worktree create`, never the workspace
-folder. Delete the worktree after `speccheck` passes and the work is integrated. Note that `gui`
-agents release their worktree when idle; `tui` agents pin it until their process exits.
+folder. Note that `gui` agents release their worktree when idle; `tui` agents pin it until their
+process exits.
+
+**Keep the worktree after integration. Do not delete it.** A clean worktree that is level with
+`main` is a provisioned asset — dependencies installed, agent context cached — and reusing it is
+what makes the warm route above cheap. Deleting it forces a full create/install/configure/verify
+cycle for the next delegation, which is the cost the warm-reuse rule exists to avoid. The
+precondition for reuse is *clean and current*, not merely *exists*: bring it level with `main` by
+merge before the next dispatch, and if it is dirty or cannot be synchronized safely, stop and ask
+rather than forcing it.
+
+This supersedes the earlier instruction to delete the worktree once `speccheck` passed, which
+contradicted the warm-reuse rule at the top of this file (corrected 2026-08-09).
 
 ## Permission and effort layers
 

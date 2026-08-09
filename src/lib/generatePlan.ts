@@ -7,6 +7,8 @@ import {
   type CatalogItem,
   type DrinkUnit,
 } from "@/lib/planCatalog";
+import { convertToMl } from "@/lib/timelineHelpers";
+import { OZ_ML } from "@/lib/drinkConstants";
 import type { PreferenceData } from "@/lib/preferences";
 import { greedyPlanFallback } from "@/lib/greedyPlanFallback";
 
@@ -35,6 +37,12 @@ export type LockedDrink = {
 };
 
 export type GeneratePlanInput = {
+  /**
+   * Remaining pure-ethanol budget (mL) for newly generated, replaceable drinks.
+   * Any consumed or kept/locked ethanol has already been subtracted by the
+   * caller; `locked_drinks` is context describing drinks that must not be
+   * re-included in this remaining budget and is never subtracted again.
+   */
   target_ethanol_ml: number;
   duration_minutes: number;
   preferences: PreferenceData;
@@ -168,7 +176,7 @@ function topUpIfUnderfilled(
 
   // No AI picks at all → full greedy.
   if (plan.drinks.length === 0) {
-    const greedy = greedyPlanFallback({ ...input, locked_drinks: [] });
+    const greedy = greedyPlanFallback(input);
     if (greedy.drinks.length === 0) return plan;
     console.info(
       `generate-plan: AI returned no drinks, used full greedy (${greedy.drinks.length} drinks)`
@@ -222,6 +230,14 @@ function topUpIfUnderfilled(
 /**
  * Convert an AI-chosen drink back into the AppContext DrinkEntry shape.
  * Returns null if the catalog_id can't be resolved.
+ *
+ * `GeneratedDrink.ml` is always millilitres, regardless of unit. For ml/oz the
+ * client quantity is total volume: (ml ?? typical_ml) × quantity, stored as ml
+ * or converted to ounces with OZ_ML. For shots/pints/glass the quantity is the
+ * serving count, which preserves the server-recomputed ethanol only when the
+ * client's unit volume (convertToMl) equals the catalog serving. When they
+ * differ, the exact total volume is stored in ml instead so the client ethanol
+ * always matches the server-recomputed amount.
  */
 export function generatedDrinkToEntry(
   generated: GeneratedDrink,
@@ -234,20 +250,29 @@ export function generatedDrinkToEntry(
   quantity: string;
   unit: DrinkUnit;
   isCustom: boolean;
+  portions?: number;
 } | null {
   const item = catalog.find((c) => c.id === generated.catalog_id);
   if (!item) return null;
 
   const unit = generated.unit ?? getCategoryDefaultUnit(item.category);
 
+  const servingCount = generated.quantity || 1;
   let quantity: string;
+  let entryUnit = unit;
   if (unit === "ml" || unit === "oz") {
-    // For volume-based units the DrinkEntry quantity IS the volume
-    const ml = generated.ml ?? item.typical_ml;
-    quantity = ml.toString();
+    // For volume-based units the DrinkEntry quantity IS the total volume.
+    const totalMl = (generated.ml ?? item.typical_ml) * servingCount;
+    quantity = unit === "oz" ? (totalMl / OZ_ML).toString() : totalMl.toString();
   } else {
-    // For shots/pints/glass the DrinkEntry quantity is the count
-    quantity = (generated.quantity || 1).toString();
+    // For shots/pints/glass the DrinkEntry quantity is the count.
+    const totalMl = item.typical_ml * servingCount;
+    if (convertToMl(1, unit) === item.typical_ml) {
+      quantity = servingCount.toString();
+    } else {
+      quantity = totalMl.toString();
+      entryUnit = "ml";
+    }
   }
 
   return {
@@ -256,8 +281,11 @@ export function generatedDrinkToEntry(
     drink: item.name,
     customABV: item.abv.toString(),
     quantity,
-    unit,
+    unit: entryUnit,
     isCustom: false,
+    portions: (entryUnit === "ml" || entryUnit === "oz") && servingCount > 1
+      ? servingCount
+      : undefined,
   };
 }
 

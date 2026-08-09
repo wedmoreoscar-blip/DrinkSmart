@@ -20,13 +20,32 @@ spec written with the `writespec` skill; the spec names the only files the imple
 - Verify every delegated diff with the `speccheck` skill before accepting it: enumerate the spec's
   clauses, map clauses to hunks and hunks to clauses, and write acceptance tests from the spec, not
   the code.
-- The checker fixes small failures inline; work goes back to the implementer only for a missing
-  clause or a wrong approach.
+- **The checker owns the repair loop after handback.** Fix localized failures and their regression
+  tests inline when the production correction is roughly twenty changed lines or less and stays
+  inside the commissioned allowlist. The original model assignment, task category, warm context,
+  or implementer availability never justifies another round trip.
+- Re-contact an implementer only for a whole missing clause, a substantially wrong approach, a
+  required scope/authority expansion, or a capability/infrastructure gap. Before sending anything,
+  state which exception applies and the concrete evidence. Re-engaging a warm agent remains new
+  delegated work and requires the user's confirmation.
 - Retain focused regression tests when they protect real behavior.
 - Integrate only spec-checked work into a clean, non-overlapping target. Stop if the target moved
   incompatibly or user changes overlap.
-- Re-run relevant verification from the integrated checkout before reporting integration.
-- Keep the delegated worktree until integration verification succeeds.
+- **Review the merged tree, not the worktree.** Merge the delegated branch into an `integration`
+  branch first, then run `speccheck` and repair there, so every fix is made against the code that
+  will actually ship. `main` advances only by fast-forward from a verified `integration`.
+- **Run the full verification profile once, after the repairs, not before them.** A cheap
+  test-only run during `speccheck` is diagnostic evidence; the full baseline is the confirmation
+  gate. Skip it entirely when the merge was a fast-forward and the repair changed nothing, because
+  the tree is then identical to the one already tested.
+- **Keep the delegated worktree and its agent warm after integration.** Do not delete either, and
+  do not reinstall dependencies into a warm worktree unless the merge actually changed
+  `package-lock.json`. Bring the worktree level with `main` by merge before its next dispatch.
+- **Never merge into a worktree whose agent is mid-task.** Sync idle, clean worktrees eagerly;
+  defer a busy one until just before its next dispatch. A merge that lands under a working agent
+  shifts its tree and produces failures that are hard to attribute.
+
+`docs/workflows/delegation.md` holds the full fifteen-step sequence these bullets summarize.
 
 ## External and destructive operations
 

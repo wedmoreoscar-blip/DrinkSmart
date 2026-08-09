@@ -28,6 +28,11 @@ coding agent, whichever vendor or harness runs it.
 - Delegate through Traycer. Before dispatching an implementer, write the spec with `writespec`;
   after the implementation returns, verify it with `speccheck` before accepting. Keep tiny
   context-cached changes inline when delegation would cost more than the work.
+- After an implementation returns, the `speccheck` reviewer owns localized repairs and regression
+  tests. Never send a small allowlisted correction back merely because the original task category
+  belonged to that model. Re-contacting the implementer requires a whole missing clause, a
+  substantially wrong approach, a scope/authority expansion, or a capability/infrastructure gap;
+  state the exception before messaging and obtain confirmation before reusing a warm agent.
 - `docs/workflows/agent_selection.md` decides which agent runs which role: a Claude Code
   orchestrator, DeepSeek V4 Flash via opencode as the default implementer, and GPT-5.6 Luna via
   codex only for visual input or spatial reasoning. It is the canonical copy of the guide Traycer
@@ -35,6 +40,11 @@ coding agent, whichever vendor or harness runs it.
 - Every delegation spec states its verification baseline explicitly (see
   `docs/workflows/verification.md`): which commands must pass, which are known-failing and must not
   change, and which are `BLOCKED` on unavailable infrastructure. The implementer cannot ask.
+- `docs/workflows/delegation.md` is the canonical fifteen-step path for a single delegation, from
+  provisioning through integration. It is built to cost one review pass, one repair loop, and one
+  full baseline run per delegation: review the merged tree on an `integration` branch, repair
+  inline, verify once after the repairs, and advance `main` only by fast-forward. Delegated
+  worktrees and their agents are kept warm and re-synchronized, never deleted after acceptance.
 - Follow `docs/workflows/change_safety.md` for writes, commits, worktrees, and integration. Follow
   `docs/workflows/verification.md` for evidence and live-backend limitations.
 - Never push, deploy Supabase functions, apply migrations to a remote database, rotate secrets, or
@@ -82,9 +92,10 @@ coding agent, whichever vendor or harness runs it.
 - Production build: `npm run build`
 - Project verification profiles: `tools/test-project quick|build|full`
 
-No automated unit suite currently covers the new deterministic engine. Never describe typechecking or
-a build as functional verification. Remote Supabase, edge-function, notification, and mobile checks are
-`BLOCKED` until their real infrastructure is available.
+Vitest now covers W3-A1 planner budgets, generated-unit normalization, request fingerprints, planning
+windows, and fallback behavior. W3-A2 must extend that suite to the session engine itself. Never
+describe typechecking or a build as functional verification. Remote Supabase, edge-function,
+notification, and mobile checks are `BLOCKED` until their real infrastructure is available.
 
 ## Native workflows
 
