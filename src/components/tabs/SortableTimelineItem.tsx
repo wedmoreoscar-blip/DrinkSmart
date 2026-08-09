@@ -89,12 +89,12 @@ export const SortableTimelineItem = ({
   const displayName = getDisplayName(entry);
   const isBreak = entry.pureAlcoholMl === 0 || displayName.toLowerCase().includes("water");
   const isLockedRow = isLocked && !isPast && !isCurrent;
-  const unitLabel = getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit);
+  const unitLabel = getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit).replace(/glasss$/, "glass");
   const volumeLabel = getVolumeLabel(entry);
   const volumeMl = getVolumeMl(entry);
   const abv = volumeMl && entry.pureAlcoholMl > 0 ? (entry.pureAlcoholMl / volumeMl) * 100 : null;
 
-  let detail = isBreak ? "break" : `${unitLabel} · ${volumeLabel || ""}`.trim();
+  let detail = isBreak ? `${volumeLabel || ""} · break`.trim() : `${unitLabel} · ${volumeLabel || ""}`.trim();
   if (isPast && !isCurrent && !isBreak) detail = `${unitLabel} · had`;
   if (isLockedRow) detail = `${volumeLabel || unitLabel} ${unitLabel} · stays if you re-plan`;
   if (isCurrent && !isBreak) {
@@ -126,10 +126,12 @@ export const SortableTimelineItem = ({
       <div
         className={
           isCurrent
-            ? "grid min-h-[96px] grid-cols-[68px_34px_minmax(0,1fr)] items-start rounded-lg bg-[#1c1e2c] py-3.5 shadow-[0_0_0_1px_#9184d9]"
+            ? "mx-[-6px] mb-[10px] grid min-h-[96px] grid-cols-[68px_34px_minmax(0,1fr)] items-start rounded-lg bg-[#1c1e2c] py-3.5 shadow-[0_0_0_1px_#9184d9]"
             : isFuture
               ? "grid min-h-[70px] grid-cols-[62px_34px_minmax(0,1fr)_44px] items-start"
-              : "grid min-h-[70px] grid-cols-[62px_34px_minmax(0,1fr)] items-start"
+              : isBreak
+                ? "grid min-h-[64px] grid-cols-[62px_34px_minmax(0,1fr)] items-start"
+                : "grid min-h-[70px] grid-cols-[62px_34px_minmax(0,1fr)] items-start"
         }
       >
         <div

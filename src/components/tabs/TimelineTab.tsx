@@ -64,6 +64,9 @@ const getVolumeLabel = (entry: TimelineEntry) => {
   }
 };
 
+const getUnitLabel = (entry: TimelineEntry) =>
+  getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit).replace(/glasss$/, "glass");
+
 const TimelineTab = ({ onNext }: TimelineTabProps) => {
   const { state, reorderTimelineEntries, toggleLockedDrink, updateDrinks } = useAppContext();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -152,7 +155,7 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
     ? nextDrink?.customName || nextDrink?.drink || getDisplayName(nextEntry)
     : "No upcoming drink";
   const nextUnit = nextEntry
-    ? getUnitDisplayText(nextEntry.unitNumber, nextEntry.totalUnits, nextEntry.unit)
+    ? getUnitLabel(nextEntry)
     : "Plan ends";
   const nextVolume = nextEntry ? getVolumeLabel(nextEntry) : null;
   const nextDetail = nextEntry
@@ -250,93 +253,6 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
           }}
         />
 
-        <div className="mb-4 space-y-3">
-          <Card className="border border-border bg-card p-4 shadow-none">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-3">
-                {(isNative ? notificationsEnabled : webRemindersEnabled) ? (
-                  <Bell className="h-5 w-5 shrink-0 text-primary" />
-                ) : (
-                  <BellOff className="h-5 w-5 shrink-0 text-muted-foreground" />
-                )}
-                <div className="min-w-0">
-                  <div className="text-body">Drink Reminders</div>
-                  <div className="mt-1 text-[15px] leading-[1.3] text-muted-foreground">
-                    {isNative
-                      ? "Get notified when it’s time for your next drink"
-                      : "Get toast alerts when it’s time for your next drink"}
-                  </div>
-                </div>
-              </div>
-              <Switch
-                checked={isNative ? notificationsEnabled : webRemindersEnabled}
-                onCheckedChange={isNative ? handleNotificationToggle : handleWebRemindersToggle}
-                disabled={isNative && notificationsLoading}
-              />
-            </div>
-          </Card>
-
-          <Card className="border border-border bg-card p-4 shadow-none">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[15px] text-muted-foreground">Quick add:</span>
-              {lastFilledDrink && (
-                <Button size="sm" variant="outline" onClick={handleAddLast} className="min-h-14 gap-1">
-                  <RotateCcw className="h-3 w-3" />
-                  Last drink
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                className="min-h-14 gap-1"
-                onClick={() =>
-                  quickAdd({
-                    category: "shots",
-                    drink: "Vodka Shot",
-                    customABV: "37.5",
-                    quantity: "1",
-                    unit: "shots",
-                  })
-                }
-              >
-                <Plus className="h-3 w-3" /> Shot
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="min-h-14 gap-1"
-                onClick={() =>
-                  quickAdd({
-                    category: "beer_pint",
-                    drink: "Carling",
-                    customABV: "4.0",
-                    quantity: "1",
-                    unit: "pints",
-                  })
-                }
-              >
-                <Plus className="h-3 w-3" /> Beer
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="min-h-14 gap-1"
-                onClick={() =>
-                  quickAdd({
-                    category: "wine_red",
-                    drink: "House Red",
-                    customABV: "12",
-                    quantity: "1",
-                    unit: "glass",
-                  })
-                }
-              >
-                <Plus className="h-3 w-3" /> Wine
-              </Button>
-            </div>
-          </Card>
-        </div>
-
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext
             items={state.drinkTimeline.map((entry) => `${entry.drinkId}-${entry.unitNumber}`)}
@@ -351,7 +267,7 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
                 return (
                   <div key={`${entry.drinkId}-${entry.unitNumber}`}>
                     {index === nextEntryIndex && (
-                      <div className="my-1.5 flex items-center gap-2.5">
+                      <div className="mt-[6px] mb-[10px] flex items-center gap-2.5">
                         <div className="w-[62px] flex-none text-label font-medium uppercase text-primary-hover">
                           now
                         </div>
@@ -378,7 +294,7 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
               })}
 
               {nextEntryIndex === -1 && (
-                <div className="my-1.5 flex items-center gap-2.5">
+                <div className="mt-[6px] mb-[10px] flex items-center gap-2.5">
                   <div className="w-[62px] flex-none text-label font-medium uppercase text-primary-hover">
                     now
                   </div>
@@ -391,6 +307,93 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
                   />
                 </div>
               )}
+
+              <div className="mb-4 space-y-3">
+                <Card className="border border-border bg-card p-4 shadow-none">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      {(isNative ? notificationsEnabled : webRemindersEnabled) ? (
+                        <Bell className="h-5 w-5 shrink-0 text-primary" />
+                      ) : (
+                        <BellOff className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-body">Drink Reminders</div>
+                        <div className="mt-1 text-[15px] leading-[1.3] text-muted-foreground">
+                          {isNative
+                            ? "Get notified when it’s time for your next drink"
+                            : "Get toast alerts when it’s time for your next drink"}
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={isNative ? notificationsEnabled : webRemindersEnabled}
+                      onCheckedChange={isNative ? handleNotificationToggle : handleWebRemindersToggle}
+                      disabled={isNative && notificationsLoading}
+                    />
+                  </div>
+                </Card>
+
+                <Card className="border border-border bg-card p-4 shadow-none">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[15px] text-muted-foreground">Quick add:</span>
+                    {lastFilledDrink && (
+                      <Button size="sm" variant="outline" onClick={handleAddLast} className="min-h-14 gap-1">
+                        <RotateCcw className="h-3 w-3" />
+                        Last drink
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-14 gap-1"
+                      onClick={() =>
+                        quickAdd({
+                          category: "shots",
+                          drink: "Vodka Shot",
+                          customABV: "37.5",
+                          quantity: "1",
+                          unit: "shots",
+                        })
+                      }
+                    >
+                      <Plus className="h-3 w-3" /> Shot
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-14 gap-1"
+                      onClick={() =>
+                        quickAdd({
+                          category: "beer_pint",
+                          drink: "Carling",
+                          customABV: "4.0",
+                          quantity: "1",
+                          unit: "pints",
+                        })
+                      }
+                    >
+                      <Plus className="h-3 w-3" /> Beer
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-14 gap-1"
+                      onClick={() =>
+                        quickAdd({
+                          category: "wine_red",
+                          drink: "House Red",
+                          customABV: "12",
+                          quantity: "1",
+                          unit: "glass",
+                        })
+                      }
+                    >
+                      <Plus className="h-3 w-3" /> Wine
+                    </Button>
+                  </div>
+                </Card>
+              </div>
 
               {state.drinkingTargetTime && (
                 <div className="grid min-h-[76px] grid-cols-[62px_34px_minmax(0,1fr)] items-start pt-1.5">

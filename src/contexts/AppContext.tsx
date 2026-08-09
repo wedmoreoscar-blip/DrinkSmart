@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { getBACForLevel } from "@/data/buzzLevels";
 import { drinkCategories } from "@/data/drinksData";
@@ -187,12 +187,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     state.drinkingTargetTime,
   ]);
 
-  const updateUserMetrics = (metrics: Partial<UserMetrics>) => {
+  const updateUserMetrics = useCallback((metrics: Partial<UserMetrics>) => {
     setState((prev) => ({
       ...prev,
       userMetrics: { ...prev.userMetrics, ...metrics },
     }));
-  };
+  }, []);
 
   const updateInebriationLevel = (level: number) => {
     const bacRange = getBACForLevel(level);
