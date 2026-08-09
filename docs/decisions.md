@@ -67,6 +67,13 @@ equally to lint, tests, and any future runner.
 - `speccheck` gates acceptance: enumerate clauses before reading the diff, map clauses to hunks and
   hunks to clauses, derive tests from the spec rather than the code, fix small failures inline, and
   hand back only for a missing clause or a wrong approach.
+- **Checker-owned repair loop (amended 2026-08-09).** Once an implementation is handed back, model
+  routing no longer applies: the checker fixes localized allowlisted failures and their regression
+  tests inline when the production correction is roughly twenty lines or less. Test lines do not
+  inflate a small fix into a delegation. The implementer may be re-contacted only for a whole
+  missing clause, a substantially wrong approach, required scope/authority expansion, or a missing
+  capability/infrastructure dependency. The checker must name the applicable exception and evidence
+  before messaging; warm-agent reuse still requires Oscar's confirmation.
 - The implementer never writes or modifies tests; the checker owns test authorship.
 - Delegated runs use Traycer-managed worktrees, never the workspace folder itself.
 - **Precedence over bundled Traycer skills.** The bundled `traycer-*` skills carry their own

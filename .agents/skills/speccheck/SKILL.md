@@ -36,12 +36,29 @@ any conditional clause, and anything the spec named as acceptance criteria.
 
 ## 5. Run and fix inline
 
-Run the tests. Fix failures directly with small targeted edits. Do not
-hand back to the implementer for anything under roughly twenty lines;
-the round trip costs more than the fix.
+Run the tests. Once the implementation is handed back, the checker owns the
+repair loop. The implementer's original model assignment, subject-matter
+category, warm context, or availability is no longer a reason to delegate a
+repair.
 
-Hand back only if the diff misses a whole clause, or the fix would mean
-rewriting the approach rather than correcting it.
+Fix localized failures directly, including their regression tests. Do not hand
+back anything within the commissioned allowlist that is roughly twenty changed
+production lines or less and does not replace the approach. Test lines do not
+make a small production fix "large". Finish all such fixes and verification in
+the current checker turn.
+
+Contact the implementer again only when at least one of these exceptions is
+true:
+
+1. a whole specification clause is absent;
+2. the implementation uses the wrong approach and needs a substantial rewrite;
+3. the repair requires files or authority outside the commissioned scope; or
+4. the checker lacks a required external capability or infrastructure.
+
+Before any repair message or follow-up task, state which numbered exception
+applies and the concrete evidence for it. If none applies, sending the message
+is a workflow violation. Re-engaging a warm agent is new delegated work and
+still requires the user's confirmation under the warm-agent rule.
 
 ## 6. Report
 
