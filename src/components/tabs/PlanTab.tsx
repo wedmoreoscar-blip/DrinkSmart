@@ -585,7 +585,7 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
 
         <Button
           size="act"
-          className="mt-3 w-full gap-2"
+          className="mt-3 w-full gap-2 text-[#b5abfc]"
           onClick={handleGenerate}
           disabled={genState === "loading"}
         >
