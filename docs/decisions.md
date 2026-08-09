@@ -65,15 +65,23 @@ equally to lint, tests, and any future runner.
   directions, checkable acceptance criteria, an explicit verification baseline, and the fixed
   scope/closing blocks appended verbatim.
 - `speccheck` gates acceptance: enumerate clauses before reading the diff, map clauses to hunks and
-  hunks to clauses, derive tests from the spec rather than the code, fix small failures inline, and
-  hand back only for a missing clause or a wrong approach.
-- **Checker-owned repair loop (amended 2026-08-09).** Once an implementation is handed back, model
-  routing no longer applies: the checker fixes localized allowlisted failures and their regression
-  tests inline when the production correction is roughly twenty lines or less. Test lines do not
-  inflate a small fix into a delegation. The implementer may be re-contacted only for a whole
-  missing clause, a substantially wrong approach, required scope/authority expansion, or a missing
-  capability/infrastructure dependency. The checker must name the applicable exception and evidence
-  before messaging; warm-agent reuse still requires Oscar's confirmation.
+  hunks to clauses, derive tests from the spec rather than the code, and repair inline. Clause
+  mapping happens **before** any test is written, because a missing clause is the one finding tests
+  cannot surface — a suite written against unimplemented work reports a failure, not a gap.
+- **Checker-owned repair loop (amended twice on 2026-08-09).** Once an implementation is handed
+  back, model routing no longer applies: the checker owns the repair. The twenty-line threshold and
+  the whole-missing-clause trigger are both **withdrawn**. The test is now the *size and kind* of
+  the remaining work — repair inline whenever it is implementable from the spec already written,
+  and re-contact only when completing it would mean **designing rather than repairing**, the
+  approach is substantially wrong, the repair needs scope or authority the spec did not grant, or
+  the checker lacks a required capability. A missing clause is not by itself grounds to hand back.
+  W3-A2 settled it: an entirely absent clause took ~70 production lines and six tests to complete
+  inline, plainly faster than a rebrief, a wait and a second review. Inline repair is nonetheless
+  usually *more* expensive in tokens, since the checker is the larger model; it buys latency, not
+  cost. Every inline repair is named in the acceptance record, because that note is the only
+  remaining signal that specs are routinely under-specifying the work. The checker must name the
+  applicable exception and evidence before messaging; warm-agent reuse still requires Oscar's
+  confirmation.
 - The implementer never writes or modifies tests; the checker owns test authorship.
 - Delegated runs use Traycer-managed worktrees, never the workspace folder itself.
 - **Precedence over bundled Traycer skills.** The bundled `traycer-*` skills carry their own
@@ -91,6 +99,69 @@ equally to lint, tests, and any future runner.
   baseline, and whether `speccheck` runs at all remain agent-side discipline.
 - The guard matches `traycer agent send` only. Delegation driven outside Traycer — `codex exec`,
   `deepseek -p` — bypasses it, and the matcher must be widened before either becomes a real route.
+
+## LOCKED — The delegation path is one document, tuned for speed (2026-08-09)
+
+- **`docs/workflows/delegation.md` is canonical** for how a delegation runs end to end.
+  `agent_selection.md` decides *which* agent; this decides *how*. The other workflow documents
+  defer to it on sequencing.
+- **Four design goals, in priority order:** warm worktrees stay warm; one full baseline per
+  delegation; one repair loop; fast-forwards only.
+- **Worktrees and their agents are never deleted after integration.** A clean worktree level with
+  `main` is a provisioned asset — dependencies installed, agent context cached. The previous
+  instruction to delete after `speccheck` contradicted the warm-reuse rule and is withdrawn.
+  Reinstall dependencies only when a merge actually changed `package-lock.json`; detect it, do not
+  assume it.
+- **Review happens on a scratch `integration` branch, never in the worktree and never on `main`.**
+  Repairs are then made against the tree that ships, and an unacceptable diff is discarded rather
+  than reverted. `main` advances only by fast-forward, so nothing is ever re-tested after merging.
+- **Exactly one full baseline, after the repairs, never before them.** A cheap test-only run during
+  `speccheck` is diagnostic; the baseline is the confirmation gate. **A green suite does not make
+  it redundant**: Vitest transforms with esbuild and does not typecheck. Demonstrated 2026-08-09 —
+  a deliberate `const bogus: number = "not a number"` left all 93 tests passing while `tsc -b`
+  reported `TS2322`. Typecheck is the irreplaceable element and the slowest, ~46s of ~79s.
+- **Disjoint specs are integrated as a batch**: merge every returned branch into one `integration`,
+  one `speccheck` pass, one baseline. If that baseline fails, repair inline again and re-run — do
+  **not** fall back to per-branch integration, which discards inline fixes already applied.
+  Per-branch integration is reserved for specs that genuinely share files.
+- **Verification belongs to the checker, never the implementer.** The implementer confirms only
+  that the code runs and the existing suite still passes. Tests written by the agent that wrote the
+  code encode the same blind spots, so a green suite can report success over a clause that was
+  never built — twice observed here: W3-A1's fixtures hid a unit mismatch, and W3-A2 shipped a test
+  named for the anchor clause that contained no anchor. `tools/writespec-guard` now denies a
+  commissioning send whose spec asks the implementer to write tests, with an `[implementer-tests]`
+  marker for the rare justified case.
+- **Baseline numbers are derived by running the command, never quoted from a document.** Checked
+  2026-08-09: four live documents still carried a superseded lint count, so a spec written from any
+  of them would have licensed a regression as "baseline held".
+- **Implementers run at `--permission-mode full_access`** (Oscar, 2026-08-09), superseding the
+  `auto_accept_edits` default. That mode hides stalls — an agent awaiting an unanswered prompt is
+  indistinguishable from one still working — which is tolerable under close watch and not when
+  several delegations run in parallel.
+
+## LOCKED — The final visual check is a separate workflow (2026-08-09)
+
+- **`docs/workflows/visual_check.md` governs it, and it is deliberately not the delegation path.**
+  A `writespec` spec would require first taking the screenshots and finding the defects, which is
+  the entire job being delegated, so Luna is briefed roughly and goes in blind.
+- **A Claude Design drawing is a precondition.** With nothing authoritative to compare against
+  there is no check, only taste. Scope is limited to screens listed Available in
+  `docs/visual/03-design-requests.md`.
+- **Halt and wait for Oscar on reaching the stage.** Recon first: one Luna reports findings and
+  fixes nothing, then headcount is agreed from the finding list rather than guessed.
+- **One shared worktree, not one each** — merging several divergent UI trees is the reconciliation
+  this phase cannot afford. Disjoint *file* ownership replaces the merge as the safety net, with
+  shared primitives owned by exactly one agent. Fixers coordinate by A2A for coherence, which no
+  partitioning can guarantee because coherence is a property of the whole.
+- **Self-verification is expected here, not forbidden.** Screenshot, fix, screenshot again is the
+  mechanism; the ban elsewhere exists because implementer-authored *tests* conceal omissions, which
+  an observation of the running app does not. Commissioning messages carry `[visual-check]`.
+- **Checking is casual; integration is not.** The orchestrator runs its own visual pass by driving
+  the app itself, then one full baseline and a fast-forward. No repair loops back to Luna.
+- **Playwright is a committed devDependency pinned to exactly `1.55.0`** — each release expects a
+  specific Chromium build, and `1.55.0` matches the cached `chromium-1187`. A range resolves to
+  `1.55.1`, wants `chromium-1193`, and fails at launch. It was previously ad-hoc and undeclared, so
+  an `npm install` pruned it and the capability vanished silently.
 
 ## LOCKED — Orchestrator and implementer roles (2026-08-08)
 

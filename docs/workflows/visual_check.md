@@ -236,7 +236,16 @@ land under the same guarantees as anything else.
 
 At the very end, once every fixer has reported:
 
-1. The orchestrator does its own visual pass over the app.
+1. **The orchestrator does its own visual pass — by looking, not by reading Luna's summary.**
+   Playwright is a committed devDependency, so drive the app directly: capture each drawn screen at
+   402×874 into `docs/visual/screenshots/<screen>/`, then open the PNGs and compare them against
+   `design_handoff_drinksmart/screens/`. Read back any stated number with `getComputedStyle` rather
+   than trusting a report that it was fixed.
+
+   This step is the independent check, and accepting a summary in place of looking would remove the
+   only independence the phase has — every other observation in it was made by the agents that
+   wrote the fixes. Capture these as the wave's **milestone** images: the pass and the archive
+   entry are the same act.
 2. Full baseline, once: `npm test`, `npm run typecheck`, `npm run lint` against its recorded count,
    `npm run build`, `git diff --check`.
 3. Fast-forward `main`. Commit locally. Never push.
