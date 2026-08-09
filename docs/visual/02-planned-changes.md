@@ -23,6 +23,14 @@ ownership is what prevents interference between simultaneous implementers, and i
 agent-to-agent chat unnecessary. Reserve a2a for cases where two implementers must agree on an
 interface — correct partitioning should avoid that.
 
+> **This applies to implementation, not to the final visual check.** That phase
+> (`docs/workflows/visual_check.md`) deliberately runs several Luna agents in *one shared
+> worktree* and expects them to talk to each other. The reasoning above still holds where it
+> matters — file ownership is disjoint there too, and is the only safety net, since a shared tree
+> has no merge to catch a collision. What changes is the purpose of a2a: not agreeing an
+> interface, but keeping the app visually coherent, which no partitioning can guarantee because
+> coherence is a property of the whole.
+
 ---
 
 ## Wave 1 — Foundation

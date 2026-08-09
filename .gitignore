@@ -20,6 +20,11 @@ dist-ssr
 .DS_Store
 .env 
 
+# Working screenshots from a visual check (docs/workflows/visual_check.md).
+# Milestone captures directly under docs/visual/screenshots/<screen>/ ARE committed —
+# they are the visual evolution record. Only the per-screen work/ scratch is ignored.
+docs/visual/screenshots/*/work/
+
 # Windows alternate-data-stream junk, created when files are downloaded
 # through Windows and unpacked into WSL. Recurs on every download.
 *:Zone.Identifier

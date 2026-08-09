@@ -35,6 +35,21 @@ implementation integrated
    Orchestrator final pass: visual + full baseline + fast-forward
 ```
 
+## 0. No drawing, no check
+
+**A Claude Design drawing is a precondition, not a nice-to-have.** A visual check compares the
+built screen against an authoritative picture of what it should be. With no drawing there is
+nothing to compare against, and the exercise degrades into an agent's taste — which is exactly
+what a design system exists to remove.
+
+So the scope of any visual pass is *only* the screens listed as Available in
+`docs/visual/03-design-requests.md`. Tell Luna this explicitly and give it the list. Left
+unstated, it will dutifully report dozens of findings on undesigned screens and the phase will be
+spent triaging noise.
+
+A screen that needs checking and has no drawing is not a visual-check problem. It is a blocked
+prerequisite: record it in `03-design-requests.md` and obtain the drawing first.
+
 ## 1. Halt and wait
 
 When the implementation work for the wave is integrated, stop. Tell Oscar the visual-check stage
@@ -143,13 +158,42 @@ not own is not your finding and not yours to fix — wait and re-shoot. A syntax
 component breaks everyone at once, which is a further reason shared components belong to exactly
 one agent.
 
+**The lock cannot go stale, but the server can die quietly.** `tools/agent-lock` holds a `flock` on
+a file descriptor that the kernel releases when the process ends, including on `SIGKILL` — verified
+2026-08-09 by killing a holder and immediately reacquiring. So there is no stale-lock failure mode
+and no cleanup to perform; the lock file remaining on disk is not the lock.
+
+The real risk is the opposite one: if the dev server dies, the lock frees silently and nobody
+notices, so agents keep capturing against a dead port and their screenshots fail or, worse, show a
+stale page. **Check liveness, not the lock** — confirm the port actually answers before dispatching
+the fixers, and again if an agent reports captures behaving strangely. Restarting the server is the
+orchestrator's job, not an agent's.
+
 ## 8. Checkpoint commits are the only undo
 
 One worktree, several concurrent writers, no merge safety net. If an agent wrecks something hours
 in, there is nothing to roll back to unless it was committed.
 
-The orchestrator commits a checkpoint after each fixer reports done. Agents do not commit. Do not
-commit captured screenshots — keep them outside the repository or ignored.
+The orchestrator commits a checkpoint after each fixer reports done. Agents do not commit.
+
+## 8a. Where screenshots go
+
+`docs/visual/screenshots/` is the archive; its `README.md` holds the full convention. In short:
+
+- **Working captures** go in `docs/visual/screenshots/<screen>/work/`, which is gitignored. Agents
+  write here freely and reference each other's captures by filename in A2A messages.
+- **Milestone captures** sit directly in `docs/visual/screenshots/<screen>/` and **are committed** —
+  one per drawn screen per wave, taken once the check passes. These are the visual evolution
+  record that `docs/visual/` exists to hold.
+- Name every capture `<wave>-<agent>-<timestampZ>-<status>.png`, status one of `broken`,
+  `suspect`, `ok`, and append a line to that screen's `notes.md` saying what you concluded.
+
+Both halves are needed and they pull in opposite directions: a history wants images that persist,
+a working loop produces dozens that should not. Committing everything gives an unusable history
+and a heavy repository; committing nothing leaves no history at all.
+
+Keep captures under 5MB — that is the codex image ceiling, and a capture Luna cannot ingest is
+worthless.
 
 ## 9. Casual review, rigorous integration
 
