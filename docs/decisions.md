@@ -179,6 +179,17 @@ Verified empirically; each point cost attempts to discover.
 - **`tui` agents pin their worktree**; deleting one from the sidebar leaves its process, bash child,
   and `traycer monitor` running, and the lease blocks `worktree delete` until they are killed.
   `gui` agents release when idle. There is no CLI command to terminate an agent.
+- **Retire a Traycer worktree through Traycer, then retire its branch through Git** (settled
+  2026-08-09). First run `traycer worktree list --json --include-activity` and do not touch any row
+  classified `in-use`; obtain explicit approval for a `review` row. Remove the approved path with
+  Traycer's `/opt/Traycer/resources/cli/linux-x64/traycer` executable and its `worktree delete`
+  command, passing `--path <absolute-worktree-path> --json --no-progress`; do not use
+  `git worktree remove` or `rm`.
+  Traycer deliberately leaves the named branch behind. Verify it contains no commits absent from the
+  integration branch with
+  `git merge-base --is-ancestor <branch> main`, then use `git branch -d <branch>`; never substitute
+  `-D` merely to make cleanup succeed. Finally re-run both the Traycer inventory and
+  `git worktree list` to confirm removal.
 - **A timed-out `traycer agent create` yields a silently misconfigured agent** (2026-08-08). When
   `create` returns `WebSocket frame timed out after 15000ms`, the agent is still created — it
   appears in `agent list`, accepts messages, and runs — but **none of the `--model`,
