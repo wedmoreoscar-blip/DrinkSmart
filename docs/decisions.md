@@ -404,6 +404,8 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   token layer landed.
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
-- Unit coverage for the deterministic engine, `computeTargetEthanolMl`, and greedy fallback.
-- A test runner (vitest is the natural fit for Vite) so `speccheck`'s spec-derived tests are
-  runnable; adding it needs explicit approval as a new dev dependency.
+- Unit coverage for the extracted AppContext session/pacing engine remains pending in W3-A2.
+  W3-A1 now covers planner budgets, generated-unit normalization, request fingerprints, planning
+  windows, and greedy fallback with 46 Vitest cases.
+- ~~A test runner so `speccheck`'s spec-derived tests are runnable.~~ **Closed 2026-08-09** — Oscar
+  approved Vitest `^3.2.7`; W3-A1 installed it and added `npm test` to the verification profiles.

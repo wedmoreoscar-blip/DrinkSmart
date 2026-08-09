@@ -87,9 +87,10 @@ coding agent, whichever vendor or harness runs it.
 - Production build: `npm run build`
 - Project verification profiles: `tools/test-project quick|build|full`
 
-No automated unit suite currently covers the new deterministic engine. Never describe typechecking or
-a build as functional verification. Remote Supabase, edge-function, notification, and mobile checks are
-`BLOCKED` until their real infrastructure is available.
+Vitest now covers W3-A1 planner budgets, generated-unit normalization, request fingerprints, planning
+windows, and fallback behavior. W3-A2 must extend that suite to the session engine itself. Never
+describe typechecking or a build as functional verification. Remote Supabase, edge-function,
+notification, and mobile checks are `BLOCKED` until their real infrastructure is available.
 
 ## Native workflows
 
