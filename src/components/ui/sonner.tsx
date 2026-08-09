@@ -10,13 +10,21 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      duration={5000}
+      mobileOffset={{ left: 20, right: 20, bottom: "calc(70px + env(safe-area-inset-bottom))" }}
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+            "group toast group-[.toaster]:bg-popover group-[.toaster]:text-foreground group-[.toaster]:border-0 group-[.toaster]:rounded-lg group-[.toaster]:shadow-md group-[.toaster]:min-h-16 group-[.toaster]:p-0 group-[.toaster]:pl-[18px] group-[.toaster]:pr-2 group-[.toaster]:text-body data-[type=warning]:shadow-[0_0_0_1px_#6b4f27] data-[type=warning]:text-warning",
+          description: "group-[.toast]:text-note group-[.toast]:text-muted-foreground",
+          actionButton:
+            "group-[.toast]:bg-transparent group-[.toast]:text-primary-hover group-[.toast]:font-medium group-[.toast]:px-4",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+        },
+        actionButtonStyle: {
+          height: "auto",
+          minHeight: "56px",
+          fontSize: "19px",
         },
       }}
       {...props}

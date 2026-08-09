@@ -8,18 +8,20 @@ interface ClockTimePickerProps {
   className?: string;
 }
 
+const MINUTE_STOPS = [0, 15, 30, 45];
+
 export function ClockTimePicker({ value, onChange, className }: ClockTimePickerProps) {
   const currentDate = value || new Date(new Date().setHours(0, 0, 0, 0));
   const hoursRef = useRef<HTMLDivElement>(null);
   const minutesRef = useRef<HTMLDivElement>(null);
-  
+
   const hours = currentDate.getHours();
-  const minutes = currentDate.getMinutes();
+  const minuteStop = MINUTE_STOPS[Math.floor(currentDate.getMinutes() / 15)];
 
   // Create continuous list by adding copies before and after
   const baseHoursList = Array.from({ length: 24 }, (_, i) => i);
-  const baseMinutesList = Array.from({ length: 60 }, (_, i) => i);
-  
+  const baseMinutesList = MINUTE_STOPS;
+
   // Triple the arrays for continuous scrolling
   const hoursList = [...baseHoursList, ...baseHoursList, ...baseHoursList];
   const minutesList = [...baseMinutesList, ...baseMinutesList, ...baseMinutesList];
@@ -36,17 +38,14 @@ export function ClockTimePicker({ value, onChange, className }: ClockTimePickerP
     onChange(newDate);
   };
 
-  // Calculate distance from center for styling
-  const getItemStyle = (itemValue: number, currentValue: number, maxValue: number) => {
+  // Styling by distance from the selected row
+  const getItemClass = (itemValue: number, currentValue: number, maxValue: number, step: number) => {
     const normalizedItem = itemValue % maxValue;
     const distance = Math.abs(normalizedItem - currentValue);
-    const isSelected = distance === 0;
-    
-    return {
-      opacity: isSelected ? 1 : distance === 1 ? 0.4 : 0.2,
-      fontSize: isSelected ? "1rem" : distance === 1 ? "0.875rem" : "0.75rem",
-      fontWeight: isSelected ? "bold" : "normal",
-    };
+    const cyclicDistance = Math.min(distance, maxValue - distance);
+    if (cyclicDistance === 0) return "text-title font-medium text-foreground";
+    if (cyclicDistance === step) return "text-lead text-[#75798c]";
+    return "opacity-0";
   };
 
   // Scroll to selected value on mount - scroll to middle copy
@@ -59,7 +58,7 @@ export function ClockTimePicker({ value, onChange, className }: ClockTimePickerP
       }
     }
     if (minutesRef.current) {
-      const middleIndex = 60 + minutes; // Second copy + current minute
+      const middleIndex = MINUTE_STOPS.length + MINUTE_STOPS.indexOf(minuteStop); // Second copy + current stop
       const selectedMinute = minutesRef.current.children[middleIndex] as HTMLElement;
       if (selectedMinute) {
         selectedMinute.scrollIntoView({ block: 'center', behavior: 'auto' });
@@ -69,63 +68,57 @@ export function ClockTimePicker({ value, onChange, className }: ClockTimePickerP
 
   return (
     <div className={cn("relative", className)}>
-      <div className="flex items-center justify-center gap-1">
+      <div className="relative flex h-[168px] gap-2">
+        {/* Fixed 56px accent selection band spanning both columns */}
+        <div className="pointer-events-none absolute inset-x-[-8px] top-[56px] h-tap rounded-ctl bg-accent shadow-[0_0_0_1px_hsl(var(--ring))]" />
+
         {/* Hours column */}
-        <div className="relative">
-          <ScrollArea className="h-32 w-14 rounded-md border">
-            <div ref={hoursRef} className="py-12">
-              {hoursList.map((hour, index) => {
-                const style = getItemStyle(hour, hours, 24);
-                return (
-                  <button
-                    key={`hour-${index}`}
-                    data-value={hour % 24}
-                    onClick={() => handleHourChange(hour)}
-                    className={cn(
-                      "w-full h-8 flex items-center justify-center transition-all",
-                      "hover:bg-muted"
-                    )}
-                    style={style}
-                  >
-                    {(hour % 24).toString().padStart(2, "0")}
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
-          {/* Selection indicator */}
-          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-8 border-y border-primary/30 pointer-events-none bg-primary/5" />
-        </div>
+        <ScrollArea className="h-full flex-1">
+          <div ref={hoursRef} className="py-14 tabular-nums">
+            {hoursList.map((hour, index) => (
+              <button
+                key={`hour-${index}`}
+                data-value={hour % 24}
+                onClick={() => handleHourChange(hour)}
+                className={cn(
+                  "flex h-tap w-full items-center justify-center transition-colors",
+                  getItemClass(hour, hours, 24, 1)
+                )}
+              >
+                {(hour % 24).toString().padStart(2, "0")}
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
 
-        <span className="text-lg font-bold">:</span>
-
-        {/* Minutes column */}
-        <div className="relative">
-          <ScrollArea className="h-32 w-14 rounded-md border">
-            <div ref={minutesRef} className="py-12">
-              {minutesList.map((minute, index) => {
-                const style = getItemStyle(minute, minutes, 60);
-                return (
-                  <button
-                    key={`minute-${index}`}
-                    data-value={minute % 60}
-                    onClick={() => handleMinuteChange(minute)}
-                    className={cn(
-                      "w-full h-8 flex items-center justify-center transition-all",
-                      "hover:bg-muted"
-                    )}
-                    style={style}
-                  >
-                    {(minute % 60).toString().padStart(2, "0")}
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
-          {/* Selection indicator */}
-          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-8 border-y border-primary/30 pointer-events-none bg-primary/5" />
-        </div>
+        {/* Minutes column - 15-minute stops only */}
+        <ScrollArea className="h-full flex-1">
+          <div ref={minutesRef} className="py-14 tabular-nums">
+            {minutesList.map((minute, index) => (
+              <button
+                key={`minute-${index}`}
+                data-value={minute % 60}
+                onClick={() => handleMinuteChange(minute)}
+                className={cn(
+                  "flex h-tap w-full items-center justify-center transition-colors",
+                  getItemClass(minute, minuteStop, 60, 15)
+                )}
+              >
+                {(minute % 60).toString().padStart(2, "0")}
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
       </div>
+
+      {/* One-tap Now control */}
+      <button
+        type="button"
+        onClick={() => onChange(new Date())}
+        className="mt-3 flex h-tap w-full items-center justify-center rounded-ctl text-body text-foreground shadow-[0_0_0_1px_hsl(var(--border))]"
+      >
+        Now
+      </button>
     </div>
   );
 }

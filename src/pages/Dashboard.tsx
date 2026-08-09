@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { User, GlassWater, GitCommitVertical } from "lucide-react";
 import { AppProvider } from "@/contexts/AppContext";
 import PlanTab from "@/components/tabs/PlanTab";
 import TimelineTab from "@/components/tabs/TimelineTab";
@@ -18,37 +19,53 @@ const Dashboard = () => {
   return (
     <AppProvider>
       <MetricsSync />
-      <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto p-4 md:p-6">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-1">
-              DrinkSmart
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Plan your buzz, drink smart.
-            </p>
-          </div>
+      <div className="flex h-[calc(100dvh-env(safe-area-inset-bottom))] flex-col bg-background">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="mx-auto flex w-full max-w-6xl flex-1 flex-col min-h-0"
+        >
+          <TabsContent value="profile" className="flex-1 overflow-y-auto p-4 md:p-6">
+            <Profile />
+          </TabsContent>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="plan">Plan</TabsTrigger>
-              <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            </TabsList>
+          <TabsContent value="plan" className="flex-1 overflow-y-auto">
+            <PlanTab onPlanReady={() => setActiveTab("timeline")} />
+          </TabsContent>
 
-            <TabsContent value="profile">
-              <Profile />
-            </TabsContent>
+          <TabsContent value="timeline" className="flex-1 overflow-y-auto">
+            <TimelineTab onNext={() => setActiveTab("plan")} />
+          </TabsContent>
 
-            <TabsContent value="plan">
-              <PlanTab onPlanReady={() => setActiveTab("timeline")} />
-            </TabsContent>
-
-            <TabsContent value="timeline">
-              <TimelineTab />
-            </TabsContent>
-          </Tabs>
-        </div>
+          <TabsList>
+            <TabsTrigger value="profile">
+              <User className="h-[22px] w-[22px]" strokeWidth={1.6} />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="plan">
+              <GlassWater
+                className={
+                  activeTab === "plan"
+                    ? "h-[22px] w-[22px] [&>path:last-child]:fill-current"
+                    : "h-[22px] w-[22px]"
+                }
+                strokeWidth={1.6}
+              />
+              Plan
+            </TabsTrigger>
+            <TabsTrigger value="timeline">
+              <GitCommitVertical
+                className={
+                  activeTab === "timeline"
+                    ? "h-[22px] w-[22px] [&>circle]:fill-current"
+                    : "h-[22px] w-[22px]"
+                }
+                strokeWidth={1.6}
+              />
+              Timeline
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <OnboardingModal
