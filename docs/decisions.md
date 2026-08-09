@@ -90,6 +90,14 @@ equally to lint, tests, and any future runner.
 - **Orchestrator: Claude Code on Opus 5 or Fable 5**, `tui` surface. It plans, authors specs,
   runs `speccheck`, integrates, and commits. Orchestration, spec authorship, and acceptance are
   never delegated.
+- **Warm implementers are the default provisioning route (amended 2026-08-09).** Before creating
+  an agent or worktree, inventory compatible warm agents and their existing worktrees. If one
+  exists, recommend its reuse to Oscar and disclose the agent, worktree and any required sync or
+  reconfiguration, but ask for confirmation before sending another spec or mutating that worktree.
+  Reuse is the default recommendation, not standing authorization: Oscar may choose a fresh
+  agent/worktree for isolation, comparison, quota or ownership reasons. Do not provision the fresh
+  route until no compatible warm route exists or Oscar explicitly chooses it. Once confirmed,
+  `writespec`, worktree isolation, explicit model/effort configuration and `speccheck` still apply.
 - **Default implementer: DeepSeek V4 Flash via the `opencode` harness**, `--surface gui`. Served by
   DeepSeek's own API through configured credentials — not the `opencode:*-free` tier, which may
   serve a pre-0731 build. Spawn several in parallel when the work splits into independent specs.
