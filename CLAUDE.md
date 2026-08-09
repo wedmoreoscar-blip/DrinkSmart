@@ -14,23 +14,30 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 
 **The math engine** (`src/contexts/AppContext.tsx`) is the source of truth for BAC and pacing. **Do not have the LLM do math** — it picks drinks from a catalog; the deterministic engine does everything quantitative.
 
-## Verification baseline (last confirmed 2026-08-07; see the BLOCKED note below)
+## Verification baseline (confirmed 2026-08-08 on `main`, after Wave 1 integration)
 
-> **As of 2026-08-08 there is no `node_modules` in any checkout, main or worktree.** Every command
-> below is therefore `BLOCKED`, not passing, until `npm install` runs. The results recorded here
-> were true on 2026-08-07 and have not been re-established since. Do not copy them into a
-> delegation spec as if they were current — state them as BLOCKED, or run `npm install` first and
-> re-confirm. `git worktree create` does not bring `node_modules` with it, so a fresh delegated
-> worktree never has one.
+> **`npx tsc --noEmit` was a no-op for the entire life of this project.** The root `tsconfig.json`
+> is `"files": []` plus project references; without `-b`, `tsc` compiles **zero files**. Every
+> "typecheck PASS" recorded before 2026-08-08 was evidence of nothing. It concealed four real
+> errors. `npm run typecheck` is now `tsc -b --noEmit`, verified to genuinely check by injecting a
+> deliberate type error and confirming it was caught. **Never use bare `tsc --noEmit` here.**
 
-- `npx tsc --noEmit` passed clean on 2026-08-07. Currently BLOCKED.
-- `npm run lint` fails with 9 errors and reports 12 warnings in pre-existing application
-  files. Treat lint as a known baseline failure until those issues are fixed; do not report the quick
-  verification profile as passing. Currently BLOCKED.
-- `npm run build` passes after a complete dependency install. Currently BLOCKED.
-- No automated tests exist for the new code. The deterministic engine (`calculateDrinkTimeline` in `AppContext.tsx`), `computeTargetEthanolMl`, and `greedyPlanFallback` are the natural unit-test candidates.
-- The latest local `npm install` reports 17 dependency vulnerabilities (3 moderate, 14 high). This
-  integration does not apply `npm audit fix`; triage upgrades separately before production.
+- `npm run typecheck` (`tsc -b --noEmit`) — **PASSES, 0 errors.** The four errors the old no-op hid
+  were all one root cause: `preferences` and `drinks` cast to `Record<string, unknown>` where the
+  generated Supabase client expects `Json`, mistyping every write to `profiles` and `user_sessions`.
+  Fixed 2026-08-08.
+- `npm run lint` — **fails with 9 errors and 12 warnings** in pre-existing application files. This
+  is the known baseline; it must not get worse. Do not report the quick verification profile as
+  passing.
+- `npm run build` — **PASSES** (~16–26s).
+- `*.tsbuildinfo` is gitignored; `tsc -b` emits it.
+- No automated tests exist. The deterministic engine (`calculateDrinkTimeline` in `AppContext.tsx`), `computeTargetEthanolMl`, and `greedyPlanFallback` are the natural unit-test candidates.
+- `npm install` reports 18 dependency vulnerabilities (3 moderate, 15 high) as of 2026-08-08, up
+  from a previously recorded 17 (3 moderate, 14 high). Do not apply `npm audit fix`; triage
+  separately before production.
+- `git worktree create` does not bring `node_modules` with it, so a fresh delegated worktree never
+  has one. The orchestrator pre-installs each worktree before dispatch — `tools/agent-lock` uses
+  `flock -n` and fails fast, so parallel implementers must not run their own installs.
 - The codebase was updated to current Supabase patterns (mid-2026): RLS policies wrap `auth.uid()` in `(select ...)` for ~95% perf gain; the edge function uses `@supabase/server`'s `withSupabase` wrapper; the anonymous-upgrade flow is two-step (email link, then password-reset link); a `db:types` npm script regenerates `types.ts` from the live schema.
 
 ---

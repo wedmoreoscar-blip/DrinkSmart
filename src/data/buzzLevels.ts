@@ -64,35 +64,15 @@ export const buzzLevels: BuzzLevel[] = [
     min_bac: 0.20,
     max_bac: 0.25,
   },
-  {
-    level: 8,
-    label: "Wasted",
-    desc: "Room's spinning, memories getting blurry",
-    bac_range: "0.25% - 0.30%",
-    min_bac: 0.25,
-    max_bac: 0.30,
-  },
-  {
-    level: 9,
-    label: "Blackout Territory",
-    desc: "High risk of memory loss and poor decisions",
-    bac_range: "0.30% - 0.35%",
-    min_bac: 0.30,
-    max_bac: 0.35,
-  },
-  {
-    level: 10,
-    label: "Danger Zone",
-    desc: "Serious impairment, health risks present",
-    bac_range: "0.35%+",
-    min_bac: 0.35,
-    max_bac: Infinity,
-  },
 ];
 
 // Helper function to get BAC range for a specific level
 export const getBACForLevel = (level: number): { min_bac: number; max_bac: number } => {
-  const buzzLevel = buzzLevels.find((b) => b.level === level);
+  if (!Number.isInteger(level)) {
+    throw new Error(`Invalid buzz level: ${level}`);
+  }
+  const normalizedLevel = level >= 8 && level <= 10 ? 7 : level;
+  const buzzLevel = buzzLevels.find((b) => b.level === normalizedLevel);
   if (!buzzLevel) {
     throw new Error(`Invalid buzz level: ${level}`);
   }

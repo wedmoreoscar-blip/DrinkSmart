@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 import {
   defaultPreferences,
@@ -201,7 +202,7 @@ export const useUserMetrics = () => {
       if (!userId) return preferences;
       const { error } = await supabase
         .from("profiles")
-        .update({ preferences: preferences as unknown as Record<string, unknown> })
+        .update({ preferences: preferences as unknown as Json })
         .eq("user_id", userId);
       if (error) throw error;
       return preferences;
@@ -279,7 +280,7 @@ export const useUserMetrics = () => {
 
       const payload = {
         ...columns,
-        preferences: preferences as unknown as Record<string, unknown>,
+        preferences: preferences as unknown as Json,
         onboarded_at: onboardedAt,
       };
 

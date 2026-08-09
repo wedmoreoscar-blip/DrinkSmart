@@ -45,6 +45,18 @@ workflow. Keep history: supersede an entry instead of deleting it.
   native-device verification are distinct evidence categories.
 - Missing infrastructure is `BLOCKED`, never `PASS`.
 
+**Typecheck command (amended 2026-08-08).** The typecheck is `npm run typecheck`, which is
+`tsc -b --noEmit`. **Bare `tsc --noEmit` is a no-op in this repository** and must never be used or
+quoted as evidence: the root `tsconfig.json` is `"files": []` plus project references, so without
+`-b` it compiles zero files and exits 0 vacuously. It did so for the entire life of the project,
+concealing four real errors (Supabase `Json` mistyping in `useUserMetrics` and `useLastSession`)
+and passing a delegated diff that had introduced four more.
+
+The general lesson, which outlives this specific bug: **a green check is only evidence if the
+command has been shown to be capable of going red.** When adopting or trusting a verification
+command, prove it fails on a deliberate fault before treating its success as meaningful. Applies
+equally to lint, tests, and any future runner.
+
 ## LOCKED — Traycer-orchestrated delegation (2026-08-07)
 
 - Traycer orchestrates all delegated implementation. Client-native subagent roles are retired; the
@@ -78,6 +90,41 @@ workflow. Keep history: supersede an entry instead of deleting it.
 - **Orchestrator: Claude Code on Opus 5 or Fable 5**, `tui` surface. It plans, authors specs,
   runs `speccheck`, integrates, and commits. Orchestration, spec authorship, and acceptance are
   never delegated.
+- **Warm implementers are the default provisioning route (amended 2026-08-09).** Before creating
+  an agent or worktree, inventory compatible warm agents and their existing worktrees. If one
+  exists, recommend its reuse to Oscar and disclose the agent, worktree and any required sync or
+  reconfiguration, but ask for confirmation before sending another spec or mutating that worktree.
+  Reuse is the default recommendation, not standing authorization: Oscar may choose a fresh
+  agent/worktree for isolation, comparison, quota or ownership reasons. Do not provision the fresh
+  route until no compatible warm route exists or Oscar explicitly chooses it. Once confirmed,
+  `writespec`, worktree isolation, explicit model/effort configuration and `speccheck` still apply.
+- **Compact before cross-harness reconfiguration (empirically settled 2026-08-09).** A warm agent
+  may be moved to another harness in its existing Traycer chat and worktree, but compact its source
+  session first when the active context is large. Traycer cannot resume the source harness's native
+  provider session: it opens a fresh destination-provider session and injects a
+  `<previous_session_context>` instruction pointing to
+  `/tmp/traycer-chat-refs/<agent-id>/session-carryover/transcript.txt`. The destination agent reads
+  that file explicitly, analogous to starting a new provider chat and handing it a transcript.
+  This bridge was observed both for Claude/Opus → Codex/GPT-5.6 Sol and for
+  OpenCode/DeepSeek V4 Flash → Codex/GPT-5.6 Luna Max.
+
+  In the large-session experiment, OpenCode showed about 210k active tokens before manual
+  compaction. The generated carryover was 40,297 bytes / 4,503 words / 581 lines and contained the
+  compacted summary plus recent messages, including some tool calls/results — not the raw 210k
+  provider history. Codex created a fresh Luna session (`providerSessionKind=fresh`,
+  `freshReason=no_harness_anchor_in_chat`). Its first request, before reading the carryover, was
+  21,251 uncached input tokens; after the file reads, the successful confirmation turn contained
+  28,448 input tokens, of which 27,392 were cached. The GUI displayed roughly 40k context, so use
+  the Codex rollout token events as the authoritative input accounting. An interrupted intermediate
+  turn means these observations prove transfer shape and active input size, not an exact aggregate
+  billing total.
+
+  Operational rule: compact the source, reconfigure only after Oscar confirms, send a minimal
+  confirmation turn, then inspect the destination rollout's first `token_count`. The carryover can
+  still be verbose or low-quality, so inspect its size/content when cost or continuity matters.
+  This finding is specific to cross-harness Traycer reconfiguration; do not generalize it to a
+  same-harness model switch, where the provider may reread the full active history under a new
+  model-specific cache.
 - **Default implementer: DeepSeek V4 Flash via the `opencode` harness**, `--surface gui`. Served by
   DeepSeek's own API through configured credentials — not the `opencode:*-free` tier, which may
   serve a pre-0731 build. Spawn several in parallel when the work splits into independent specs.
@@ -159,6 +206,17 @@ Verified empirically; each point cost attempts to discover.
 - **`tui` agents pin their worktree**; deleting one from the sidebar leaves its process, bash child,
   and `traycer monitor` running, and the lease blocks `worktree delete` until they are killed.
   `gui` agents release when idle. There is no CLI command to terminate an agent.
+- **Retire a Traycer worktree through Traycer, then retire its branch through Git** (settled
+  2026-08-09). First run `traycer worktree list --json --include-activity` and do not touch any row
+  classified `in-use`; obtain explicit approval for a `review` row. Remove the approved path with
+  Traycer's `/opt/Traycer/resources/cli/linux-x64/traycer` executable and its `worktree delete`
+  command, passing `--path <absolute-worktree-path> --json --no-progress`; do not use
+  `git worktree remove` or `rm`.
+  Traycer deliberately leaves the named branch behind. Verify it contains no commits absent from the
+  integration branch with
+  `git merge-base --is-ancestor <branch> main`, then use `git branch -d <branch>`; never substitute
+  `-D` merely to make cleanup succeed. Finally re-run both the Traycer inventory and
+  `git worktree list` to confirm removal.
 - **A timed-out `traycer agent create` yields a silently misconfigured agent** (2026-08-08). When
   `create` returns `WebSocket frame timed out after 15000ms`, the agent is still created — it
   appears in `agent list`, accepts messages, and runs — but **none of the `--model`,
@@ -201,10 +259,55 @@ Verified empirically; each point cost attempts to discover.
   inline-styled prototypes to port into React, never to paste in; `tokens/` alone is production code.
 - Do not read or parse `DrinkSmart-design-reference.html` (1.3 MB compiled output, for a human).
 - Design output reaches the repo by **Share → Export → Handoff to Claude Code** from Claude Design,
-  unpacked into the repo. `/design-sync` cannot deliver it: the DesignSync tool is filtered to
-  design-system projects, and the redesign lives in a regular project.
-- Two in-repo amendments to the bundled README (2026-08-06) are part of the spec and must be honoured
-  over the unamended prose above them.
+  unpacked into the repo. Pushing via DesignSync is impossible — it requires
+  `PROJECT_TYPE_DESIGN_SYSTEM` and the redesign is a regular project, a type immutable at creation.
+- **Correction 2026-08-08: DesignSync *reads* do work on the regular project.** `get_project`,
+  `list_files` and `get_file` all succeed against `20b0a55d-9e61-42b1-b03d-d677ea6143ad`; only
+  writes are gated. Use `list_files` to check cheaply what an export contains before asking for a
+  zip. Prefer the zip for the content itself — a local `git diff` against the existing bundle costs
+  no context, whereas `get_file` pulls whole files into it.
+- **An export cannot repeal a locked product decision.** The 2026-08-08 export deleted both
+  in-repo README amendments (level-7 cap, four-band table, hidden nudge pair) because they live only
+  in the repo copy and were never sent upstream. They were restored. The precedence ladder ranks
+  design sources against *each other*; it does not let a drawing overrule a decision recorded here.
+  When an export regresses an amendment, restore the amendment and consider sending it upstream.
+- **The canonical bundle path is `design_handoff_drinksmart/{README.md,screens/,tokens/}`.** Exports
+  may nest it deeper; lift it back, because docs and specs reference those paths directly. The wider
+  project export (`DrinkSmart.dc.html`, `_ds/`, `ios-frame.jsx`, `support.js`, `uploads/`) sits under
+  `design_handoff_drinksmart/project/`. Strip `:Zone.Identifier` files when unzipping on Windows
+  into WSL.
+- ~~Two in-repo amendments to the bundled README (2026-08-06) are part of the spec.~~
+  **Superseded 2026-08-08 by designs `1n`/`1o`.** The amendments held the four-band scale as prose;
+  it is now drawn, and README §1n/1o states *"supersedes 1c"* and carries the whole spec. Prose
+  replaced by a drawing is a promotion up this ladder, so the amendments are **not** restored. The
+  general rule from the earlier export still stands: an export that *deletes* an amendment without
+  drawing its content is a regression and must be restored.
+
+**Precedence ladder (amended 2026-08-08).** Claude Design entities are ground truth for UI, and for
+backend design concerning those entities. Where sources disagree, the higher rank wins outright and
+the lower is treated as stale — no reconciliation, no averaging:
+
+1. `design_handoff_drinksmart/tokens/` — production code; already applied.
+2. `screens/*.html` — literal inline values (sizes, radii, colours, weights, copy). Authoritative
+   for **values**.
+3. `screens/*.png` — authoritative for **appearance**; the visual check on 2.
+4. `README.md` prose — rationale and intent. Stale wherever it disagrees with 2 or 3.
+5. `tasks/todo.md` acceptance criteria — derived planning notes.
+6. Implementer judgement — only where all of the above are silent.
+
+The README backs this itself: colours, type, spacing, radii, touch targets, motion and copy are
+declared "final and exact". Verified conflicts where prose lost (2026-08-08): meter radius is **28px**
+per `1h-meter-continuous.html` and the pre-existing `rounded-vessel` token, not the prose's 12; meter
+fill is **.9** opacity, not .85; badges are **13px / radius 8 / padding 8px 12px** per
+`1k-primitives.html`, not the prose's 11px / radius 6 / 5px 8px. The prose's "radius 12" was a leak
+from the `softer`/`stronger` nudge control, which is genuinely 12px.
+
+- A **fresh export is expected to contradict the current code**, and is still ground truth. A Claude
+  Design edit or redesign supersedes what is already built; contradiction is the mechanism, not a
+  defect. Re-export for freshness and coverage — it does not fix prose-vs-markup drift, because any
+  narrative layer can reintroduce it. The ladder is what makes such drift non-blocking.
+- `radius 12` (nudge controls) has **no** Tailwind token; the scale is `sm 4 · md 8 · lg 14 · xl 20 ·
+  vessel 28`. Add one or use an arbitrary value when 1c lands.
 
 ## LOCKED — Dark-only, light theme wired but unreachable (2026-08-07)
 
@@ -218,7 +321,12 @@ Verified empirically; each point cost attempts to discover.
 - Non-colour tokens (type, spacing, touch, motion) are theme-independent and declared once in `:root`.
 - Inter is self-hosted via `@fontsource/inter` (400, 500) imported in `src/main.tsx`. No CDN font.
 
-## LOCKED — Buzz ceiling is level 7, in four bands (2026-08-06)
+## LOCKED — Buzz ceiling is level 7, in four bands (2026-08-06; drawn 2026-08-08)
+
+> **Build from `screens/1n-buzz-picker-four-band.html` and `1o-buzz-picker-heavy.html`, not from
+> this entry or from `1c`.** README §1n/1o supersedes 1c outright. The two frames are a pair: `1o`
+> exists so the hidden-nudge reflow can be verified rather than inferred.
+
 
 - Levels **8–10 are removed**, not rendered as forbidden. `buzzLevels.ts` still contains them; deleting
   them is part of the 1c work and is not yet done.
@@ -228,10 +336,58 @@ Verified empirically; each point cost attempts to discover.
   fading rule reading *"the scale ends here"* sits beneath the last card.
 - With a single-level band selected, the `softer` / `stronger` nudge pair is **hidden, not disabled**.
 
+## LOCKED — Specs live in the repo, not in Traycer artifacts (2026-08-08)
+
+- **Traycer artifacts are epic-scoped and do not survive a new session.** They are a review surface:
+  use them when the spec should be read and commented on before dispatch (`traycer comments list`
+  reads anchored threads). They are not storage.
+- **Delegation specs are written to `docs/specs/` and committed**, with pointers from
+  `tasks/next_session_kickoff.md`. A handoff can land before implementation does, so a spec that
+  exists only as an artifact is lost to the session that has to run it.
+- Delete an artifact only after its durable content is in the repo, and only with the user's
+  agreement at the time.
+- `tools/writespec-guard` denies any `traycer agent send` lacking the verbatim `writespec` blocks.
+  Replies (`--response-id`) and messages marked `[no-spec]` pass. Use `[no-spec]` for pings,
+  acknowledgements and stand-downs — never to skip commissioning real work.
+- **The orchestrator pre-installs `node_modules` in each worktree before dispatch**, sequentially.
+  `tools/agent-lock` uses `flock -n` and fails fast (exit 75) rather than queueing, so parallel
+  implementers running their own installs would see one succeed and the rest hard-fail. Specs
+  forbid dependency changes, which also keeps `package-lock.json` out of every delegated diff.
+
+## LOCKED — Whole-app redesign, global scale, primitives first (2026-08-08)
+
+- The redesign is **whole-app and global**, not screen-by-screen. The current UI is to be brought to
+  the Claude Design appearance everywhere it reaches.
+- **No dual size scale.** The design's touch scale replaces the shadcn defaults outright:
+  `tap` 56px is the floor for anything tappable, `act` 64px is the one primary action per screen,
+  icon buttons are 56×56 at radius 12. Both `h-tap` and `h-act` already exist in `tailwind.config.ts`.
+  A transitional "leave `sm`/`default` alone and migrate per screen" approach was considered and
+  **rejected**: it knowingly violates the 56px floor for the duration of the migration, and the floor
+  is the accessibility core of the design.
+- Consequence, accepted deliberately: restyling `src/components/ui/*` reflows every screen at once,
+  including screens with no redesign step of their own (`Auth`, `MenuScannerTab`, admin,
+  `StatsForm`, `DrinkFilterPopover`). Layout fallout on those screens is expected work, not a
+  regression. Measured 2026-08-08: 68 `<Button>` usages, of which 22 `sm`, 14 `icon`, 4 `lg`; every
+  one currently sits below the 56px floor.
+- **Primitives land before screens.** Every screen consumes `src/components/ui/*`, so that work is
+  the one serialization point; screen work parallelises freely behind it.
+- Delegation runs in **waves**. Within a wave, specs must own **disjoint file sets** — file-level
+  ownership is what prevents interference, and it removes the need for agent-to-agent chat between
+  implementers. Reserve a2a for cases where two implementers must agree on an interface, which
+  correct partitioning should avoid.
+- The shadcn top-tabs pattern is not used anywhere. The three tabs live in the bottom bar;
+  `src/components/ui/tabs.tsx` is owned by that work alone, not by the primitives pass.
+
 ## PENDING
 
-- Band names and subtitles for the four-band picker are proposed, not drawn. Confirm the wording or
-  ask Claude Design to render the four-card variant.
+- **Still undrawn after the 2026-08-08 export:** Profile / onboarding (`StatsForm`,
+  `PreferencesPicker`), drink picker, menu scanner, establishment browsing, and auth. Under the
+  precedence ladder these fall to rank 6, implementer judgement, which is what the ladder exists to
+  prevent. **Wave 4 stays blocked** until they are drawn. Form primitives (`1l`, `1m`) and the
+  four-band picker (`1n`, `1o`) were delivered and are no longer blockers.
+- ~~Band names and subtitles for the four-band picker are proposed, not drawn.~~ **Closed
+  2026-08-08** — drawn as `1n`/`1o`, wording as proposed (Light / Social / Loose / Heavy, "gaps in
+  the night" for Heavy).
 - Light theme values in `:root` are derived, not designed. Replace wholesale on the next export.
 - Timeline layout 1e (proportional time axis) is an option, not a requirement. Ship 1d unless the whole
   night is guaranteed to fit without scrolling.

@@ -14,6 +14,36 @@ diffs, integrates, and commits. Orchestration, spec authorship, and acceptance a
 
 Two options. Default to the first.
 
+### Reuse warm agents before creating anything
+
+A compatible warm implementer with an existing worktree is the default implementation route,
+ahead of creating another agent or worktree. This applies even when the model-ranking guidance
+below would otherwise start from a fresh DeepSeek agent: retained codebase context and an already
+prepared worktree are intentional resources, not leftovers to ignore.
+
+Before every implementation dispatch:
+
+1. List the epic's agents and worktrees. Identify any warm implementer capable of the task and
+   inspect, read-only, its harness/model, worktree branch, Git status and distance from the current
+   integration target.
+2. If a compatible warm agent exists, tell Oscar which agent and worktree would be reused, what
+   synchronization or reconfiguration would be needed, and ask whether to reuse it or create an
+   isolated agent/worktree instead. **Do not send the spec, reconfigure the agent, stash or alter
+   its worktree, or create a replacement until Oscar answers.**
+3. Treat reuse as the recommended/default option, not as pre-authorized action. Oscar may prefer a
+   clean agent or separate worktree for isolation, comparison, quota, ownership or any other
+   reason; the confirmation gate exists to preserve that choice.
+4. After Oscar confirms reuse, preserve any dirty state before safely synchronizing the worktree,
+   explicitly configure the required model/effort, then commission through `writespec` as usual.
+   If the worktree cannot be synchronized without risking unintegrated work, report that and ask
+   again rather than silently replacing or discarding it.
+5. Create a new agent/worktree only when no compatible warm route exists or Oscar explicitly
+   chooses the isolated route.
+
+When several compatible warm agents exist, use the task/model guidance below to recommend one,
+then present that recommendation for confirmation. Warm-agent reuse changes provisioning order; it
+does not weaken worktree isolation, model verification, `writespec`, or `speccheck`.
+
 ### 1. DeepSeek V4 Flash via opencode — the go-to
 
 ```

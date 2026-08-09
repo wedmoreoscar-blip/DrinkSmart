@@ -7,6 +7,13 @@ Reads a Claude Code PreToolUse hook payload on stdin and denies any
 writespec scope.md + closing.md blocks.
 
 Replies (--response-id) are not commissions and pass through.
+
+Messages carrying the literal marker [no-spec] also pass through. The sender
+adds it deliberately to assert the message commissions no work: a status ping,
+an acknowledgement, a stand-down. It is bypassable on purpose - this guard
+exists to stop a spec being forgotten, not to defeat an adversary, and an
+explicit assertion beats a heuristic that might misread a real commission as
+chatter. Added 2026-08-08 after a status ping to a finished agent was denied.
 """
 import json
 import os
@@ -49,6 +56,8 @@ def main():
         allow()
     if "--response-id" in cmd:
         allow()  # a reply, not a commission
+    if "[no-spec]" in cmd:
+        allow()  # sender explicitly asserts this commissions no work
 
     try:
         with open(os.path.join(BLOCKS, "scope.md")) as f:
