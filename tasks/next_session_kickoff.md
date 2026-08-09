@@ -12,9 +12,19 @@ the delegation workflow rewritten during this session.
 `docs/workflows/*`, `docs/decisions.md` and the `writespec`/`speccheck` skills — the workflow being
 tested lives here.
 
-**The work itself happens in `/home/oscar/git_visual_system`**, which already exists and is empty
-apart from `reference/`. It is **not a git repository yet** and is **not** part of DrinkSmart. Do
-not commit its files into this repo.
+**The work itself happens in `/home/oscar/git_visual_system`**, a separate repository that is **not**
+part of DrinkSmart. Never commit its files into this repo, or this repo's into it.
+
+Its state as of this handoff: branch `main`, one commit `2fc36b1` holding the eight `reference/`
+files, remote `origin` at `github.com/wedmoreoscar-blip/git_visualiser.git`, already pushed, working
+tree clean, one worktree.
+
+**Do not push there either.** It has a real remote, unlike DrinkSmart, so the usual "there is no
+remote" reasoning does not apply — the rule is the same anyway and it is explicit: Oscar pushes,
+you do not. Commit locally and leave it.
+
+It has no `.gitignore`. Whichever stack is chosen will need one before the first `git add -A`, or a
+Node build will commit `node_modules`.
 
 That split is the point: this repo is the workflow's home, the new folder is the subject.
 
