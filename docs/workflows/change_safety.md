@@ -24,10 +24,16 @@ spec written with the `writespec` skill; the spec names the only files the imple
   tests inline when the production correction is roughly twenty changed lines or less and stays
   inside the commissioned allowlist. The original model assignment, task category, warm context,
   or implementer availability never justifies another round trip.
-- Re-contact an implementer only for a whole missing clause, a substantially wrong approach, a
-  required scope/authority expansion, or a capability/infrastructure gap. Before sending anything,
-  state which exception applies and the concrete evidence. Re-engaging a warm agent remains new
-  delegated work and requires the user's confirmation.
+- Re-contact an implementer only when completing the work would mean designing rather than
+  repairing, the approach is substantially wrong, the repair needs scope or authority the spec did
+  not grant, or the checker lacks a required capability. Before sending anything, state which
+  exception applies and the concrete evidence. Re-engaging a warm agent remains new delegated work
+  and requires the user's confirmation.
+- **A missing clause is not by itself grounds to hand work back** (revised 2026-08-09). Judge the
+  size and kind of what remains: implementable from the existing spec means repair it inline. A
+  round trip costs a rebrief, a wait, and a second review, and discards context the checker has
+  already loaded. Name every inline repair in the acceptance record, since that note is the only
+  remaining trace of how much of a ticket the checker finished.
 - Retain focused regression tests when they protect real behavior.
 - Integrate only spec-checked work into a clean, non-overlapping target. Stop if the target moved
   incompatibly or user changes overlap.

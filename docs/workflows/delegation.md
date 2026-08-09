@@ -92,23 +92,50 @@ role skips to step 6.
    than the worktree means every repair is made against the code that will actually ship, so no
    fix can be invalidated by a later merge. Using a scratch branch rather than `main` keeps the
    discard path cheap if the diff turns out to be unacceptable.
-10. **Run `speccheck` on the merged tree.** Enumerate clauses, map clauses to hunks and hunks back
-    to clauses, and run `npm test` as evidence. The test run here is cheap and diagnostic: it makes
-    the repairs targeted instead of speculative, and it verifies the implementer's claim rather
-    than trusting it. This is not the baseline.
-11. **Repair inline.** The checker owns the repair loop. Fix everything localized in one pass,
-    including regression tests. Hand work back only under a named `speccheck` exception.
+10. **Map clauses first, and decide redelegation here.** Enumerate every spec clause, map each to
+    the hunk that satisfies it, and map every hunk back to a clause. Do this before writing a
+    single test.
+
+    This ordering matters: **a missing clause is the one finding that tests cannot surface.** A
+    suite written against a clause nobody implemented does not report a gap, it reports a failure,
+    and you would go looking for a bug that is really an absence. Finding it here instead is
+    cheap, and it is the point at which the redelegate-or-repair call is made — before any further
+    effort is spent either way.
+
+    **A missing clause does not by itself mean redelegation.** The test is the size and kind of
+    the remaining work: repair it inline when it is implementable from the spec you already wrote,
+    hand it back only when completing it would mean designing rather than repairing. See the
+    exception list in `speccheck`.
+
+11. **Then write independent tests and run them.** Derive coverage from the clause list, never
+    from the implementation. Treat any tests the implementer supplied as part of the diff under
+    review, not as evidence: read their bodies, because a test named for a clause can contain
+    nothing that exercises it.
+
+12. **Repair inline, then re-run the tests.** The checker owns the repair loop. Fix everything
+    localized in one pass and confirm the suite is green afterwards. Hand work back only under a
+    named `speccheck` exception — and by this point that should only be the whole-missing-clause
+    case already caught at step 10.
 
 ### Integrate
 
-12. **Run the full baseline once, after the repairs.** `npm test`, `npm run typecheck`,
-    `npm run lint` against the recorded count, `npm run build`, `git diff --check`. Skip it only
-    when step 9 was a fast-forward *and* step 11 changed nothing — the tree is then byte-identical
-    to what step 10 already tested.
-13. **Fast-forward `main` from `integration`,** then delete the scratch branch. Commit locally.
+13. **Run the full baseline once, after the repairs.** `npm test`, `npm run typecheck`,
+    `npm run lint`, `npm run build`, `git diff --check`. Derive the lint ceiling by running it, not
+    by quoting a document — see step 7.
+
+    **A green test suite does not make this redundant.** Vitest transforms with esbuild, which
+    strips types without checking them. Demonstrated 2026-08-09: a deliberate
+    `const bogus: number = "not a number"` left all 93 tests passing while `tsc -b` reported
+    `TS2322`. Typecheck is the irreplaceable element and also the slowest — roughly 46s of the
+    ~79s total, against 7.6s for tests, 8.7s lint, 16.7s build. That is the price of the one gate
+    that catches what behaviour cannot.
+
+    Skip it only when the merge at step 9 was a fast-forward *and* step 12 changed nothing — the
+    tree is then byte-identical to something already verified.
+14. **Fast-forward `main` from `integration`,** then delete the scratch branch. Commit locally.
     Never push. Keep unrelated work off `integration` — it may be discarded wholesale, and
     unrelated commits pollute the diff under review.
-14. **Re-merge `main` into every worktree that is idle and clean,** including the one that just
+15. **Re-merge `main` into every worktree that is idle and clean,** including the one that just
     delivered. Skipping this is what makes the second and third integrations of a batch conflict.
 
     **Never merge into a worktree whose agent is mid-task.** Git fails safe when the incoming
@@ -121,19 +148,41 @@ role skips to step 6.
     brings it current before anything is dispatched, so nothing is lost by waiting. Syncing idle
     worktrees eagerly is an optimization that keeps drift small and surfaces conflicts early — it
     is not a correctness requirement.
-15. **Leave the worktree and agent warm.** Do not delete either. The next delegation re-enters at
+16. **Leave the worktree and agent warm.** Do not delete either. The next delegation re-enters at
     step 1.
 
 ## Running several delegations at once
 
-Fan out in parallel, fan in serially.
+Fan out in parallel. **How you fan in depends on whether the specs are disjoint**, and that is a
+fact about the specs you wrote, not a judgement call at integration time.
 
-- Parallel implementation is safe when the specs' file allowlists are disjoint. A textual conflict
-  at step 9 therefore indicates a spec violation, not a merge problem — investigate it as one.
-- Integrate one branch at a time. Merging several before testing destroys attribution: a failure
-  no longer names the branch that caused it.
-- Disjoint files do not rule out a *semantic* clash. Branches that consume a shared API can each be
-  green alone and fail together with no conflict markers. Step 12 on the merged tree is what
-  catches this, and it is the reason the baseline runs post-merge rather than in the worktree.
-- A branch verified against a `main` that has since advanced has not been verified against the tree
-  it is about to join. Step 14 is what keeps that from accumulating.
+### Disjoint specs — batch them
+
+When no two specs name the same file, merge **all** the returned branches into one `integration`
+branch, run **one** `speccheck` pass across the whole diff, repair inline, and run **one**
+baseline. Three delegations then cost one baseline rather than three.
+
+**If that baseline fails, repair inline again and re-run it. Do not fall back to per-branch
+integration.** Going backwards means unpicking a merge whose inline repairs are already applied
+and re-applying them one branch at a time — far more expensive than fixing forward, and the
+failure is nearly always a small semantic clash between branches rather than one bad branch. The
+attribution you would gain by bisecting is not worth the work you would throw away to get it.
+
+Disjoint files do not rule out a *semantic* clash: branches consuming a shared API can each be
+green alone and fail together with no conflict markers. That is precisely what the single
+post-merge baseline exists to catch, and it is why the baseline runs on the merged tree rather
+than in any worktree.
+
+### Overlapping specs — integrate one at a time
+
+When the specs genuinely share files, merge and check them one branch at a time. Here attribution
+does pay for itself, because a conflict or failure is likely to belong to a specific branch rather
+than to the combination, and the per-branch cost buys a clear owner.
+
+Prefer to avoid this by partitioning the specs properly. A textual conflict between supposedly
+disjoint branches at step 9 is a spec violation, not a merge problem — investigate it as one.
+
+### Either way
+
+A branch verified against a `main` that has since advanced has not been verified against the tree
+it is about to join. Step 15 is what keeps that from accumulating.

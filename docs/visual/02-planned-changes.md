@@ -105,14 +105,13 @@ codex quota was at 80% for the week on 2026-08-08.
 
 ## Delegation setup for these waves
 
-- **`--permission-mode full_access`** for Wave 1 and 2 implementers. This is a deliberate
-  per-wave override of the `auto_accept_edits` default in `docs/workflows/agent_selection.md`; do
-  not change that default.
+- **`--permission-mode full_access`** for implementers. As of 2026-08-09 this is the documented
+  default in `docs/workflows/agent_selection.md`, no longer a per-wave override.
 - **The orchestrator pre-installs `node_modules` in each worktree before dispatch**, sequentially.
   `tools/agent-lock` uses `flock -n` and fails fast with exit 75 rather than queueing, so parallel
   implementers running their own installs would see one succeed and the rest hard-fail. Specs
   therefore forbid dependency changes outright, which also keeps `package-lock.json` out of every
   delegated diff.
 - Every spec states the verification baseline explicitly: after install, typecheck **PASS**, lint a
-  known **FAIL at 9 errors / 12 warnings** that must not get worse, build **PASS**, browser
+  known **FAIL at 9 errors / 11 warnings** that must not get worse, build **PASS**, browser
   **BLOCKED**.
