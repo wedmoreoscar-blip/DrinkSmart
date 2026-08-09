@@ -31,6 +31,7 @@ case "$profile" in
   quick)
     run_check typecheck npm run typecheck || status=1
     run_check lint npm run lint || status=1
+    run_check test npm test || status=1
     ;;
   build)
     run_check build npm run build || status=1
@@ -38,6 +39,7 @@ case "$profile" in
   full)
     run_check typecheck npm run typecheck || status=1
     run_check lint npm run lint || status=1
+    run_check test npm test || status=1
     run_check build npm run build || status=1
     ;;
   *)
