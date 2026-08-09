@@ -9,6 +9,12 @@ The implementer has none of your context. It has not read this codebase,
 does not know the conventions, and cannot ask you a question. Everything
 it needs is in the spec or it is not available.
 
+This spec commissions one step of the path in `docs/workflows/delegation.md`,
+which is built to cost one review pass, one repair loop, and one full baseline
+run. The spec's job is to get correct code written and hand it back promptly.
+Verifying it is the checker's job, on the integration branch, under
+`speccheck`. Write the spec so the implementer can finish and stop.
+
 ## Assume nothing carries over
 
 Name files by full path. Point at an existing function it should imitate,
@@ -49,6 +55,12 @@ and 11 warnings" is a baseline; "the accepted count from the previous
 ticket" is not, because the implementer cannot look it up and cannot ask.
 The same goes for the current test count and for any command that behaves
 unexpectedly in this repository — name the trap and the correct invocation.
+
+This baseline is a *do not break* line, not a burden of proof. It tells the
+implementer what already-passing means so it can avoid regressing it and stop.
+It does not ask the implementer to demonstrate that its own new behaviour is
+correct — see "Do not ask the implementer to verify its own work" below. The
+two sections are consistent: state the floor, do not commission the proof.
 
 ## Say where the work happens and who owns Git
 

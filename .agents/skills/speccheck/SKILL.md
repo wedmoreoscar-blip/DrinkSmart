@@ -27,6 +27,13 @@ anything. Two reasons, both about not paying twice:
 A textual conflict here means the implementer wrote outside its allowlist.
 Treat that as a scope finding, not a merge chore.
 
+The implementer is told not to commit, so the work usually arrives as
+uncommitted changes in its worktree. Commit it there yourself, on its own
+branch, before merging — that is integration work and it is yours. Record in
+the message that the commit is unreviewed at that point. Never review a diff
+you have not first pinned to a commit, or the tree can move under you mid
+review.
+
 ## 2. Enumerate the spec first
 
 Before reading the diff, list every requirement in the spec as a numbered
@@ -109,7 +116,14 @@ re-running proves nothing.
 ## 8. Integrate by fast-forward, and leave the worktree warm
 
 Fast-forward the integration target from `integration`. Commit locally; never
-push without explicit authorization.
+push without explicit authorization. Delete the scratch branch afterwards — it
+has served its purpose and a stale one invites the next check to merge into
+someone else's leftovers.
+
+Keep unrelated work off that branch. Anything not part of the diff under review
+belongs on the integration target directly, because the scratch branch may be
+discarded wholesale and because unrelated commits pollute the diff being
+reviewed.
 
 Then re-merge the integration target into every delegated worktree that is
 idle and clean, including the one that just delivered. Skipping this is what
@@ -123,7 +137,11 @@ that worktree's sync until just before its next dispatch, which brings it
 current anyway.
 
 Do not delete the worktree or stand down the agent. A clean worktree level with
-the integration target is a provisioned asset for the next delegation.
+the integration target is a provisioned asset for the next delegation: its
+dependencies are installed and its agent's context is cached, so the next
+dispatch skips creation, installation, and reconfiguration entirely. Leaving it
+clean and current is what buys that. Reinstalling dependencies into it is only
+warranted when a merge actually changed the lockfile.
 
 ## 9. Report
 

@@ -85,7 +85,10 @@ role skips to step 6.
 
 ### Review
 
-9. **Merge the branch into an `integration` branch, not `main`.** Reviewing the merged tree rather
+9. **Commit the handback, then merge the branch into an `integration` branch, not `main`.** The
+   implementer is told not to commit, so the work normally arrives uncommitted in its worktree.
+   Committing it on its own branch is integration work and belongs to the orchestrator; say in the
+   message that it is unreviewed at that point. Reviewing the merged tree rather
    than the worktree means every repair is made against the code that will actually ship, so no
    fix can be invalidated by a later merge. Using a scratch branch rather than `main` keeps the
    discard path cheap if the diff turns out to be unacceptable.
@@ -102,7 +105,9 @@ role skips to step 6.
     `npm run lint` against the recorded count, `npm run build`, `git diff --check`. Skip it only
     when step 9 was a fast-forward *and* step 11 changed nothing — the tree is then byte-identical
     to what step 10 already tested.
-13. **Fast-forward `main` from `integration`.** Commit locally. Never push.
+13. **Fast-forward `main` from `integration`,** then delete the scratch branch. Commit locally.
+    Never push. Keep unrelated work off `integration` — it may be discarded wholesale, and
+    unrelated commits pollute the diff under review.
 14. **Re-merge `main` into every worktree that is idle and clean,** including the one that just
     delivered. Skipping this is what makes the second and third integrations of a batch conflict.
 
