@@ -75,11 +75,35 @@ directory is shown when it loads):
 
 Do not retype, summarise or reword these. Append the files.
 
-### When a fixed block contradicts your spec
+### Do not ask the implementer to verify its own work
 
-`closing.md` says "Do NOT write new tests." Some tickets require them. The
-blocks are appended verbatim and never edited, so resolve the conflict in the
-spec body instead: name the contradicting line, say which side wins for this
-ticket, and confirm the rest of the block still applies. An unresolved
-contradiction leaves the implementer guessing, and it will guess in whichever
-direction costs you the most to review.
+`closing.md` says "Do NOT write new tests." That line is load-bearing. Do not
+override it, and do not write a spec clause that requires the implementer to
+produce test coverage.
+
+The implementer should get the code written and confirm two cheap things: it
+executes without syntax or import errors, and the existing suite still passes.
+Everything past that is the checker's, on the integration branch.
+
+Three reasons, in increasing order of importance:
+
+1. **It is duplicated work.** The checker re-derives the tests from the spec
+   regardless, so the implementer's verification time buys nothing.
+2. **It is the wrong agent's time.** Implementers are chosen for competence and
+   land most of the work correctly. Having one grind at the last stretch is
+   slower than letting an independent checker find it, and it is time added to
+   the critical path rather than removed from it.
+3. **Implementer-written tests conceal missing work.** This is the real cost.
+   Tests written by whoever wrote the code encode the same assumptions,
+   including the assumption that an unbuilt clause was built. A green suite
+   then reports success over a gap, which is worse than no suite at all,
+   because it stops the checker looking.
+
+That third failure has now happened twice in this repository. In W3-A1 the
+submitted fixtures hid a unit mismatch and a collapsed multi-serving portion.
+In W3-A2 a test named for the spec's anchor clause contained no anchor and
+passed against a function that had no anchor parameter, so an absent
+requirement reported green.
+
+If a ticket genuinely needs the implementer to write a test, state the specific
+reason in the spec. For deterministic logic there is essentially never one.
