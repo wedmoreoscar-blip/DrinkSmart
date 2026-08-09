@@ -3,9 +3,11 @@
 > **2026-08-09 continuation:** Wave 2 is complete and browser-accepted at `79d3045`. Wave 3 starts
 > with two serial DeepSeek foundation specs: W3-A1 planner/session regression hardening at
 > `docs/specs/2026-08-09-w3a1-planner-session-regression-hardening.md`, then W3-A2 deterministic
-> session rescheduling at `docs/specs/2026-08-09-w3a-deterministic-session-engine.md`. Vitest
-> `^3.2.7` is user-approved. The specs are awaiting user review and must not be dispatched until the
-> user approves them. Luna is reserved for later visual wiring and browser acceptance.
+> session rescheduling at `docs/specs/2026-08-09-w3a-deterministic-session-engine.md`. W3-A1 is
+> integrated at `9948345`: Vitest `^3.2.7` is installed, 46 planner/session regression tests pass,
+> and the production-catalog unit and serving-portion defects found by `speccheck` are fixed. W3-A2
+> is the next serial ticket and has not yet been dispatched. Luna is reserved for later visual wiring
+> and browser acceptance.
 
 Written 2026-08-08 22:24 BST. **Wave 1 is done, integrated and verified.** The task below is Wave 2.
 

@@ -70,6 +70,9 @@ The largest single step. Includes the code half of the level-7 decision.
 
 ### 7. Engine work — `src/contexts/AppContext.tsx`
 Three things the engine cannot currently express. Logic, not styling. Highest-risk step.
+- **Foundation accepted:** W3-A1 planner/session regression hardening is integrated at `9948345`;
+  46 deterministic tests now protect generation budgets, unit normalization, request caching, and
+  expired planning windows. W3-A2 deterministic rescheduling is the next serial ticket.
 - **Breaks and water entries.** Every timeline entry currently carries ethanol; a 0% ABV row cannot be
   represented and would take 0% of target and 0 time, clustering at t=0. Needs its own entry type
   driven by duration, with an optional volume and no BAC contribution.
