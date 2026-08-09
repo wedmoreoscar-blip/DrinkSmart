@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -11,6 +11,13 @@ import { History, Loader2, Minus, Plus, RefreshCw, ScanLine } from "lucide-react
 import { cn } from "@/lib/utils";
 import { getBACForLevel } from "@/data/buzzLevels";
 import { OZ_ML, PINT_ML, SHOT_ML } from "@/lib/drinkConstants";
+import {
+  computeRemainingBudget,
+  lockedDrinkEntries,
+  lockedEthanolTotal,
+  requestFingerprint,
+  resolvePlanningWindow,
+} from "@/lib/planGenerationContracts";
 import DrinksTab from "./DrinksTab";
 import MenuScannerTab from "./MenuScannerTab";
 import {
@@ -19,8 +26,8 @@ import {
   generatePlan,
   generatedDrinkToEntry,
   type GeneratedPlan,
+  type GeneratePlanInput,
   type GeneratePlanResult,
-  type LockedDrink,
 } from "@/lib/generatePlan";
 
 const DEFAULT_DURATION_MINUTES = 180;
@@ -125,6 +132,8 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
 
   // AI generation state
   const [cachedPlan, setCachedPlan] = useState<GeneratePlanResult | null>(null);
+  const [cachedRequestFingerprint, setCachedRequestFingerprint] = useState<string | null>(null);
+  const requestFingerprintRef = useRef<string | null>(null);
   const [genState, setGenState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [lastPlanIds, setLastPlanIds] = useState<string[]>([]);
 
@@ -167,87 +176,58 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
     [state.userMetrics, state.targetBAC, state.timeDelta]
   );
 
-  // Locked drinks contribution — used to shrink the budget given to the AI.
-  // In Checkpoint 2.3 lock toggles get wired; for now lockedDrinkIds is empty.
-  const lockedContribution = useMemo<{ ethanolMl: number; entries: LockedDrink[] }>(() => {
-    if (state.lockedDrinkIds.length === 0) return { ethanolMl: 0, entries: [] };
-    let ethanolMl = 0;
-    const entries: LockedDrink[] = [];
-    state.drinks.forEach((d) => {
-      if (!state.lockedDrinkIds.includes(d.id)) return;
-      const abv = d.customABV ? parseFloat(d.customABV) : 0;
-      const qty = parseFloat(d.quantity);
-      if (!Number.isFinite(qty) || !Number.isFinite(abv)) return;
-      const ml =
-        d.unit === "ml" || d.unit === "oz"
-          ? qty
-          : d.unit === "shots"
-            ? qty * 25
-            : d.unit === "pints"
-              ? qty * 568
-              : qty * 175;
-      const ethanol = ml * (abv / 100);
-      ethanolMl += ethanol;
-      const catalogId =
-        catalog.find((c) => c.name === d.drink)?.id ?? `${d.category}::${d.drink}`;
-      entries.push({
-        catalog_id: catalogId,
-        quantity: qty,
-        unit: d.unit,
-        ethanol_ml: ethanol,
-      });
-    });
-    return { ethanolMl, entries };
-  }, [state.drinks, state.lockedDrinkIds, catalog]);
+  const lockedEntries = useMemo(
+    () => lockedDrinkEntries(state.drinks, state.lockedDrinkIds, catalog),
+    [state.drinks, state.lockedDrinkIds, catalog]
+  );
+  const lockedEthanolMl = useMemo(() => lockedEthanolTotal(lockedEntries), [lockedEntries]);
 
-  // Debounced preload — fires whenever the inputs that affect the budget change.
+  const preloadRequest = useMemo<{ request: GeneratePlanInput; fingerprint: string } | null>(() => {
+    if (!targetEthanolMl || !preferences) return null;
+    const budget = computeRemainingBudget(targetEthanolMl, lockedEthanolMl);
+    if (budget < 1) return null;
+    const request: GeneratePlanInput = {
+      target_ethanol_ml: budget,
+      duration_minutes: duration,
+      preferences,
+      catalog,
+      locked_drinks: lockedEntries,
+      exclude: [],
+    };
+    return { request, fingerprint: requestFingerprint(request) };
+  }, [targetEthanolMl, preferences, duration, catalog, lockedEntries, lockedEthanolMl]);
+
+  // Debounced preload — fires whenever the request context changes. A cached
+  // result is accepted only if its fingerprint still matches the current
+  // request, so a superseded async response can never overwrite a newer one.
   useEffect(() => {
-    if (
-      !targetEthanolMl ||
-      !state.timeDelta ||
-      !preferences
-    ) {
+    requestFingerprintRef.current = preloadRequest?.fingerprint ?? null;
+    if (!preloadRequest || !state.timeDelta) {
       setCachedPlan(null);
+      setCachedRequestFingerprint(null);
       setGenState("idle");
       return;
     }
 
-    const remainingBudget = Math.max(0, targetEthanolMl - lockedContribution.ethanolMl);
-    if (remainingBudget < 1) {
-      setCachedPlan(null);
-      setGenState("idle");
-      return;
-    }
-
+    const { request, fingerprint } = preloadRequest;
     const timer = setTimeout(async () => {
       setGenState("loading");
       try {
         // generatePlan never throws — it falls back to the greedy generator
-        const plan = await generatePlan({
-          target_ethanol_ml: remainingBudget,
-          duration_minutes: duration,
-          preferences,
-          catalog,
-          locked_drinks: lockedContribution.entries,
-          exclude: [],
-        });
+        const plan = await generatePlan(request);
+        if (fingerprint !== requestFingerprintRef.current) return;
         setCachedPlan(plan);
+        setCachedRequestFingerprint(fingerprint);
         setGenState("ready");
       } catch (err) {
+        if (fingerprint !== requestFingerprintRef.current) return;
         console.error("Preload generate-plan failed:", err);
         setGenState("error");
       }
     }, PRELOAD_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [
-    targetEthanolMl,
-    duration,
-    preferences,
-    catalog,
-    lockedContribution.ethanolMl,
-    state.timeDelta,
-  ]);
+  }, [preloadRequest, state.timeDelta]);
 
   const planEthanolMl = useMemo(() => {
     return state.drinks.reduce((total, drink) => {
@@ -363,12 +343,16 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
   };
 
   const handleGenerate = async () => {
-    if (cachedPlan) {
-      applyPlan(cachedPlan);
-      notifyIfFallback(cachedPlan.usedFallback);
-      onPlanReady();
-      return;
-    }
+    const now = new Date();
+    const resolved = resolvePlanningWindow(
+      state.drinkingStartTime,
+      state.drinkingTargetTime,
+      duration,
+      now
+    );
+    updateDrinkingStartTime(resolved.start);
+    updateDrinkingTargetTime(resolved.target);
+
     if (!targetEthanolMl || !preferences) {
       toast({
         title: "Complete your profile first",
@@ -377,17 +361,38 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
       });
       return;
     }
-    setGenState("loading");
-    const remainingBudget = Math.max(0, targetEthanolMl - lockedContribution.ethanolMl);
-    const plan = await generatePlan({
-      target_ethanol_ml: remainingBudget,
+
+    const budget = computeRemainingBudget(targetEthanolMl, lockedEthanolMl);
+    const request: GeneratePlanInput = {
+      target_ethanol_ml: budget,
       duration_minutes: duration,
       preferences,
       catalog,
-      locked_drinks: lockedContribution.entries,
+      locked_drinks: lockedEntries,
       exclude: [],
-    });
+    };
+    const fingerprint = requestFingerprint(request);
+
+    if (cachedPlan && cachedRequestFingerprint === fingerprint && budget > 0) {
+      applyPlan(cachedPlan);
+      notifyIfFallback(cachedPlan.usedFallback);
+      onPlanReady();
+      return;
+    }
+
+    if (budget <= 0) {
+      setCachedPlan(null);
+      setCachedRequestFingerprint(null);
+      setGenState("idle");
+      applyPlan({ drinks: [], notes: "" });
+      onPlanReady();
+      return;
+    }
+
+    setGenState("loading");
+    const plan = await generatePlan(request);
     setCachedPlan(plan);
+    setCachedRequestFingerprint(fingerprint);
     applyPlan(plan);
     setGenState("ready");
     notifyIfFallback(plan.usedFallback);
@@ -396,17 +401,37 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
 
   const handleRegenerate = async () => {
     if (!targetEthanolMl || !preferences) return;
-    setGenState("loading");
-    const remainingBudget = Math.max(0, targetEthanolMl - lockedContribution.ethanolMl);
-    const plan = await generatePlan({
-      target_ethanol_ml: remainingBudget,
+    const now = new Date();
+    const resolved = resolvePlanningWindow(
+      state.drinkingStartTime,
+      state.drinkingTargetTime,
+      duration,
+      now
+    );
+    updateDrinkingStartTime(resolved.start);
+    updateDrinkingTargetTime(resolved.target);
+
+    const budget = computeRemainingBudget(targetEthanolMl, lockedEthanolMl);
+    if (budget <= 0) {
+      setCachedPlan(null);
+      setCachedRequestFingerprint(null);
+      setGenState("idle");
+      applyPlan({ drinks: [], notes: "" });
+      return;
+    }
+    const request: GeneratePlanInput = {
+      target_ethanol_ml: budget,
       duration_minutes: duration,
       preferences,
       catalog,
-      locked_drinks: lockedContribution.entries,
+      locked_drinks: lockedEntries,
       exclude: lastPlanIds,
-    });
+    };
+    const fingerprint = requestFingerprint(request);
+    setGenState("loading");
+    const plan = await generatePlan(request);
     setCachedPlan(plan);
+    setCachedRequestFingerprint(fingerprint);
     applyPlan(plan);
     setGenState("ready");
     notifyIfFallback(plan.usedFallback);

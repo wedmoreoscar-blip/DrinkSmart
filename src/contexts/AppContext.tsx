@@ -1,53 +1,30 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { getBACForLevel } from "@/data/buzzLevels";
-import { drinkCategories } from "@/data/drinksData";
-import { convertToMl, getDrinkIcon, calculateTimeWithMidnight } from "@/lib/timelineHelpers";
 import { loadSession, saveSession } from "@/lib/sessionStore";
+import {
+  accumulateDelay,
+  applyRegenerationToDrinks,
+  calculateSessionTimeline,
+  markEntryConsumed,
+  pruneStaleActionState,
+  rescheduleTimeline,
+  type AlcoholTimelineEntryInput,
+  type BreakTimelineEntryInput,
+  type ConsumedSnapshot,
+  type DrinkCalculation,
+  type TimelineEntry,
+} from "@/lib/sessionEngine";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
 type WeightUnit = "kg" | "lbs";
 
-type DrinkEntry = {
-  id: string;
-  category: string;
-  drink: string;
-  customABV?: string;
-  quantity: string;
-  unit: "ml" | "oz" | "shots" | "pints" | "glass";
-  mixer?: string;
-  mixerQuantity?: string;
-  mixerUnit?: "ml" | "oz" | "shots" | "pints" | "glass";
-  isCustom?: boolean;
-  customName?: string;
-  pricePerUnit?: number | null;
-  portions?: number; // Number of portions to split ml/oz drinks into
-};
+type DrinkEntry = AlcoholTimelineEntryInput;
 
-type DrinkTimelineEntry = {
-  drinkId: string;
-  drinkName: string;
-  unitNumber: number;
-  totalUnits: number;
-  time: Date;
-  pureAlcoholMl: number;
-  percentageOfTarget: number;
-  icon: string;
-  unit: string;
-};
+type BreakEntry = BreakTimelineEntryInput;
 
-type DrinkCalculation = {
-  drinkId: string;
-  drinkName: string;
-  totalVolumeMl: number;
-  pureAlcoholMl: number;
-  percentageOfTarget: number;
-  timeAllocatedMinutes: number;
-  intervalMinutes: number;
-  quantity: number;
-  unit: string;
-};
+type DrinkTimelineEntry = TimelineEntry;
 
 type UserMetrics = {
   metricType: MetricType;
@@ -78,6 +55,10 @@ type AppState = {
   drinkCalculations: DrinkCalculation[]; // calculation details for each drink
   adjustedTargetMl: number | null; // adjusted target when drinks exceed 100%
   isTargetAdjusted: boolean; // whether target was adjusted
+  breaks: BreakEntry[]; // duration-bearing breaks, no ethanol contribution
+  consumedTimelineEntries: ConsumedSnapshot[]; // logged consumptions keyed by entry id
+  delayedEntryMinutes: Record<string, number>; // accumulated delay minutes keyed by entry id
+  effectivePlanEndTime: Date | null; // derived plan end, recomputed never persisted
 };
 
 type AppContextType = {
@@ -94,6 +75,11 @@ type AppContextType = {
   recalculate: () => void;
   calculateDrinkTimeline: () => void;
   reorderTimelineEntries: (oldIndex: number, newIndex: number) => void;
+  markTimelineEntryHadIt: (entryId: string, consumedAt?: Date) => void;
+  delayTimelineEntry: (entryId: string, minutes?: number) => void;
+  addUnplannedDrink: (drink: DrinkEntry) => void;
+  rescheduleRemainingTimeline: (now?: Date) => void;
+  applyRegeneratedRemainingDrinks: (generatedDrinks: DrinkEntry[], now?: Date) => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -125,6 +111,10 @@ const initialState: AppState = {
   drinkCalculations: [],
   adjustedTargetMl: null,
   isTargetAdjusted: false,
+  breaks: [],
+  consumedTimelineEntries: [],
+  delayedEntryMinutes: {},
+  effectivePlanEndTime: null,
 };
 
 function hydrateInitialState(): AppState {
@@ -164,6 +154,9 @@ function hydrateInitialState(): AppState {
     drinkingStartTime: persisted.drinkingStartTime,
     drinkingTargetTime: persisted.drinkingTargetTime,
     timeDelta,
+    breaks: persisted.breaks.map((breakEntry) => ({ kind: "break" as const, ...breakEntry })),
+    consumedTimelineEntries: persisted.consumedTimelineEntries,
+    delayedEntryMinutes: persisted.delayedEntryMinutes,
   };
 }
 
@@ -178,6 +171,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       lockedDrinkIds: state.lockedDrinkIds,
       drinkingStartTime: state.drinkingStartTime,
       drinkingTargetTime: state.drinkingTargetTime,
+      breaks: state.breaks,
+      consumedTimelineEntries: state.consumedTimelineEntries,
+      delayedEntryMinutes: state.delayedEntryMinutes,
     });
   }, [
     state.inebriationLevel,
@@ -185,6 +181,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     state.lockedDrinkIds,
     state.drinkingStartTime,
     state.drinkingTargetTime,
+    state.breaks,
+    state.consumedTimelineEntries,
+    state.delayedEntryMinutes,
   ]);
 
   const updateUserMetrics = useCallback((metrics: Partial<UserMetrics>) => {
@@ -204,7 +203,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateDrinks = (drinks: DrinkEntry[]) => {
-    setState((prev) => ({ ...prev, drinks }));
+    setState((prev) => {
+      const pruned = pruneStaleActionState(drinks, {
+        consumed: prev.consumedTimelineEntries,
+        delayed: prev.delayedEntryMinutes,
+        locked: prev.lockedDrinkIds,
+      });
+      return {
+        ...prev,
+        drinks,
+        lockedDrinkIds: pruned.locked,
+        consumedTimelineEntries: pruned.consumed,
+        delayedEntryMinutes: pruned.delayed,
+      };
+    });
   };
 
   const updateTimeline = (startTime: number, isRunning: boolean) => {
@@ -319,25 +331,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const calculateDrinkTimeline = () => {
-    const { userMetrics, targetBAC, timeDelta, drinks, drinkingStartTime } = state;
-    
+  const computeSessionTimeline = (prev: AppState, now: Date): AppState => {
+    const { userMetrics, targetBAC, timeDelta, drinks, drinkingStartTime, drinkingTargetTime } = prev;
+
     // Check if we have required data (different requirements for FFM vs BMI mode)
     if (!userMetrics.weight || timeDelta === null || !drinkingStartTime) {
-      setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
-      return;
+      return { ...prev, drinkTimeline: [], drinkCalculations: [], effectivePlanEndTime: null };
     }
 
-    // Flatten all drinks for lookup
-    const allDrinks = Object.entries(drinkCategories).flatMap(([categoryKey, category]) =>
-      category.options.map((option) => ({
-        name: option.name,
-        abv: option.abv,
-        category: categoryKey,
-      }))
-    );
-
-    // Step 1: Calculate total pure alcohol needed using appropriate TBW formula
     const weightKg = getWeightInKg(userMetrics.weight, userMetrics.weightUnit);
     const heightCm = getHeightInCm(
       userMetrics.heightCm,
@@ -347,11 +348,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     );
 
     if (!weightKg) {
-      setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
-      return;
+      return { ...prev, drinkTimeline: [], drinkCalculations: [], effectivePlanEndTime: null };
     }
 
-    // Calculate Total Body Water using appropriate method (FFM or Watson)
     const tbwGrams = getTBWGrams({
       metricType: userMetrics.metricType,
       bodyFat: userMetrics.bodyFat,
@@ -362,126 +361,114 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (!tbwGrams) {
-      setState((prev) => ({ ...prev, drinkTimeline: [], drinkCalculations: [] }));
-      return;
+      return { ...prev, drinkTimeline: [], drinkCalculations: [], effectivePlanEndTime: null };
     }
 
-    const BAC = (targetBAC.min + targetBAC.max) / 2;
-    // Formula: pure alcohol (g) = (BAC/100 + (0.00015 × timeDelta)) × TBW_grams
-    const pureAlcoholGrams = (BAC / 100 + 0.00015 * timeDelta) * tbwGrams;
-    const totalPureAlcoholNeeded = pureAlcoholGrams / 0.789;
-
-    const totalTimeDeltaMinutes = timeDelta * 60;
-
-    // Step 2: Process each drink (first pass to calculate totals)
-    const calculations: DrinkCalculation[] = [];
-
-    drinks.forEach((drink) => {
-      if (!drink.quantity) return;
-      if (!drink.isCustom && !drink.drink) return;
-      if (drink.isCustom && (!drink.customName || !drink.customABV)) return;
-
-      const quantity = parseFloat(drink.quantity);
-      if (isNaN(quantity) || quantity <= 0) return;
-
-      const volumeMl = convertToMl(quantity, drink.unit);
-
-      // ABV: customABV is set for custom AND establishment AND scanned drinks.
-      // Fall back to the static drinksData lookup only for legacy entries.
-      let abv = 0;
-      if (drink.customABV) {
-        abv = parseFloat(drink.customABV);
-      } else if (!drink.isCustom) {
-        const drinkData = allDrinks.find((d) => d.name === drink.drink);
-        abv = drinkData?.abv || 0;
-      }
-
-      const pureAlcoholMl = volumeMl * (abv / 100);
-
-      // ml/oz can be split into portions; shots/pints are per-unit
-      let timelineQuantity: number;
-      if (drink.unit === "ml" || drink.unit === "oz") {
-        timelineQuantity = drink.portions && drink.portions > 1 ? drink.portions : 1;
-      } else {
-        timelineQuantity = quantity;
-      }
-
-      calculations.push({
-        drinkId: drink.id,
-        drinkName: drink.isCustom ? (drink.customName || "Custom Drink") : drink.drink || "",
-        totalVolumeMl: volumeMl,
-        pureAlcoholMl,
-        percentageOfTarget: 0,
-        timeAllocatedMinutes: 0,
-        intervalMinutes: 0,
-        quantity: timelineQuantity,
-        unit: drink.unit,
-      });
+    const base = calculateSessionTimeline({
+      entries: [...drinks, ...prev.breaks],
+      userMetrics,
+      targetBAC,
+      timeDeltaHours: timeDelta,
+      drinkingStartTime,
     });
 
-    // Step 3: Adjust target if drinks exceed 100%
-    const totalPureAlcoholFromDrinks = calculations.reduce((sum, calc) => sum + calc.pureAlcoholMl, 0);
-    const progressPercentage =
-      totalPureAlcoholNeeded > 0 ? (totalPureAlcoholFromDrinks / totalPureAlcoholNeeded) * 100 : 0;
-
-    const adjustedTarget =
-      progressPercentage > 100 ? (progressPercentage / 100) * totalPureAlcoholNeeded : totalPureAlcoholNeeded;
-
-    const isTargetAdjusted = progressPercentage > 100;
-
-    // Step 4: Recompute percentages and times against the adjusted target
-    calculations.forEach((calc) => {
-      calc.percentageOfTarget = (calc.pureAlcoholMl / adjustedTarget) * 100;
-      calc.timeAllocatedMinutes = (calc.percentageOfTarget / 100) * totalTimeDeltaMinutes;
-      calc.intervalMinutes = calc.timeAllocatedMinutes / calc.quantity;
+    const rescheduled = rescheduleTimeline({
+      timeline: base.drinkTimeline,
+      consumed: prev.consumedTimelineEntries,
+      delayedMinutes: prev.delayedEntryMinutes,
+      keptSourceIds: prev.lockedDrinkIds,
+      now,
+      targetEndTime: drinkingTargetTime,
     });
 
-    // Step 5: Generate timeline entries
-    const timeline: DrinkTimelineEntry[] = [];
-    let currentTime = new Date(drinkingStartTime);
-
-    calculations.forEach((calc) => {
-      const drinkData = allDrinks.find((d) => d.name === calc.drinkName);
-      const category = drinkData?.category || "";
-      const icon = getDrinkIcon(category);
-
-      for (let i = 1; i <= calc.quantity; i++) {
-        let displayName: string;
-        if ((calc.unit === "ml" || calc.unit === "oz") && calc.quantity > 1) {
-          const portionSize = Math.round(calc.totalVolumeMl / calc.quantity);
-          displayName = `${portionSize}${calc.unit} ${calc.drinkName}`;
-        } else if (calc.unit === "ml" || calc.unit === "oz") {
-          displayName = `${calc.totalVolumeMl.toFixed(0)}${calc.unit} ${calc.drinkName}`;
-        } else {
-          displayName = calc.drinkName;
-        }
-
-        timeline.push({
-          drinkId: calc.drinkId,
-          drinkName: displayName,
-          unitNumber: i,
-          totalUnits: calc.quantity,
-          time: new Date(currentTime),
-          pureAlcoholMl: calc.pureAlcoholMl / calc.quantity,
-          percentageOfTarget: calc.percentageOfTarget / calc.quantity,
-          icon,
-          unit: calc.unit,
-        });
-
-        // Advance the cursor unless this is the very last entry
-        if (i < calc.quantity || calc !== calculations[calculations.length - 1]) {
-          currentTime = calculateTimeWithMidnight(currentTime, calc.intervalMinutes);
-        }
-      }
-    });
-
-    setState((prev) => ({
+    return {
       ...prev,
-      drinkCalculations: calculations,
-      drinkTimeline: timeline,
-      adjustedTargetMl: isTargetAdjusted ? adjustedTarget : null,
-      isTargetAdjusted: isTargetAdjusted,
-    }));
+      drinkCalculations: base.drinkCalculations,
+      drinkTimeline: rescheduled.timeline,
+      adjustedTargetMl: base.adjustedTargetMl,
+      isTargetAdjusted: base.isTargetAdjusted,
+      effectivePlanEndTime: rescheduled.effectivePlanEndTime,
+    };
+  };
+
+  const calculateDrinkTimeline = () => {
+    setState((prev) => computeSessionTimeline(prev, new Date()));
+  };
+
+  const markTimelineEntryHadIt = (entryId: string, consumedAt?: Date) => {
+    setState((prev) => {
+      const consumedTimelineEntries = markEntryConsumed(
+        prev.drinkTimeline,
+        prev.consumedTimelineEntries,
+        entryId,
+        consumedAt ?? new Date()
+      );
+      if (consumedTimelineEntries === prev.consumedTimelineEntries) return prev;
+      return computeSessionTimeline(
+        { ...prev, consumedTimelineEntries },
+        new Date()
+      );
+    });
+  };
+
+  const delayTimelineEntry = (entryId: string, minutes?: number) => {
+    setState((prev) => {
+      const entry = prev.drinkTimeline.find((candidate) => candidate.entryId === entryId);
+      if (!entry) return prev;
+      if (prev.consumedTimelineEntries.some((snapshot) => snapshot.entryId === entryId)) {
+        return prev;
+      }
+      const delayedEntryMinutes = accumulateDelay(
+        prev.delayedEntryMinutes,
+        entryId,
+        minutes ?? 15
+      );
+      if (delayedEntryMinutes === prev.delayedEntryMinutes) return prev;
+      return computeSessionTimeline({ ...prev, delayedEntryMinutes }, new Date());
+    });
+  };
+
+  const addUnplannedDrink = (drink: DrinkEntry) => {
+    setState((prev) => {
+      if (prev.drinks.some((existing) => existing.id === drink.id)) return prev;
+      const next = {
+        ...prev,
+        drinks: [...prev.drinks, drink],
+        lockedDrinkIds: prev.lockedDrinkIds.includes(drink.id)
+          ? prev.lockedDrinkIds
+          : [...prev.lockedDrinkIds, drink.id],
+      };
+      return computeSessionTimeline(next, new Date());
+    });
+  };
+
+  const rescheduleRemainingTimeline = (now?: Date) => {
+    setState((prev) => computeSessionTimeline(prev, now ?? new Date()));
+  };
+
+  const applyRegeneratedRemainingDrinks = (generatedDrinks: DrinkEntry[], now?: Date) => {
+    setState((prev) => {
+      const protectedSourceIds = [
+        ...prev.lockedDrinkIds,
+        ...prev.consumedTimelineEntries.map((snapshot) => snapshot.sourceDrinkId),
+      ];
+      const drinks = applyRegenerationToDrinks(prev.drinks, protectedSourceIds, generatedDrinks);
+      const pruned = pruneStaleActionState(drinks, {
+        consumed: prev.consumedTimelineEntries,
+        delayed: prev.delayedEntryMinutes,
+        locked: prev.lockedDrinkIds,
+      });
+      return computeSessionTimeline(
+        {
+          ...prev,
+          drinks,
+          lockedDrinkIds: pruned.locked,
+          consumedTimelineEntries: pruned.consumed,
+          delayedEntryMinutes: pruned.delayed,
+        },
+        now ?? new Date()
+      );
+    });
   };
 
   // Auto-recalculate timeline when dependencies change
@@ -490,6 +477,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     state.drinks,
+    state.breaks,
     state.userMetrics.weight,
     state.userMetrics.weightUnit,
     state.userMetrics.heightCm,
@@ -521,6 +509,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         recalculate,
         calculateDrinkTimeline,
         reorderTimelineEntries,
+        markTimelineEntryHadIt,
+        delayTimelineEntry,
+        addUnplannedDrink,
+        rescheduleRemainingTimeline,
+        applyRegeneratedRemainingDrinks,
       }}
     >
       {children}

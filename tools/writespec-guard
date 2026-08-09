@@ -23,6 +23,22 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BLOCKS = os.path.join(REPO, ".claude", "skills", "writespec", "blocks")
 
+# Affirmative instructions to the implementer to produce its own test coverage.
+# Verification belongs to the checker (docs/workflows/delegation.md): implementer
+# tests duplicate the checker's work and, worse, encode the same blind spots, so a
+# green suite can report success over a clause that was never built. Matched only
+# after the verbatim scope.md/closing.md blocks are stripped, because closing.md
+# legitimately contains "Do NOT write new tests".
+TEST_COMMISSION_PATTERNS = [
+    r"\brequires?\s+(?:new\s+|additional\s+|focused\s+)*(?:deterministic\s+)?tests?\b",
+    r"\b(?:must|should|please)\s+(?:also\s+)?(?:write|add|create)\s+"
+    r"(?:new\s+|additional\s+|focused\s+|deterministic\s+)*tests?\b",
+    r"\b(?:write|add|create)\s+(?:new|additional|focused|deterministic)\s+"
+    r"(?:\w+\s+)?tests?\b",
+    r"\b(?:add|write)\s+(?:focused\s+)?vitest\s+(?:cases|tests)\b",
+    r"\bexplicitly\s+requires?\s+.{0,40}tests?\b",
+]
+
 
 def allow():
     sys.exit(0)
@@ -97,6 +113,29 @@ def main():
             f"    cat {BLOCKS}/closing.md >> <spec-file>\n\n"
             "Then re-send. If this is a reply rather than a commission, use --response-id."
         )
+
+    # Verification is the checker's, not the implementer's.
+    if "[implementer-tests]" not in cmd:
+        body = blob
+        for block in (scope, closing):
+            body = body.replace(norm(block), " ")
+        body = body.lower()
+        hits = [p for p in TEST_COMMISSION_PATTERNS if re.search(p, body)]
+        if hits:
+            deny(
+                "Blocked by writespec-guard: this spec appears to ask the implementer to "
+                "write its own tests.\n\n"
+                "docs/workflows/delegation.md puts verification on the checker, in one loop, on "
+                "the integration branch. Implementer-written tests duplicate that work and "
+                "encode the same blind spots, so a green suite can report success over a clause "
+                "that was never built. This has happened twice here: W3-A1's fixtures hid a unit "
+                "mismatch, and W3-A2 shipped a test named for the anchor clause that contained "
+                "no anchor and passed against a function with no anchor parameter.\n\n"
+                "Rewrite the spec so the implementer only confirms the code runs and the "
+                "existing suite still passes, and derive coverage yourself under `speccheck`.\n\n"
+                "If this ticket genuinely needs implementer-authored tests, state the reason in "
+                "the spec and add the literal marker [implementer-tests] to the send command."
+            )
 
     allow()
 
