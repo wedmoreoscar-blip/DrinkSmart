@@ -1,10 +1,11 @@
 # Session Kickoff — whole-app redesign, Wave 2
 
 > **2026-08-09 continuation:** Wave 2 is complete and browser-accepted at `79d3045`. Wave 3 starts
-> with the serial deterministic-engine spec at
-> `docs/specs/2026-08-09-w3a-deterministic-session-engine.md`. Vitest `^3.2.7` is user-approved as
-> a development dependency. The spec is awaiting user review and must not be dispatched until the
-> user approves it.
+> with two serial DeepSeek foundation specs: W3-A1 planner/session regression hardening at
+> `docs/specs/2026-08-09-w3a1-planner-session-regression-hardening.md`, then W3-A2 deterministic
+> session rescheduling at `docs/specs/2026-08-09-w3a-deterministic-session-engine.md`. Vitest
+> `^3.2.7` is user-approved. The specs are awaiting user review and must not be dispatched until the
+> user approves them. Luna is reserved for later visual wiring and browser acceptance.
 
 Written 2026-08-08 22:24 BST. **Wave 1 is done, integrated and verified.** The task below is Wave 2.
 
