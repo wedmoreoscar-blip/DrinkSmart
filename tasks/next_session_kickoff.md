@@ -10,10 +10,19 @@ intentionally unpushed.
 - Wave 2 is complete and browser-accepted at `79d3045`.
 - W3-A1 planner/session regression hardening is implemented, `speccheck`-accepted, integrated at
   `9948345`, and recorded at `e4be57a`.
-- W3-A2 deterministic session rescheduling is the next serial ticket. Its committed specification is
-  `docs/specs/2026-08-09-w3a-deterministic-session-engine.md`.
-- **W3-A2 is on explicit user hold.** Do not synchronize its worktree, reconfigure its agent, or send
-  the specification until Oscar explicitly approves dispatch in a new message.
+- **W3-A2 deterministic session rescheduling is accepted and integrated at `a612fad`.** Dispatched
+  to DeepSeek `e4c274d1` on 2026-08-09 with Oscar's approval and `full_access`. `speccheck` found
+  Req 3's absolute-anchor clause entirely absent and repaired it inline; six spec-derived tests
+  were added. 93 tests pass. Step 7 of `tasks/todo.md` is complete.
+- **The delegation workflow changed materially during this session** (`68a5437`, `5d3cfeb`,
+  `53b23c6`, `df6743b`). `docs/workflows/delegation.md` is now the canonical fifteen-step path:
+  warm worktrees are kept and re-synced rather than deleted, review happens on a scratch
+  `integration` branch, repairs are inline, exactly one full baseline runs after the repairs, and
+  `main` advances only by fast-forward. Verification is the checker's, never the implementer's —
+  `tools/writespec-guard` now denies a spec that asks an implementer to write its own tests.
+- Wave 3 steps 5 (Timeline), 6 (Notifications), and 8 (Wind-down) are unblocked and may run in
+  parallel; their file scopes are disjoint. All four worktrees are clean, 0 behind `main`, and have
+  dependencies installed.
 - Wave 4 remains blocked because Profile/onboarding, drink picker, auth, menu scanner, and
   establishment browsing still have no Claude Design drawings.
 
