@@ -40,6 +40,11 @@ coding agent, whichever vendor or harness runs it.
 - Every delegation spec states its verification baseline explicitly (see
   `docs/workflows/verification.md`): which commands must pass, which are known-failing and must not
   change, and which are `BLOCKED` on unavailable infrastructure. The implementer cannot ask.
+- `docs/workflows/delegation.md` is the canonical fifteen-step path for a single delegation, from
+  provisioning through integration. It is built to cost one review pass, one repair loop, and one
+  full baseline run per delegation: review the merged tree on an `integration` branch, repair
+  inline, verify once after the repairs, and advance `main` only by fast-forward. Delegated
+  worktrees and their agents are kept warm and re-synchronized, never deleted after acceptance.
 - Follow `docs/workflows/change_safety.md` for writes, commits, worktrees, and integration. Follow
   `docs/workflows/verification.md` for evidence and live-backend limitations.
 - Never push, deploy Supabase functions, apply migrations to a remote database, rotate secrets, or

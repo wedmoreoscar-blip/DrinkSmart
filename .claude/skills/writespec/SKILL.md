@@ -44,6 +44,20 @@ unavailable infrastructure, say so in the spec and state exactly which
 commands must pass, which are expected to fail unchanged, and which are
 BLOCKED rather than runnable.
 
+Give literal numbers, not cross-references. "The lint baseline is 9 errors
+and 11 warnings" is a baseline; "the accepted count from the previous
+ticket" is not, because the implementer cannot look it up and cannot ask.
+The same goes for the current test count and for any command that behaves
+unexpectedly in this repository — name the trap and the correct invocation.
+
+## Say where the work happens and who owns Git
+
+State the worktree path. Say that the orchestrator has already synchronized
+it and installed dependencies, and that the implementer must not merge,
+rebase, reset, stash, commit, or change branches. Integration is the
+orchestrator's, and an implementer that starts moving branches around
+produces a diff nobody can review.
+
 ## Size it to one review
 
 If a spec has more than roughly five clauses, split it. Long specs mean
@@ -60,3 +74,12 @@ directory is shown when it loads):
     cat <skill-base-dir>/blocks/closing.md >> <spec-file>
 
 Do not retype, summarise or reword these. Append the files.
+
+### When a fixed block contradicts your spec
+
+`closing.md` says "Do NOT write new tests." Some tickets require them. The
+blocks are appended verbatim and never edited, so resolve the conflict in the
+spec body instead: name the contradicting line, say which side wins for this
+ticket, and confirm the rest of the block still applies. An unresolved
+contradiction leaves the implementer guessing, and it will guess in whichever
+direction costs you the most to review.

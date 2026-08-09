@@ -31,8 +31,17 @@ spec written with the `writespec` skill; the spec names the only files the imple
 - Retain focused regression tests when they protect real behavior.
 - Integrate only spec-checked work into a clean, non-overlapping target. Stop if the target moved
   incompatibly or user changes overlap.
-- Re-run relevant verification from the integrated checkout before reporting integration.
-- Keep the delegated worktree until integration verification succeeds.
+- **Review the merged tree, not the worktree.** Merge the delegated branch into an `integration`
+  branch first, then run `speccheck` and repair there, so every fix is made against the code that
+  will actually ship. `main` advances only by fast-forward from a verified `integration`.
+- **Run the full verification profile once, after the repairs, not before them.** A cheap
+  test-only run during `speccheck` is diagnostic evidence; the full baseline is the confirmation
+  gate. Skip it entirely when the merge was a fast-forward and the repair changed nothing, because
+  the tree is then identical to the one already tested.
+- **Keep the delegated worktree and its agent warm after integration.** Do not delete either.
+  Bring the worktree level with `main` by merge before its next dispatch.
+
+`docs/workflows/delegation.md` holds the full fifteen-step sequence these bullets summarize.
 
 ## External and destructive operations
 
