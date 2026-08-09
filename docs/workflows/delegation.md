@@ -20,6 +20,13 @@ Four properties, in priority order. Every rule below exists to serve one of them
    It runs once, as a confirmation gate, after repairs — never as a diagnostic before them.
 3. **One repair loop.** Surface every problem in a single review pass, fix them together, verify
    once.
+   **Verification belongs to the checker, not the implementer.** The implementer writes the code
+   and confirms only that it runs and that the existing suite still passes; it does not write
+   tests. The checker derives coverage from the spec on the integration branch. This is not only
+   about avoiding duplicated effort — tests written by the agent that wrote the code encode the
+   same blind spots, so a green suite can report success over a clause that was never
+   implemented. Independence is what makes the single check loop trustworthy enough to be the
+   only one.
 4. **Fast-forwards only.** `main` advances by fast-forward from a verified integration branch. It
    never receives untested work that then has to be re-tested in place.
 

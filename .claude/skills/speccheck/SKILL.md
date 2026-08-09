@@ -51,6 +51,14 @@ Derive test cases from the clause list. Do not read the implementation
 to decide what to test, or the tests will mirror whatever the code
 happens to do, including its mistakes.
 
+**Treat any tests the implementer supplied as part of the diff under review,
+never as evidence.** They were written by the agent that wrote the code, so
+they encode its assumptions, including the assumption that an unbuilt clause
+was built. A test whose name matches a clause is not coverage of that clause;
+read its body and confirm it exercises the thing it claims to. A passing suite
+submitted alongside an implementation is a claim, and this step exists to test
+that claim rather than inherit it.
+
 Cover at minimum: each clause's stated behaviour, the negative case for
 any conditional clause, and anything the spec named as acceptance criteria.
 
