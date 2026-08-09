@@ -79,16 +79,21 @@ function toGeneratedDrink(item: CatalogItem): GeneratedDrink {
 /**
  * Deterministic offline-safe fallback. Picks drinks greedily to hit the
  * ethanol budget, biased by preferences. Always succeeds (never throws).
+ *
+ * `target_ethanol_ml` is the remaining budget for new drinks; locked ethanol
+ * has already been subtracted by the caller and is never subtracted again.
+ * Locked drinks are excluded from the pool so they are not re-included.
  */
 export function greedyPlanFallback(input: GeneratePlanInput): GeneratedPlan {
-  const lockedEthanol = (input.locked_drinks ?? []).reduce(
-    (sum, d) => sum + (d.ethanol_ml ?? 0),
-    0
-  );
-  let remainingBudget = Math.max(0, input.target_ethanol_ml - lockedEthanol);
+  let remainingBudget = Number.isFinite(input.target_ethanol_ml)
+    ? Math.max(0, input.target_ethanol_ml)
+    : 0;
 
-  // Filter by hard rules (avoided categories + explicit excludes)
-  const excludeSet = new Set(input.exclude ?? []);
+  // Filter by hard rules (avoided categories + explicit excludes + locked drinks)
+  const excludeSet = new Set<string>([
+    ...(input.exclude ?? []),
+    ...(input.locked_drinks ?? []).map((d) => d.catalog_id),
+  ]);
   let pool = input.catalog.filter(
     (item) =>
       !excludeSet.has(item.id) &&
@@ -104,7 +109,7 @@ export function greedyPlanFallback(input: GeneratePlanInput): GeneratedPlan {
 
   const picks: CatalogItem[] = [];
   const usedIds = new Set<string>();
-  const tolerance = input.target_ethanol_ml * 0.05;
+  const tolerance = remainingBudget * 0.05;
   const overshootCap = (budget: number) => budget * 1.1;
 
   // Cap how many drinks we'll add — rough rule of thumb of 1 every 30 minutes

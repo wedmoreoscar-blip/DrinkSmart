@@ -70,17 +70,25 @@ The largest single step. Includes the code half of the level-7 decision.
 
 ### 7. Engine work — `src/contexts/AppContext.tsx`
 Three things the engine cannot currently express. Logic, not styling. Highest-risk step.
+- **Foundation accepted:** W3-A1 planner/session regression hardening is integrated at `9948345`;
+  46 deterministic tests now protect generation budgets, unit normalization, request caching, and
+  expired planning windows. W3-A2 deterministic rescheduling is the next serial ticket.
 - **Breaks and water entries.** Every timeline entry currently carries ethanol; a 0% ABV row cannot be
   represented and would take 0% of target and 0 time, clustering at t=0. Needs its own entry type
   driven by duration, with an optional volume and no BAC contribution.
 - **Wind-down state.** A terminal session phase with a sober-by estimate at 0.015 %/h elimination, a
   time-under-0.08% figure, a peak BAC, and drunk-vs-planned totals.
-- **Locking and regeneration.** Drinks lockable as `kept`, with the remainder re-planned around them
-  on re-plan, unplanned addition, or a 15-minute push. Prune stale `lockedDrinkIds` while here.
+- **Rescheduling versus regeneration.** Deterministic rescheduling changes only the times/order of
+  the existing drink set after a 15-minute push or timing adjustment. Model-driven regeneration is
+  a separate flow: the deterministic engine computes consumed + kept ethanol and the remaining
+  budget, the existing DeepSeek planner selects a new replaceable drink set, server/client code
+  recomputes its arithmetic, and the engine applies it before rescheduling. Drinks remain lockable
+  as `kept`; prune stale `lockedDrinkIds` while here. Never call both operations `replan` in code.
 - Acceptance: `adjustedTargetMl` behaviour is unchanged; the Widmark formula is unchanged; existing
   ethanol-bearing plans produce byte-identical timelines to before the change.
-- **This step requires deterministic tests, not a typecheck.** No test runner exists yet; adding
-  vitest needs explicit approval as a new dev dependency. Raise that before starting step 7.
+- **This step requires deterministic tests, not a typecheck.** Vitest `^3.2.7` was explicitly
+  approved on 2026-08-09. DeepSeek owns the planner, persistence, and engine implementation/tests;
+  Luna is reserved for later visual wiring and browser acceptance.
 
 ### 8. Wind-down screen (1f) — new
 Depends on step 7's terminal state.
