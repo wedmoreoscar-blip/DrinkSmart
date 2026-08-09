@@ -38,8 +38,12 @@ spec written with the `writespec` skill; the spec names the only files the imple
   test-only run during `speccheck` is diagnostic evidence; the full baseline is the confirmation
   gate. Skip it entirely when the merge was a fast-forward and the repair changed nothing, because
   the tree is then identical to the one already tested.
-- **Keep the delegated worktree and its agent warm after integration.** Do not delete either.
-  Bring the worktree level with `main` by merge before its next dispatch.
+- **Keep the delegated worktree and its agent warm after integration.** Do not delete either, and
+  do not reinstall dependencies into a warm worktree unless the merge actually changed
+  `package-lock.json`. Bring the worktree level with `main` by merge before its next dispatch.
+- **Never merge into a worktree whose agent is mid-task.** Sync idle, clean worktrees eagerly;
+  defer a busy one until just before its next dispatch. A merge that lands under a working agent
+  shifts its tree and produces failures that are hard to attribute.
 
 `docs/workflows/delegation.md` holds the full fifteen-step sequence these bullets summarize.
 

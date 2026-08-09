@@ -34,8 +34,28 @@ Four properties, in priority order. Every rule below exists to serve one of them
 2. **Bring the worktree level with `main`.** Merge only. Never reset, rebase, or stash to get
    there. If the worktree is dirty or cannot be synchronized without risking unintegrated work,
    stop and ask rather than forcing it.
-3. **Install and baseline.** Run `npm install` under `tools/agent-lock dependencies` if the
-   lockfile moved. Run `npm test` and record the green count the implementer inherits.
+3. **Install only if the dependency set actually moved.** A warm worktree already has
+   `node_modules`; reinstalling into one is slow and buys nothing. Run `npm install` under
+   `tools/agent-lock dependencies` in exactly two cases:
+
+   - the worktree is newly created, or
+   - the merge in step 2 changed `package-lock.json`.
+
+   The second case is not caution, it is staleness: `node_modules` now describes a dependency set
+   the tree no longer has. This is a real failure mode, not a theoretical one — a worktree
+   predating the introduction of Vitest was merged current, and `node_modules/.bin/vitest` simply
+   did not exist, so the first command of the baseline would have failed. The install is
+   incremental and took seconds.
+
+   Detect it rather than guessing:
+
+   ```bash
+   git diff --name-only <pre-merge-sha> HEAD -- package-lock.json
+   ```
+
+   Empty output means skip. Then run `npm test` and record the green count the implementer
+   inherits — that run is cheap and confirms the worktree is genuinely usable before an agent is
+   pointed at it.
 4. **Configure explicitly.** Harness, model, `--reasoning-effort max`, `--surface gui`, and the
    permission mode. None of these are inherited reliably.
 5. **Verify what actually ran.** `traycer agent create` and `configure` can fail open — reporting
@@ -76,8 +96,19 @@ role skips to step 6.
     when step 9 was a fast-forward *and* step 11 changed nothing — the tree is then byte-identical
     to what step 10 already tested.
 13. **Fast-forward `main` from `integration`.** Commit locally. Never push.
-14. **Re-merge `main` into every open worktree,** including the one that just delivered. Skipping
-    this is what makes the second and third integrations of a batch conflict.
+14. **Re-merge `main` into every worktree that is idle and clean,** including the one that just
+    delivered. Skipping this is what makes the second and third integrations of a batch conflict.
+
+    **Never merge into a worktree whose agent is mid-task.** Git fails safe when the incoming
+    commits touch a file the agent has modified — it refuses rather than clobbering — but when
+    they touch *other* files the merge succeeds and the agent's working tree shifts underneath it.
+    Its file reads go stale, its edits land on moved line numbers, and the resulting failures are
+    hard to attribute to the merge that caused them.
+
+    For a busy worktree, defer the sync instead of forcing it. Step 2 of its next delegation
+    brings it current before anything is dispatched, so nothing is lost by waiting. Syncing idle
+    worktrees eagerly is an optimization that keeps drift small and surfaces conflicts early — it
+    is not a correctness requirement.
 15. **Leave the worktree and agent warm.** Do not delete either. The next delegation re-enters at
     step 1.
 

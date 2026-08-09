@@ -103,9 +103,16 @@ re-running proves nothing.
 Fast-forward the integration target from `integration`. Commit locally; never
 push without explicit authorization.
 
-Then re-merge the integration target into every open delegated worktree,
-including the one that just delivered. Skipping this is what makes the second
-and third integrations of a batch conflict.
+Then re-merge the integration target into every delegated worktree that is
+idle and clean, including the one that just delivered. Skipping this is what
+makes the second and third integrations of a batch conflict.
+
+Never merge into a worktree whose agent is mid-task. Where the incoming commits
+touch a file the agent has modified, Git refuses and fails safe; where they
+touch other files the merge succeeds and the agent's tree shifts underneath it,
+producing stale reads and misplaced edits that are hard to trace back. Defer
+that worktree's sync until just before its next dispatch, which brings it
+current anyway.
 
 Do not delete the worktree or stand down the agent. A clean worktree level with
 the integration target is a provisioned asset for the next delegation.
