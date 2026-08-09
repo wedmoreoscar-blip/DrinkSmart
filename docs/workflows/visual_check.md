@@ -42,24 +42,19 @@ repository**, not assumed: Luna completed a full Wave 2 browser acceptance pass 
 capturing at 402×874, measuring geometry and computed styles, driving pointer and keyboard
 drag-and-drop, checking overflow and console errors, fixing code, and re-shooting to confirm.
 
-**Provisioning it is a prerequisite step, not a given.** As of 2026-08-09:
+**`playwright` is a committed devDependency**, pinned to exactly `1.55.0` (approved by Oscar,
+2026-08-09). Chromium is cached at `~/.cache/ms-playwright`. Verified working: launches, captures
+at 402×874, and reads `getComputedStyle` back.
 
-- **Chromium is cached** at `~/.cache/ms-playwright` (`chromium-1187`,
-  `chromium_headless_shell-1187`, `ffmpeg-1011`) and survives everything, because it lives outside
-  `node_modules`.
-- **The `playwright` package is not installed anywhere** — not in the root checkout, not in any
-  worktree, not globally. It is also **not in `package.json` or the lockfile**, which is why it
-  vanished: an extraneous package is pruned by the next `npm install`. That is exactly what
-  happened on 2026-08-09 when worktrees were reinstalled after a lockfile change.
+**The pin is exact on purpose — do not widen it to `^` or `~`.** Each Playwright release expects a
+specific Chromium build, and `1.55.0` is the one matching the cached `chromium-1187`. A range
+silently resolves to `1.55.1`, which wants `chromium-1193` and fails at launch with
+`Executable doesn't exist`. If the version is ever raised deliberately, run
+`npx playwright install chromium` to fetch the matching build.
 
-So the orchestrator provisions Playwright before dispatching anyone, and re-checks it after any
-`npm install` in the target worktree. Two ways, and the choice is Oscar's:
-
-- **Ad-hoc install**, matching what was done before. Nothing is committed, and it will be pruned
-  again by the next `npm install` — acceptable if the phase runs in one sitting.
-- **Add it as a devDependency**, which makes it durable and removes this failure mode. This is a
-  dependency change and **requires Oscar's approval**; Vitest set the precedent that even a dev
-  dependency is asked for, not assumed.
+It was previously installed ad-hoc and absent from `package.json`, which made it extraneous — so
+the next `npm install` pruned it and the capability vanished silently. Declaring it removes that
+failure mode; the general lesson is that an undeclared tool does not survive a managed lockfile.
 
 Import it from runner scripts by **absolute module path** (`<repo>/node_modules/playwright`) —
 scripts living under `/tmp` will not resolve it otherwise. Implementers must not change
