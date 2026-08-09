@@ -98,6 +98,33 @@ equally to lint, tests, and any future runner.
   agent/worktree for isolation, comparison, quota or ownership reasons. Do not provision the fresh
   route until no compatible warm route exists or Oscar explicitly chooses it. Once confirmed,
   `writespec`, worktree isolation, explicit model/effort configuration and `speccheck` still apply.
+- **Compact before cross-harness reconfiguration (empirically settled 2026-08-09).** A warm agent
+  may be moved to another harness in its existing Traycer chat and worktree, but compact its source
+  session first when the active context is large. Traycer cannot resume the source harness's native
+  provider session: it opens a fresh destination-provider session and injects a
+  `<previous_session_context>` instruction pointing to
+  `/tmp/traycer-chat-refs/<agent-id>/session-carryover/transcript.txt`. The destination agent reads
+  that file explicitly, analogous to starting a new provider chat and handing it a transcript.
+  This bridge was observed both for Claude/Opus → Codex/GPT-5.6 Sol and for
+  OpenCode/DeepSeek V4 Flash → Codex/GPT-5.6 Luna Max.
+
+  In the large-session experiment, OpenCode showed about 210k active tokens before manual
+  compaction. The generated carryover was 40,297 bytes / 4,503 words / 581 lines and contained the
+  compacted summary plus recent messages, including some tool calls/results — not the raw 210k
+  provider history. Codex created a fresh Luna session (`providerSessionKind=fresh`,
+  `freshReason=no_harness_anchor_in_chat`). Its first request, before reading the carryover, was
+  21,251 uncached input tokens; after the file reads, the successful confirmation turn contained
+  28,448 input tokens, of which 27,392 were cached. The GUI displayed roughly 40k context, so use
+  the Codex rollout token events as the authoritative input accounting. An interrupted intermediate
+  turn means these observations prove transfer shape and active input size, not an exact aggregate
+  billing total.
+
+  Operational rule: compact the source, reconfigure only after Oscar confirms, send a minimal
+  confirmation turn, then inspect the destination rollout's first `token_count`. The carryover can
+  still be verbose or low-quality, so inspect its size/content when cost or continuity matters.
+  This finding is specific to cross-harness Traycer reconfiguration; do not generalize it to a
+  same-harness model switch, where the provider may reread the full active history under a new
+  model-specific cache.
 - **Default implementer: DeepSeek V4 Flash via the `opencode` harness**, `--surface gui`. Served by
   DeepSeek's own API through configured credentials — not the `opencode:*-free` tier, which may
   serve a pre-0731 build. Spawn several in parallel when the work splits into independent specs.
