@@ -34,6 +34,23 @@ Before every implementation dispatch:
    synchronization or reconfiguration would be needed, and ask whether to reuse it or create an
    isolated agent/worktree instead. **Do not send the spec, reconfigure the agent, stash or alter
    its worktree, or create a replacement until Oscar answers.**
+
+   This gate is deliberate and stays. It is also the largest source of latency in provisioning, so
+   make it cheap to answer: present the facts in one block and ask one question, rather than
+   opening a discussion.
+
+   ```
+   Reuse for <ticket>?
+     agent     <id> "<title>" (<harness>/<model>)
+     worktree  <name> — clean/dirty, N behind main
+     sync      merge only | merge + npm install (lockfile moved) | none
+     reconfig  none | <what changes>
+   Reuse, or isolated agent/worktree?
+   ```
+
+   Everything there is read-only to gather and it is what the decision turns on. If any line would
+   read "dirty" or "cannot sync safely", say so and stop — that is a different question and needs
+   its own answer.
 3. Treat reuse as the recommended/default option, not as pre-authorized action. Oscar may prefer a
    clean agent or separate worktree for isolation, comparison, quota, ownership or any other
    reason; the confirmation gate exists to preserve that choice.

@@ -93,10 +93,29 @@ loop into several.
 Contact the implementer again only when at least one of these exceptions is
 true:
 
-1. a whole specification clause is absent;
+1. completing the work would mean **designing rather than repairing** — new
+   interfaces, or decisions the spec never settled;
 2. the implementation uses the wrong approach and needs a substantial rewrite;
 3. the repair requires files or authority outside the commissioned scope; or
 4. the checker lacks a required external capability or infrastructure.
+
+**A missing clause is not itself exception 1.** It was, until 2026-08-09;
+the test is now the *size and kind* of the remaining work, not the fact of the
+gap. W3-A2 is the case that changed it: the absolute-anchor clause was
+entirely absent, textbook grounds for handing it back, and implementing it
+inline took about seventy production lines and six tests. That was plainly
+faster than a round trip — no rebrief, no wait, no second review, and the
+checker already had the whole design loaded from mapping the clauses.
+
+Be clear-eyed about what inline repair costs, so the rule is applied for the
+right reason. It is usually *more* expensive in tokens: the checker is the
+larger model doing work the implementer bills at a fraction. What it buys is
+latency and reliability, and for anything implementable from the spec you
+already wrote, that trade is worth the premium.
+
+Exception 1 survives for the case where it earns its keep: the point where
+you would stop repairing an implementation and start authoring one. Work
+invented during a review pass was specified by nobody and reviewed by nobody.
 
 Before any repair message or follow-up task, state which numbered exception
 applies and the concrete evidence for it. If none applies, sending the message
@@ -148,3 +167,12 @@ warranted when a merge actually changed the lockfile.
 State: clauses satisfied, clauses missing, out-of-scope changes, tests
 added, failures found and fixed. Be specific about clause numbers. Report the
 baseline result, or state that it was skipped and why.
+
+**Name every inline repair in the acceptance record**, not only in this
+report — what was missing or wrong, and what you wrote to complete it. Since
+almost all corrections now happen inline, this is the only remaining trace of
+how much of each ticket the checker actually finished. Three tickets in a row
+whose records say a clause was completed inline is telling you the specs are
+under-specified or the implementer is underperforming, and without the notes
+that pattern is invisible: inline repair silently absorbs the signal it should
+be raising.

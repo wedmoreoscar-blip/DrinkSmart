@@ -50,7 +50,8 @@ Commit `d60ab03` makes acceptance repairs checker-owned in `AGENTS.md`,
 
 After implementation handback, the reviewer fixes localized allowlisted failures and their tests
 inline. Model ownership, task category, warm context, and implementer availability are not reasons
-to delegate a repair. Re-contact is allowed only for a whole missing clause, a substantially wrong
+to delegate a repair. Re-contact is allowed only where completing the work would mean designing
+rather than repairing (a missing clause alone is not enough, revised 2026-08-09), a substantially wrong
 approach, a scope/authority expansion, or missing capability/infrastructure; the reviewer must name
 the exception and evidence first. Reusing a warm agent still requires Oscar's confirmation.
 

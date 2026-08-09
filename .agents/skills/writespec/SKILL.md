@@ -56,6 +56,16 @@ ticket" is not, because the implementer cannot look it up and cannot ask.
 The same goes for the current test count and for any command that behaves
 unexpectedly in this repository — name the trap and the correct invocation.
 
+**Get those numbers by running the commands, never by quoting a document.**
+A recorded count is stale the moment any ticket improves or worsens it, and
+the record is rarely updated everywhere it appears. Checked 2026-08-09:
+four live documents still stated the pre-W3-A1 lint count of 9 errors and
+12 warnings when the real figure was 9 and 11 — so a spec written from any
+of them would have licensed a regression back to 12 as "baseline held".
+
+Run `npm run lint` and `npm test`, read the totals off the output, and put
+those in the spec. It costs seconds and it cannot drift.
+
 This baseline is a *do not break* line, not a burden of proof. It tells the
 implementer what already-passing means so it can avoid regressing it and stop.
 It does not ask the implementer to demonstrate that its own new behaviour is

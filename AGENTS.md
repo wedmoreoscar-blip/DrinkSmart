@@ -28,11 +28,14 @@ coding agent, whichever vendor or harness runs it.
 - Delegate through Traycer. Before dispatching an implementer, write the spec with `writespec`;
   after the implementation returns, verify it with `speccheck` before accepting. Keep tiny
   context-cached changes inline when delegation would cost more than the work.
-- After an implementation returns, the `speccheck` reviewer owns localized repairs and regression
-  tests. Never send a small allowlisted correction back merely because the original task category
-  belonged to that model. Re-contacting the implementer requires a whole missing clause, a
-  substantially wrong approach, a scope/authority expansion, or a capability/infrastructure gap;
-  state the exception before messaging and obtain confirmation before reusing a warm agent.
+- After an implementation returns, the `speccheck` reviewer owns repairs and their tests, and in
+  practice will fix almost everything inline. Never send a correction back merely because the
+  original task category belonged to that model. Re-contacting the implementer requires that
+  completing the work would mean designing rather than repairing, a substantially wrong approach,
+  a scope/authority expansion, or a capability/infrastructure gap; a missing clause alone is not
+  enough. State the exception before messaging and obtain confirmation before reusing a warm agent.
+  Name inline repairs in the acceptance record — that note is the only signal that a spec is
+  routinely under-specifying the work.
 - `docs/workflows/agent_selection.md` decides which agent runs which role: a Claude Code
   orchestrator, DeepSeek V4 Flash via opencode as the default implementer, and GPT-5.6 Luna via
   codex only for visual input or spatial reasoning. It is the canonical copy of the guide Traycer
