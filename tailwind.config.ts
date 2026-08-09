@@ -52,6 +52,8 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        field: "hsl(var(--field))",
+        scrim: "hsl(var(--scrim))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -71,6 +73,7 @@ export default {
       fontSize: {
         micro: ["13px", { lineHeight: "1.4" }],
         label: ["15px", { lineHeight: "1.2", letterSpacing: "0.09em" }],
+        note: ["17px", { lineHeight: "1.4" }],
         body: ["19px", { lineHeight: "1.45" }],
         lead: ["22px", { lineHeight: "1.3" }],
         title: ["28px", { lineHeight: "1.15", letterSpacing: "-0.015em" }],
@@ -81,6 +84,10 @@ export default {
         // touch scale — `tap` is the minimum hit target, `act` the primary action
         tap: "56px",
         act: "64px",
+        // `control` is the drawn widget inside a 56px row; switch is its own size
+        control: "28px",
+        "switch-w": "64px",
+        "switch-h": "36px",
       },
       borderRadius: {
         sm: "4px",
@@ -88,6 +95,9 @@ export default {
         lg: "var(--radius)",     // 14px
         xl: "20px",
         vessel: "28px",
+        ctl: "var(--radius-ctl)",     // 12px — form controls
+        sheet: "var(--radius-sheet)", // 20px — dialog, sheet
+        chip: "var(--radius-chip)",   // 8px — badges, checkbox
       },
       boxShadow: {
         sm: "var(--shadow-sm)",
