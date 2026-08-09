@@ -97,6 +97,10 @@
 
     /* ── radii ──────────────────────────────────────────────── */
     --radius: 0.875rem;                 /* 14px, Nocturne --radius-lg */
+    --radius-ctl: 0.75rem;              /* 12px — every form control and
+                                           stepper */
+    --radius-sheet: 1.25rem;            /* 20px — dialog and notification */
+    --radius-chip: 0.5rem;              /*  8px — badges, checkbox */
 
     /* ── type scale (px, mobile) ─────────────────────────────── */
     /* Set for arm's length in a dark bar. --fs-body is the floor for
@@ -106,6 +110,8 @@
     --fs-title: 28px;   --lh-title: 1.15;
     --fs-lead: 22px;    --lh-lead: 1.3;
     --fs-body: 19px;    --lh-body: 1.45;
+    --fs-note: 17px;    --lh-note: 1.4;    /* errors, hints — carries meaning,
+                                              but must not read as a field */
     --fs-label: 15px;   --ls-label: 0.09em; /* uppercase labels */
     --fs-micro: 13px;
 
@@ -114,6 +120,15 @@
     --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
     --touch-min: 56px;                  /* nothing tappable is smaller */
     --touch-primary: 64px;              /* the one action per screen */
+    --touch-control: 28px;              /* the drawn box inside a 56px row —
+                                           checkbox, switch knob */
+    --switch-w: 64px; --switch-h: 36px;
+
+    /* ── shared surfaces (both themes) ──────────────────────── */
+    --scrim: 232.5 29% 5.5% / 0.72;     /* rgba(10,11,18,.72) — dialog and
+                                           sheet backdrop */
+    --field: 232 18% 14%;               /* #1c1e2c — input ground, = raised
+                                           card */
 
     /* ── motion ─────────────────────────────────────────────── */
     /* Slow. Nothing in this app should feel urgent or congratulatory. */

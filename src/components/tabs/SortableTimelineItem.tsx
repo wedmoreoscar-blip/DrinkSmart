@@ -1,8 +1,9 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Lock, Unlock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { formatTimeDisplay, getUnitDisplayText } from "@/lib/timelineHelpers";
+import { Lock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { getUnitDisplayText } from "@/lib/timelineHelpers";
+import { OZ_ML, PINT_ML, SHOT_ML, GLASS_ML } from "@/lib/drinkConstants";
 
 type DrinkTimelineEntry = {
   drinkId: string;
@@ -18,119 +19,190 @@ type DrinkTimelineEntry = {
 
 type SortableTimelineItemProps = {
   entry: DrinkTimelineEntry;
-  index: number;
   isPast: boolean;
   isCurrent: boolean;
   isFuture: boolean;
-  durationMinutes: number;
-  isVolumeBased: boolean;
   isDraggable: boolean;
   isLocked: boolean;
   onToggleLock: () => void;
-  formatDuration: (minutes: number) => string;
+};
+
+const getDisplayName = (entry: DrinkTimelineEntry) =>
+  entry.drinkName.replace(/^\d+(?:\.\d+)?\s*(?:ml|oz)\s+/i, "");
+
+const formatClock = (date: Date) =>
+  date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+const getVolumeLabel = (entry: DrinkTimelineEntry) => {
+  const match = entry.drinkName.match(/^(\d+(?:\.\d+)?)\s*(ml|oz)\b/i);
+  if (match) return `${match[1]} ${match[2].toLowerCase()}`;
+
+  switch (entry.unit) {
+    case "pints":
+      return `${PINT_ML} ml`;
+    case "shots":
+      return `${SHOT_ML} ml`;
+    case "glass":
+      return `${GLASS_ML} ml`;
+    case "oz":
+      return `${OZ_ML} ml`;
+    default:
+      return null;
+  }
+};
+
+const getVolumeMl = (entry: DrinkTimelineEntry) => {
+  const match = entry.drinkName.match(/^(\d+(?:\.\d+)?)\s*(ml|oz)\b/i);
+  if (match) {
+    const value = parseFloat(match[1]);
+    return match[2].toLowerCase() === "oz" ? value * OZ_ML : value;
+  }
+
+  switch (entry.unit) {
+    case "pints":
+      return PINT_ML;
+    case "shots":
+      return SHOT_ML;
+    case "glass":
+      return GLASS_ML;
+    case "oz":
+      return OZ_ML;
+    default:
+      return null;
+  }
 };
 
 export const SortableTimelineItem = ({
   entry,
-  index,
   isPast,
   isCurrent,
   isFuture,
-  durationMinutes,
-  isVolumeBased,
   isDraggable,
   isLocked,
   onToggleLock,
-  formatDuration,
 }: SortableTimelineItemProps) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `${entry.drinkId}-${entry.unitNumber}`,
     disabled: !isDraggable || isLocked,
   });
 
+  const displayName = getDisplayName(entry);
+  const isBreak = entry.pureAlcoholMl === 0 || displayName.toLowerCase().includes("water");
+  const isLockedRow = isLocked && !isPast && !isCurrent;
+  const unitLabel = getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit).replace(/glasss$/, "glass");
+  const volumeLabel = getVolumeLabel(entry);
+  const volumeMl = getVolumeMl(entry);
+  const abv = volumeMl && entry.pureAlcoholMl > 0 ? (entry.pureAlcoholMl / volumeMl) * 100 : null;
+
+  let detail = isBreak ? `${volumeLabel || ""} · break`.trim() : `${unitLabel} · ${volumeLabel || ""}`.trim();
+  if (isPast && !isCurrent && !isBreak) detail = `${unitLabel} · had`;
+  if (isLockedRow) detail = `${volumeLabel || unitLabel} ${unitLabel} · stays if you re-plan`;
+  if (isCurrent && !isBreak) {
+    detail = `${volumeLabel || ""} ${unitLabel}${abv !== null ? `, ${abv.toFixed(0)}%` : ""}`.trim();
+  }
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.5 : undefined,
   };
 
-  const formatTime = (date: Date) => formatTimeDisplay(date);
+  const markerClass = isBreak
+    ? "h-[13px] w-[13px] rounded-full border border-dashed border-[#9397ab] bg-background"
+    : isCurrent
+      ? "h-[15px] w-[15px] rounded-full bg-primary shadow-[0_0_0_5px_rgba(145,132,217,.22)]"
+      : isLockedRow
+        ? "h-[13px] w-[13px] rounded-full border-[1.5px] border-primary bg-background"
+        : isPast
+          ? "h-[11px] w-[11px] rounded-full bg-[#75798c]"
+          : "h-[13px] w-[13px] rounded-full border-[1.5px] border-[#5d5294] bg-background";
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
-      <div className="relative flex items-start gap-4 pl-12">
-        {/* Timeline dot - z-10 ensures it's above the progress line */}
-        <div className={`absolute left-0 w-10 h-10 rounded-full flex items-center justify-center transition-all z-10 ${
-          isPast ? "bg-primary text-primary-foreground shadow-md" : 
-          isCurrent ? "bg-primary animate-pulse shadow-lg shadow-primary/40" : 
-          "bg-background border-2 border-primary/30"
-        }`}>
-          {isPast ? (
-            <span className="text-primary-foreground font-bold text-lg">✓</span>
-          ) : (
-            <span className="text-2xl">{entry.icon}</span>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isPast && !isCurrent ? "relative z-[1] opacity-[.45]" : "relative z-[1]"}
+    >
+      <div
+        className={
+          isCurrent
+            ? "mx-[-6px] mb-[10px] grid min-h-[96px] grid-cols-[68px_34px_minmax(0,1fr)] items-start rounded-lg bg-[#1c1e2c] py-3.5 shadow-[0_0_0_1px_#9184d9]"
+            : isFuture
+              ? "grid min-h-[70px] grid-cols-[62px_34px_minmax(0,1fr)_44px] items-start"
+              : isBreak
+                ? "grid min-h-[64px] grid-cols-[62px_34px_minmax(0,1fr)] items-start"
+                : "grid min-h-[70px] grid-cols-[62px_34px_minmax(0,1fr)] items-start"
+        }
+      >
+        <div
+          className={
+            isCurrent
+              ? "pt-2 pl-1.5 text-body font-medium tabular-nums text-foreground"
+              : "pt-2 text-body tabular-nums text-muted-foreground"
+          }
+        >
+          {formatClock(entry.time)}
+        </div>
+
+        <div className={isCurrent ? "flex justify-center pt-1" : "flex justify-center pt-1.5"}>
+          <div className={markerClass} />
+        </div>
+
+        <div
+          {...(isDraggable && isFuture && !isLocked ? attributes : {})}
+          {...(isDraggable && isFuture && !isLocked ? listeners : {})}
+          className={
+            isCurrent
+              ? "min-w-0 pr-3.5 pl-3"
+              : "min-w-0 pl-3"
+          }
+          style={isDraggable && isFuture && !isLocked ? { touchAction: "none" } : undefined}
+        >
+          <div className={isCurrent ? "text-[25px] leading-[1.2] font-medium tracking-[-0.015em]" : "text-lead leading-[1.25]"}>
+            {displayName}
+            {isLockedRow && (
+              <Badge variant="kept" className="ml-2">kept</Badge>
+            )}
+          </div>
+
+          <div
+            className={
+              isCurrent
+                ? "mt-0.5 text-body leading-[1.35] text-[#cfd3e5]"
+                : isBreak
+                  ? "mt-0.5 text-[15px] leading-[1.3] text-[#cfd3e5]"
+                  : "mt-0.5 text-[15px] leading-[1.3] text-muted-foreground"
+            }
+          >
+            {detail}
+          </div>
+
+          {isCurrent && (
+            <div className="mt-1.5 text-micro tabular-nums text-[#75798c]">
+              {entry.pureAlcoholMl.toFixed(1)} ml · {entry.percentageOfTarget.toFixed(1)}% of target
+            </div>
           )}
         </div>
-        
-        {/* Drag handle - only show for future draggable items */}
-        {isDraggable && isFuture && (
-          <div
-            {...listeners}
-            className="absolute left-12 top-0 cursor-grab active:cursor-grabbing p-2 hover:bg-muted/50 rounded transition-colors"
-            style={{ touchAction: 'none' }}
+
+        {!isCurrent && isFuture && (
+          <button
+            type="button"
+            className={
+              isLockedRow
+                ? "flex h-11 w-11 items-center justify-center text-primary"
+                : "flex h-11 w-11 items-center justify-center text-muted-foreground"
+            }
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleLock();
+            }}
+            title={isLockedRow ? "Unlock — allow regenerate to replace this drink" : "Lock — keep this drink across regenerations"}
+            aria-label={isLockedRow ? "Unlock drink" : "Lock drink"}
           >
-            <GripVertical className="w-4 h-4 text-muted-foreground" />
-          </div>
+            <Lock className="h-[18px] w-[18px]" fill={isLockedRow ? "currentColor" : "none"} />
+          </button>
         )}
-        
-        {/* Content */}
-        <div className={`flex-1 pb-2 transition-opacity ${
-          isPast ? "opacity-50" : "opacity-100"
-        } ${isDraggable && isFuture ? "ml-10" : ""}`}>
-          <div className="flex items-center justify-between mb-1 gap-2">
-            <div className="font-semibold text-lg">{formatTime(entry.time)}</div>
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-muted-foreground">
-                {getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit)}
-              </div>
-              {!isPast && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`h-7 w-7 ${isLocked ? "text-primary" : "text-muted-foreground"}`}
-                  onClick={onToggleLock}
-                  title={isLocked ? "Unlock — allow regenerate to replace this drink" : "Lock — keep this drink across regenerations"}
-                >
-                  {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                </Button>
-              )}
-            </div>
-          </div>
-          <div className="text-muted-foreground">
-            Take {entry.unitNumber === 1 && entry.totalUnits === 1 ? "" : `${entry.unitNumber}${entry.unitNumber === 1 ? "st" : entry.unitNumber === 2 ? "nd" : entry.unitNumber === 3 ? "rd" : "th"} `}
-            {entry.drinkName}
-          </div>
-          <div className="text-sm text-muted-foreground mt-1">
-            {entry.percentageOfTarget.toFixed(1)}% of target • {entry.pureAlcoholMl.toFixed(1)}ml pure alcohol
-          </div>
-        </div>
       </div>
-      
-      {/* Duration text between entries */}
-      {isVolumeBased && durationMinutes > 0 && (
-        <div className={`relative py-2 ${isDraggable && isFuture ? "pl-22" : "pl-12"}`}>
-          <div className="text-sm text-muted-foreground font-medium italic">
-            ⏱️ Consume over {formatDuration(durationMinutes)}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

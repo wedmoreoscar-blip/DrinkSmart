@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import {
   defaultPreferences,
@@ -19,6 +18,8 @@ type PreferencesPickerProps = {
   submitting?: boolean;
 };
 
+const SWEET_STOPS = [0, 0.25, 0.5, 0.75, 1];
+
 const SWEET_LABELS: Record<number, string> = {
   0: "Dry",
   0.25: "Slightly dry",
@@ -33,6 +34,54 @@ const STRONG_LABELS: Record<number, string> = {
   0.75: "Strong",
   1: "Very strong",
 };
+
+const WordStopRail = ({
+  value,
+  labels,
+  startWord,
+  endWord,
+  onSelect,
+}: {
+  value: number;
+  labels: Record<number, string>;
+  startWord: string;
+  endWord: string;
+  onSelect: (value: number) => void;
+}) => (
+  <div className="space-y-2">
+    <div className="text-lead font-medium text-foreground">{labels[value] ?? "Balanced"}</div>
+    <div className="relative flex h-tap items-center">
+      <div className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_30px,rgba(233,233,237,.16)_calc(100%-30px),transparent)]" />
+      <div className="relative flex w-full items-center">
+        {SWEET_STOPS.map((stop) => {
+          const selected = value === stop;
+          return (
+            <button
+              key={stop}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onSelect(stop)}
+              className="flex h-tap flex-1 items-center justify-center"
+            >
+              <span
+                className={cn(
+                  "rounded-full",
+                  selected
+                    ? "h-5 w-5 bg-primary shadow-[0_0_0_5px_rgba(145,132,217,.22)]"
+                    : "h-[11px] w-[11px] bg-muted",
+                )}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+    <div className="flex justify-between text-micro text-[#75798c]">
+      <span>{startWord}</span>
+      <span>{endWord}</span>
+    </div>
+  </div>
+);
 
 export const PreferencesPicker = ({
   initial,
@@ -77,49 +126,25 @@ export const PreferencesPicker = ({
     <div className="space-y-4">
       <Card className="p-4 space-y-4">
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Sweet</Label>
-            <span className="text-xs text-muted-foreground">
-              {SWEET_LABELS[prefs.sweet] ?? "Balanced"}
-            </span>
-          </div>
-          <Slider
-            value={[prefs.sweet]}
-            min={0}
-            max={1}
-            step={0.25}
-            onValueChange={([v]) => update({ sweet: v })}
+          <Label>Sweet</Label>
+          <WordStopRail
+            value={prefs.sweet}
+            labels={SWEET_LABELS}
+            startWord="Dry"
+            endWord="Sweet"
+            onSelect={(v) => update({ sweet: v })}
           />
-          <div className="flex justify-between text-[10px] text-muted-foreground px-1">
-            <span>Dry</span>
-            <span>·</span>
-            <span>Balanced</span>
-            <span>·</span>
-            <span>Sweet</span>
-          </div>
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Strong</Label>
-            <span className="text-xs text-muted-foreground">
-              {STRONG_LABELS[prefs.strong] ?? "Medium"}
-            </span>
-          </div>
-          <Slider
-            value={[prefs.strong]}
-            min={0}
-            max={1}
-            step={0.25}
-            onValueChange={([v]) => update({ strong: v })}
+          <Label>Strong</Label>
+          <WordStopRail
+            value={prefs.strong}
+            labels={STRONG_LABELS}
+            startWord="Light"
+            endWord="Very strong"
+            onSelect={(v) => update({ strong: v })}
           />
-          <div className="flex justify-between text-[10px] text-muted-foreground px-1">
-            <span>Light</span>
-            <span>·</span>
-            <span>Medium</span>
-            <span>·</span>
-            <span>Very strong</span>
-          </div>
         </div>
       </Card>
 
