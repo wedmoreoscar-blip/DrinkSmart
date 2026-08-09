@@ -74,6 +74,13 @@ def main():
         allow()  # a reply, not a commission
     if "[no-spec]" in cmd:
         allow()  # sender explicitly asserts this commissions no work
+    if "[visual-check]" in cmd:
+        # docs/workflows/visual_check.md: the final visual pass is commissioned by a
+        # rough brief, not a spec, because a spec would require first doing the very
+        # discovery being delegated. Self-verification by screenshot is the mechanism
+        # of that phase rather than a smell, so the test rule below is also waived.
+        # Distinct from [no-spec], which asserts no work is commissioned at all.
+        allow()
 
     try:
         with open(os.path.join(BLOCKS, "scope.md")) as f:

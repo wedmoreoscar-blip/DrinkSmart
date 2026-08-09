@@ -45,6 +45,11 @@ coding agent, whichever vendor or harness runs it.
   full baseline run per delegation: review the merged tree on an `integration` branch, repair
   inline, verify once after the repairs, and advance `main` only by fast-forward. Delegated
   worktrees and their agents are kept warm and re-synchronized, never deleted after acceptance.
+- `docs/workflows/visual_check.md` governs the final visual check of a redesign wave, which is
+  Luna's and does **not** run on the delegation path. Halt and wait for Oscar on reaching it. It is
+  commissioned by a rough brief rather than a spec, runs several coordinating agents in one shared
+  worktree under disjoint file ownership, and treats self-verification by screenshot as the
+  mechanism rather than a smell. Checking is casual; integration is not.
 - Follow `docs/workflows/change_safety.md` for writes, commits, worktrees, and integration. Follow
   `docs/workflows/verification.md` for evidence and live-backend limitations.
 - Never push, deploy Supabase functions, apply migrations to a remote database, rotate secrets, or

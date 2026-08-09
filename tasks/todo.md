@@ -68,11 +68,21 @@ The largest single step. Includes the code half of the level-7 decision.
 - Verification is `BLOCKED` on real iOS/Android hardware. `npm run dev` exercises the web toast
   fallback only. State that boundary; do not report native behaviour as verified.
 
-### 7. Engine work — `src/contexts/AppContext.tsx`
+### 7. Engine work — `src/contexts/AppContext.tsx` — **COMPLETE**
 Three things the engine cannot currently express. Logic, not styling. Highest-risk step.
-- **Foundation accepted:** W3-A1 planner/session regression hardening is integrated at `9948345`;
-  46 deterministic tests now protect generation budgets, unit normalization, request caching, and
-  expired planning windows. W3-A2 deterministic rescheduling is the next serial ticket.
+- **W3-A1 accepted** and integrated at `9948345`: 46 deterministic tests protect generation
+  budgets, unit normalization, request caching, and expired planning windows.
+- **W3-A2 accepted** and integrated at `a612fad`. `src/lib/sessionEngine.ts` now owns the pure
+  timeline calculation, duration-bearing breaks, consumption logging, anchor-aware rescheduling,
+  regeneration accounting, session phase, and the wind-down summary; `AppContext` calls it and
+  keeps no second implementation. `sessionStore` persists only the minimal break/action/consumption
+  inputs under the unchanged `drinksmart.session.v1` key. 93 tests pass.
+- **Acceptance repair:** the delivered `rescheduleTimeline` omitted Req 3's absolute-anchor clause
+  entirely — it took no kept ids, so any kept future entry was displaced by the preceding interval.
+  Fixed inline by the checker, with six tests derived from the spec. The submitted suite had
+  reported that clause as covered by a test containing no anchor; it is renamed to what it
+  exercises. Treat delivered tests as claims, not evidence — see `docs/workflows/delegation.md`.
+- Steps 5, 6, and 8 may now be dispatched; they consume this engine.
 - **Breaks and water entries.** Every timeline entry currently carries ethanol; a 0% ABV row cannot be
   represented and would take 0% of target and 0 time, clustering at t=0. Needs its own entry type
   driven by duration, with an optional volume and no BAC contribution.
