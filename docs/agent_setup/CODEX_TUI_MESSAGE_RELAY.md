@@ -41,11 +41,10 @@ Create this agent manually in Traycer before invoking `$codex-tui-relay`:
 | Reasoning effort | `max` |
 | Permission mode | `full_access` |
 | Primary working directory | DrinkSmart repository root |
-| Additional workspace | Current epic's `artifacts` directory under `~/.traycer/epics/<epic-id>/` |
 
-Do not give the hub a managed implementation worktree. It is persistent epic infrastructure. The
-additional artifacts workspace is required so the hub can update a ledger outside the repository;
-`full_access` is required for Traycer A2A operations and that artifact write.
+Do not give the hub a managed implementation worktree. It is persistent epic infrastructure.
+`full_access` plus the repository's OpenCode permissions allow it to run the repo helper, which
+writes the absolute ledger path; no additional-workspace setting is required.
 
 Send this as its first and only setup prompt, substituting both absolute paths:
 
@@ -138,7 +137,8 @@ For a long commission or reply, write the exact body to a temporary file and pas
 3. List the epic's agents read-only and locate exactly one `codex-tui-a2a-hub`.
 4. If the hub is absent or ambiguous, stop with the one-time setup instructions above. The skill
    cannot create the hub because Codex TUI is not an A2A sender.
-5. Confirm the hub is OpenCode GUI and inspect its transcript for the clean `HUB_READY` setup.
+5. Confirm the hub is OpenCode GUI / DeepSeek V4 Flash / max / `full_access` and inspect its
+   transcript for the clean `HUB_READY` setup.
 6. Append `agent.registered` if this hub ID is not already registered.
 7. Run the ledger state scan and report pending commands, unresolved claims, ambiguous operations
    and unread messages.

@@ -16,9 +16,9 @@ description: Activate or resume DrinkSmart's artifact-ledger A2A hub when a Tray
    `codex-tui-a2a-hub`. Never create, configure, send to, or impersonate the hub from Codex TUI.
    If it is missing or ambiguous, stop and return the canonical one-time hub settings and clean
    initialization prompt from the document, with absolute repository, artifact and ledger paths.
-5. Confirm the hub is OpenCode GUI / DeepSeek V4 Flash / max / `full_access`, has the epic artifacts
-   directory available, and has a clean `HUB_READY` initialization transcript. Do not trust the
-   hub's self-report as provider/model evidence. If any check is unresolved, report not ready.
+5. Confirm the hub is OpenCode GUI / DeepSeek V4 Flash / max / `full_access` in the DrinkSmart root
+   and has a clean `HUB_READY` initialization transcript. Do not trust the hub's self-report as
+   provider/model evidence. If any check is unresolved, report not ready.
 6. If the real hub ID has not been registered, append one `agent.registered` event with actor
    `codex:<TRAYCER_AGENT_ID>` and its verified identity/configuration. Do not wake an idle hub merely
    for activation.

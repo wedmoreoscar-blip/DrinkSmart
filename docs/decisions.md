@@ -299,8 +299,9 @@ the orchestrator. The bullets below are retained as design history only.
 
 - Oscar manually creates and cleanly initializes one epic-scoped OpenCode GUI / DeepSeek V4 Flash /
   max / `full_access` agent named `codex-tui-a2a-hub`. It has the DrinkSmart root as its primary
-  workspace and the epic artifacts directory as an additional workspace. Codex TUI never creates,
-  configures, messages or impersonates this hub.
+  working directory and uses the repo helper to reach the absolute epic-ledger path; no additional
+  workspace binding is required. Codex TUI never creates, configures, messages or impersonates this
+  hub.
 - `$codex-tui-relay` creates or resumes exactly one append-only Traycer artifact ledger per epic.
   Codex appends exact spawn/reuse/send commands and substantive replies; the hub claims and executes
   them through its supported A2A identity and appends receipts and implementation-agent messages.
