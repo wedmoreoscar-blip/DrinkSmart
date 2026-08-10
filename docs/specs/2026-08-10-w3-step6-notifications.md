@@ -91,6 +91,18 @@ The orchestrator has synchronized this worktree and handles commits, merges, rev
 integration. Do not merge, rebase, reset, stash, commit, change branches, or synchronize another
 worktree.
 
+## Communication route — transport only
+
+Your assigning agent is the DeepSeek A2A hub `bf79ff8f-2300-4ec6-844e-394d2293af89`, acting for
+Codex TUI on ticket `W3-STEP6`. Send every substantive question, blocker, status update and final
+handback with `traycer agent send --to bf79ff8f-2300-4ec6-844e-394d2293af89`. Include the ticket ID,
+your full Traycer agent ID, a unique monotonic message ID, the kind
+(`QUESTION | BLOCKER | STATUS | HANDBACK`), whether a reply is needed, and the complete message body.
+
+The hub records messages but does not answer or make decisions; the Codex orchestrator will send any
+necessary response back through it. Continue safe independent work while waiting. Do not weaken or
+reinterpret the specification because this route exists.
+
 Change only what is required. Do not refactor, rename, reformat, add error
 handling, or improve anything you were not asked to change, even if it
 looks wrong. Modify only the files named above. If you believe another
