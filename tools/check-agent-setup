@@ -7,7 +7,9 @@ import json
 from pathlib import Path
 import re
 import stat
+import subprocess
 import sys
+import tempfile
 import tomllib
 
 
@@ -72,6 +74,33 @@ def parse_skill(path: Path, expected_name: str, failures: list[str]) -> None:
         fail(f"{path.relative_to(ROOT)} name does not match its directory", failures)
     if not fields.get("description"):
         fail(f"{path.relative_to(ROOT)} has an empty description", failures)
+
+
+def check_relay_empty_content(failures: list[str]) -> None:
+    helper = ROOT / "tools/codex-tui-relay-ledger"
+    with tempfile.TemporaryDirectory(prefix="drinksmart-relay-check-") as directory:
+        ledger = Path(directory) / "index.md"
+        commands = (
+            [str(helper), "init", "--ledger", str(ledger)],
+            [
+                str(helper), "append", "--ledger", str(ledger), "--type", "command.send",
+                "--event-id", "01KZQ000000000000000000001", "--actor", "codex:test",
+                "--ticket", "RELAY-TEST", "--target", "agent:test", "--content", "payload",
+            ],
+            [
+                str(helper), "append", "--ledger", str(ledger), "--type", "command.claimed",
+                "--event-id", "01KZQ000000000000000000002", "--actor", "hub:test",
+                "--ticket", "RELAY-TEST", "--target", "agent:test",
+                "--command", "01KZQ000000000000000000001",
+            ],
+            [str(helper), "validate", "--ledger", str(ledger)],
+        )
+        for command in commands:
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+            if result.returncode:
+                detail = (result.stderr or result.stdout).strip()
+                fail(f"relay ledger empty-content regression: {detail}", failures)
+                return
 
 
 def main() -> int:
@@ -148,6 +177,8 @@ def main() -> int:
         mode = (ROOT / relative).stat().st_mode
         if not mode & stat.S_IXUSR:
             fail(f"{relative} is not executable", failures)
+
+    check_relay_empty_content(failures)
 
     # The selection guide lives in two places. Absent is fine (fresh machine); divergent is not.
     canonical = (ROOT / "docs/workflows/agent_selection.md").read_bytes()
