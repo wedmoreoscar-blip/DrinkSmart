@@ -42,15 +42,26 @@ repository**, not assumed: Luna completed a full Wave 2 browser acceptance pass 
 capturing at 402×874, measuring geometry and computed styles, driving pointer and keyboard
 drag-and-drop, checking overflow and console errors, fixing code, and re-shooting to confirm.
 
-**`playwright` is a committed devDependency**, pinned to exactly `1.55.0` (approved by Oscar,
-2026-08-09). Chromium is cached at `~/.cache/ms-playwright`. Verified working: launches, captures
-at 402×874, and reads `getComputedStyle` back.
+**`playwright` is a committed devDependency**, pinned to exactly `1.62.1` (raised from `1.55.0` by
+Oscar, 2026-08-10). Its Chromium is cached at `~/.cache/ms-playwright` as `chromium-1234` / Chrome
+`151.0.7922.34`. Verified working: launches, captures at 402×874, and reads `getComputedStyle` and
+bounding boxes back. It contributes **nothing** to this repository's audit count, which stays at its
+recorded 18 (3 moderate, 15 high).
 
 **The pin is exact on purpose — do not widen it to `^` or `~`.** Each Playwright release expects a
-specific Chromium build, and `1.55.0` is the one matching the cached `chromium-1187`. A range
-silently resolves to `1.55.1`, which wants `chromium-1193` and fails at launch with
-`Executable doesn't exist`. If the version is ever raised deliberately, run
-`npx playwright install chromium` to fetch the matching build.
+specific Chromium build, and `1.62.1` is the one matching `chromium-1234`. A range silently resolves
+to a version wanting a build that is not cached, failing at launch with `Executable doesn't exist`.
+
+**Raising the version is a two-step operation and half of it is not npm's.** `npm install` fetches
+the Playwright package; it does **not** fetch the browser. Run `npx playwright install chromium`
+afterwards or the launch fails, and it fails at the first capture rather than at install time.
+DrinkSmart and `git_visual_system` share one browser cache, so a single download serves both — but
+both `package.json` files must be moved together, since a repository left behind points at a build a
+later prune may remove.
+
+The earlier `1.55.0` / `chromium-1187` pin carried GHSA-7mvr-c777-76hp (high, unverified TLS when
+downloading browsers); `1.62.1` clears it. `chromium-1187` is still cached and unreferenced —
+harmless, and reclaimable with `npx playwright uninstall` if disk matters.
 
 It was previously installed ad-hoc and absent from `package.json`, which made it extraneous — so
 the next `npm install` pruned it and the capability vanished silently. Declaring it removes that
