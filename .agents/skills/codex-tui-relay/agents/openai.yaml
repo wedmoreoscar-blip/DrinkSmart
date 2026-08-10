@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex TUI Relay"
+  short_description: "Route GUI agent replies to a shared receiver"
+  default_prompt: "Use $codex-tui-relay to prepare the persistent receiver before I orchestrate Traycer agents from Codex TUI."

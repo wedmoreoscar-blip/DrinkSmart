@@ -5,9 +5,10 @@ description: Write an implementation spec for delegation to a separate coding ag
 
 # Writing a spec for delegation
 
-The implementer has none of your context. It has not read this codebase,
-does not know the conventions, and cannot ask you a question. Everything
-it needs is in the spec or it is not available.
+The implementer has none of your context. It has not read this codebase and does not know the
+conventions. Write the spec as though it cannot ask you a question: everything foreseeable that it
+needs is in the spec or it is not available. A project may provide a route for genuinely unforeseen
+questions, but its existence never licenses an incomplete spec.
 
 This spec commissions one step of the path in `docs/workflows/delegation.md`,
 which is built to cost one review pass, one repair loop, and one full baseline
@@ -44,7 +45,7 @@ is.
 
 ## State the verification baseline
 
-The implementer cannot ask what "passing" looks like. If the repository
+The spec cannot rely on the implementer asking what "passing" looks like. If the repository
 has known-failing checks, a missing test runner, or checks that need
 unavailable infrastructure, say so in the spec and state exactly which
 commands must pass, which are expected to fail unchanged, and which are
@@ -52,7 +53,7 @@ BLOCKED rather than runnable.
 
 Give literal numbers, not cross-references. "The lint baseline is 9 errors
 and 11 warnings" is a baseline; "the accepted count from the previous
-ticket" is not, because the implementer cannot look it up and cannot ask.
+ticket" is not, because the implementer must not need to look it up or ask.
 The same goes for the current test count and for any command that behaves
 unexpectedly in this repository — name the trap and the correct invocation.
 

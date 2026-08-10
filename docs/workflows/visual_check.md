@@ -21,11 +21,11 @@ implementation integrated
    HALT ─── notify Oscar, wait for his go-ahead ────────────┐
         │                                                   │
         ▼                                              (no contact
-   Luna-1 recon: drive the app, screenshot, compare,     with Luna
+   Luna-0 recon: drive the app, screenshot, compare,     with Luna
    report findings, FIX NOTHING                          until he says go)
         │
         ▼
-   Orchestrator + Luna-1 agree headcount and the file-ownership split
+   Orchestrator + Luna-0 agree headcount and the file-ownership split
         │
         ▼
    n Luna fixers in ONE shared worktree, each owning disjoint files,
@@ -42,15 +42,26 @@ repository**, not assumed: Luna completed a full Wave 2 browser acceptance pass 
 capturing at 402×874, measuring geometry and computed styles, driving pointer and keyboard
 drag-and-drop, checking overflow and console errors, fixing code, and re-shooting to confirm.
 
-**`playwright` is a committed devDependency**, pinned to exactly `1.55.0` (approved by Oscar,
-2026-08-09). Chromium is cached at `~/.cache/ms-playwright`. Verified working: launches, captures
-at 402×874, and reads `getComputedStyle` back.
+**`playwright` is a committed devDependency**, pinned to exactly `1.62.1` (raised from `1.55.0` by
+Oscar, 2026-08-10). Its Chromium is cached at `~/.cache/ms-playwright` as `chromium-1234` / Chrome
+`151.0.7922.34`. Verified working: launches, captures at 402×874, and reads `getComputedStyle` and
+bounding boxes back. It contributes **nothing** to this repository's audit count, which stays at its
+recorded 18 (3 moderate, 15 high).
 
 **The pin is exact on purpose — do not widen it to `^` or `~`.** Each Playwright release expects a
-specific Chromium build, and `1.55.0` is the one matching the cached `chromium-1187`. A range
-silently resolves to `1.55.1`, which wants `chromium-1193` and fails at launch with
-`Executable doesn't exist`. If the version is ever raised deliberately, run
-`npx playwright install chromium` to fetch the matching build.
+specific Chromium build, and `1.62.1` is the one matching `chromium-1234`. A range silently resolves
+to a version wanting a build that is not cached, failing at launch with `Executable doesn't exist`.
+
+**Raising the version is a two-step operation and half of it is not npm's.** `npm install` fetches
+the Playwright package; it does **not** fetch the browser. Run `npx playwright install chromium`
+afterwards or the launch fails, and it fails at the first capture rather than at install time.
+DrinkSmart and `git_visual_system` share one browser cache, so a single download serves both — but
+both `package.json` files must be moved together, since a repository left behind points at a build a
+later prune may remove.
+
+The earlier `1.55.0` / `chromium-1187` pin carried GHSA-7mvr-c777-76hp (high, unverified TLS when
+downloading browsers); `1.62.1` clears it. `chromium-1187` is still cached and unreferenced —
+harmless, and reclaimable with `npx playwright uninstall` if disk matters.
 
 It was previously installed ad-hoc and absent from `package.json`, which made it extraneous — so
 the next `npm install` pruned it and the capability vanished silently. Declaring it removes that
@@ -87,18 +98,46 @@ When the implementation work for the wave is integrated, stop. Tell Oscar the vi
 has been reached. **Do not contact Luna until he says to start.** Reaching this point is not
 authorization to begin.
 
-## 2. Brief Luna-1 roughly, and send it in blind
+## 2. Brief Luna-0 roughly
+
+### Agent naming and access
+
+**Luna agents are indexed from 0.** The first and primary agent is **Luna-0** — in this repository
+`drinksmart_luna_0`, with further agents `drinksmart_luna_1`, `drinksmart_luna_2`, and so on.
+(Earlier revisions of this file called the primary agent "Luna-1" and counted from one; that
+numbering is withdrawn.)
+
+**An agent's name states the repository it works in, and that binding is absolute.** Every agent is
+named for its repository, so `drinksmart_*` agents do work in DrinkSmart and nothing else, exactly
+as `gitvis_*` agents do work in `git_visual_system` and nothing else. This holds whatever dispatches
+them — it is a property of the agent, not of whoever is orchestrating at the time.
+
+Names repeat across repositories — `drinksmart_luna_0` and `gitvis_luna_0` share the bare suffix
+`luna_0` — so **match on the full name or the id, never on the suffix.**
+
+### Blind is the usual case, not a requirement
 
 Do not write a spec. A real spec would require taking the screenshots and finding the defects
 first — which is the entire job being delegated. Writing one means either doing Luna's work or
-inventing findings, so the brief is deliberately rough:
+inventing findings, so the brief is deliberately rough.
+
+**"Blind" describes the common case rather than a rule.** Implementation is normally DeepSeek's, so
+Luna arrives with no context on the changed files and the rough brief is all it has. When Luna
+*did* build the code under check — which happens whenever the wave needed visual or spatial work —
+it comes to the recon warm, and that is accepted: a warm agent with an existing worktree beats
+standing up a new one, per `agent_selection.md`. Know what it costs, though. An agent reviewing its
+own work carries its build-time blind spots into the recon, so the finding list is thinner than a
+genuinely blind one, and the orchestrator's own final pass (§9) is what compensates. Weight it
+accordingly rather than treating the recon as independent.
+
+The brief itself:
 
 - what changed in this wave, and which screens it touched;
 - where the drawings live and where the numeric criteria live (below);
 - the standing design constraints it must not violate (below);
 - an explicit instruction to **report, not repair**.
 
-Luna-1 drives the running app, captures each screen, compares, and comes back with a finding list
+Luna-0 drives the running app, captures each screen, compares, and comes back with a finding list
 and a recommendation for how many agents the fixes warrant.
 
 **Measure, do not only look.** Eyeballing a screenshot catches layout breakage and misses "that is
@@ -117,7 +156,7 @@ redesign entries in `docs/decisions.md`.
 
 ## 3. Size the team from the findings
 
-Discuss the headcount with Luna-1 rather than picking one. `n` is justified by the size and spread
+Discuss the headcount with Luna-0 rather than picking one. `n` is justified by the size and spread
 of the finding list, not chosen by default. Luna bills against Oscar's ChatGPT Plus subscription,
 and two agents that finish beat four that mostly coordinate.
 
@@ -138,7 +177,7 @@ agent's work vanishes silently — there is no merge to catch it.
 
 Screens are the convenient way to derive ownership, but **screens are not files**. Two screens
 routinely share a component; the redesign's primitives (`button`, `card`, `badge`, `tabs`,
-`slider`, the meter) are used everywhere. So Luna-1's split must produce two lists:
+`slider`, the meter) are used everywhere. So Luna-0's split must produce two lists:
 
 - **per-agent screen-local files** — parallelise freely;
 - **shared components** — assigned to exactly one named agent, or held back for the orchestrator.
@@ -146,7 +185,7 @@ routinely share a component; the redesign's primitives (`button`, `card`, `badge
 The rule enforced is disjoint *file* ownership. Screen assignment that yields overlapping files is
 not a valid split.
 
-Luna-1 is fixer #1 as well as the coordination hub: it has the recon context, and standing it down
+Luna-0 is the first fixer as well as the coordination hub: it has the recon context, and standing it down
 wastes the best-informed agent. The orchestrator dispatches each fixer with the findings and the
 ownership split; the fixers coordinate among themselves by A2A from there, so the app reads as one
 coherent thing rather than n locally-correct patches.
@@ -266,7 +305,7 @@ whether the app looks good can continue indefinitely.
 | --- | --- | --- |
 | Agent | DeepSeek, almost always | Luna, necessarily — images |
 | Commissioned by | A `writespec` spec, hook-enforced | A rough brief, blind by necessity |
-| Bounded by | The spec's file allowlist | Luna-1's finding list |
+| Bounded by | The spec's file allowlist | Luna-0's finding list |
 | Isolation | One worktree per agent | One shared worktree, disjoint file ownership |
 | Self-verification | Forbidden and enforced | Expected — it is the mechanism |
 | Coordination | None; specs are disjoint | A2A between agents, by design |

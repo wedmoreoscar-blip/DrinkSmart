@@ -15,6 +15,11 @@ Delegated implementation is orchestrated by Traycer, not by client-native subage
 and `speccheck` skills are the ground truth for how work is handed to and accepted from a delegated
 coding agent, whichever vendor or harness runs it.
 
+When a Traycer-launched Codex TUI is the orchestrator, invoke `$codex-tui-relay` before commissioning
+GUI agents. Its persistent OpenCode GUI receiver is the sole usable inbound route for questions,
+statuses, blockers, and handbacks. This is a messaging adapter only; the applicable workflow remains
+authoritative for the work itself.
+
 ## Working rules
 
 - Preserve unrelated changes in a dirty worktree. Never stage, revert, or delete work you did not
@@ -36,13 +41,16 @@ coding agent, whichever vendor or harness runs it.
   enough. State the exception before messaging and obtain confirmation before reusing a warm agent.
   Name inline repairs in the acceptance record — that note is the only signal that a spec is
   routinely under-specifying the work.
-- `docs/workflows/agent_selection.md` decides which agent runs which role: a Claude Code
-  orchestrator, DeepSeek V4 Flash via opencode as the default implementer, and GPT-5.6 Luna via
-  codex only for visual input or spatial reasoning. It is the canonical copy of the guide Traycer
-  serves from `~/.traycer/agent-selection-guide.md`.
+- `docs/workflows/agent_selection.md` decides which agent runs which role: Claude Code TUI is the
+  default orchestrator; Codex TUI is authorized only while `$codex-tui-relay` is active; DeepSeek V4
+  Flash via opencode is the default implementer; and GPT-5.6 Luna via codex is reserved for visual
+  input or spatial reasoning. It is the canonical copy of the guide Traycer serves from
+  `~/.traycer/agent-selection-guide.md`.
 - Every delegation spec states its verification baseline explicitly (see
   `docs/workflows/verification.md`): which commands must pass, which are known-failing and must not
-  change, and which are `BLOCKED` on unavailable infrastructure. The implementer cannot ask.
+  change, and which are `BLOCKED` on unavailable infrastructure. Write the spec as though the
+  implementer cannot ask; a receiver route for unforeseen questions never licenses an incomplete
+  baseline.
 - `docs/workflows/delegation.md` is the canonical fifteen-step path for a single delegation, from
   provisioning through integration. It is built to cost one review pass, one repair loop, and one
   full baseline run per delegation: review the merged tree on an `integration` branch, repair
@@ -70,6 +78,10 @@ coding agent, whichever vendor or harness runs it.
 - Run delegated implementations in Traycer-managed worktrees, never against the workspace folder
   itself. Traycer owns worktree creation and per-folder run location; the main checkout stays
   user-owned.
+- Codex TUI is an orchestrator only, never an agent-to-agent implementation target. Keep
+  `--expect-reply` on its commissions, but require every implementation agent to explicitly send
+  substantive replies to the receiver documented in
+  `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`. Codex implementation agents use the GUI surface.
 - Serialize dependency changes, shared dev servers, Supabase-local mutations, and costly benchmarks
   with `tools/agent-lock <scope> -- <command>`. Parallel delegated worktrees still contend for these
   shared resources.
@@ -107,10 +119,12 @@ notification, and mobile checks are `BLOCKED` until their real infrastructure is
 
 ## Native workflows
 
-Repo-local skills are available to both clients: audit-context, bench, decision-check, handoff,
-healthcheck, kickoff, make-bench, skill-writing, speccheck, teacher, update-decisions, and
-writespec. Codex invokes them with `$<skill>`; Claude Code invokes them with `/<skill>`. opencode
-invokes them by name through its skill tool; its project config registers both skill trees and its
-permission rules enforce the change-safety deny list. Their shared contracts
-live under `docs/workflows/`, and cross-machine installation is documented in
-`docs/agent_setup/CROSS_MACHINE_SETUP.md`.
+Repo-local skills are available to both clients: audit-context, bench, codex-tui-relay,
+decision-check, handoff, healthcheck, kickoff, make-bench, skill-writing, speccheck, teacher,
+update-decisions, and writespec. `codex-tui-relay` activates only for a Traycer Codex TUI
+orchestrator; its mirrored Claude package exists for repository parity and remains inert there.
+Codex invokes skills with `$<skill>`; Claude Code invokes them with `/<skill>`. opencode invokes
+them by name through its skill tool; its project config registers both skill trees and its
+permission rules enforce the change-safety deny list. Shared workflow contracts live under
+`docs/workflows/`; the Codex TUI receiver adapter lives under `docs/agent_setup/`. Cross-machine
+installation is documented in `docs/agent_setup/CROSS_MACHINE_SETUP.md`.

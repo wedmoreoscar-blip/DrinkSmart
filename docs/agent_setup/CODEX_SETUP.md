@@ -24,6 +24,11 @@ Use `/skills` or type `$` to select a skill. Invoke, for example, `$kickoff`, `$
 `$skill-writing`. If project config does not load, confirm the repo is trusted and restart Codex from
 the repo root.
 
+When this Codex session is a Traycer-launched TUI acting as orchestrator, invoke
+`$codex-tui-relay` before commissioning GUI agents. The skill locates or provisions the epic's
+persistent inbound receiver according to `CODEX_TUI_MESSAGE_RELAY.md`. Do not invoke it from Codex
+GUI or when Codex is an implementation target.
+
 ## Recommended user-level installation
 
 Codex user skills live at `~/.agents/skills/`. Install only the generic workflows that are safe across
@@ -56,8 +61,10 @@ New-Item -ItemType Directory -Force "$HOME/.agents/skills" | Out-Null
 Copy-Item -Recurse ".agents/skills/healthcheck" "$HOME/.agents/skills/healthcheck"
 ```
 
-Do not install `bench`, `make-bench`, `decision-check`, or `update-decisions` user-wide by default. They rely on project records and tools. The generic personal packages inspect
-a same-name project package and defer to a repository's richer lifecycle contract when one exists.
+Do not install `bench`, `codex-tui-relay`, `make-bench`, `decision-check`, or `update-decisions`
+user-wide by default. They rely on project records, Traycer state, or tools. The generic personal
+packages inspect a same-name project package and defer to a repository's richer lifecycle contract
+when one exists.
 
 ## Verification
 
@@ -67,6 +74,8 @@ a same-name project package and defer to a repository's richer lifecycle contrac
 4. Invoke `$healthcheck` with no jobs running; it should report that no current-session background work
    exists and must not invent or start work.
 5. Confirm `$writespec` and `$speccheck` appear in `/skills`.
+6. Confirm `$codex-tui-relay` appears, and that it declines to activate outside a Traycer Codex TUI
+   orchestrator session.
 
 Official references:
 

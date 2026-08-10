@@ -123,3 +123,32 @@ step is one spec. Every spec states its baseline explicitly:
 Not designed, not in scope: Profile/onboarding (`StatsForm`, `PreferencesPicker`), the drink picker and
 menu scanner, establishment browsing, auth. A `DrinksTab.tsx` refactor beyond its meter. Re-enabling a
 light theme. Pushing to `origin`.
+
+## Agent infrastructure — Codex TUI receiver adapter (2026-08-10)
+
+Status: **complete (static implementation)**. Canonical contract:
+`docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`.
+
+- [x] Add `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` as the canonical messaging contract.
+- [x] Add the thin `codex-tui-relay` skill with mirrored portable behavior and Codex UI metadata.
+- [x] Add discovery and cross-references in `AGENTS.md`, setup docs, delegation and agent selection.
+- [x] Record the locked Codex-TUI-orchestrator and persistent-receiver decision.
+- [x] Extend `tools/check-agent-setup` to validate the document/skill/discovery chain.
+- [x] Validate the skill package, run the static setup check and inspect the complete scoped diff.
+
+Acceptance:
+
+- A future Traycer Codex TUI discovers `$codex-tui-relay` from `AGENTS.md` and can locate or create
+  the epic's single persistent OpenCode GUI / DeepSeek V4 Flash / max receiver.
+- Codex TUI is authorized only as orchestrator while the skill is active; Codex implementers remain
+  GUI-only.
+- Commissions retain `--expect-reply`; every usable question, status, blocker and handback is sent
+  explicitly to the receiver, whose transcript carries processed markers across Codex sessions.
+- The receiver uses the DrinkSmart repository context and `full_access`, remains passive by
+  instruction, and is idle whenever Codex TUI is not orchestrating.
+- Existing delegation, `writespec`, `speccheck`, worktree and verification authority is unchanged.
+- No application source, dependency, package manifest or lockfile is changed by this work.
+
+Runtime receiver creation and the no-code end-to-end smoke test are intentionally deferred until the
+first real `$codex-tui-relay` activation; this documentation implementation did not provision a live
+Traycer agent.

@@ -11,8 +11,19 @@ drift between the two.
 
 ## Orchestrator
 
-Claude Code on **Opus 5** or **Fable 5**, `tui` surface. Plans, writes specs, checks returned
-diffs, integrates, and commits. Orchestration, spec authorship, and acceptance are never delegated.
+Claude Code on **Opus 5** or **Fable 5**, `tui` surface, remains the default. It plans, writes specs,
+checks returned diffs, integrates, and commits. Orchestration, spec authorship, and acceptance are
+never delegated.
+
+Codex TUI is also authorized as orchestrator, but **only while `$codex-tui-relay` is active**. Codex
+TUI can commission and send outbound messages but cannot expose implementation-agent replies. The
+skill therefore locates or provisions the epic's persistent OpenCode GUI / DeepSeek V4 Flash / max
+receiver and makes its transcript the sole usable inbound channel. See
+`docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`.
+
+Codex TUI is never an agent-to-agent implementation target. A Codex implementer always uses the GUI
+surface. The persistent receiver is idle whenever Codex TUI is not orchestrating and is reused by a
+later Codex TUI orchestrator.
 
 ## Implementers
 
@@ -139,6 +150,10 @@ harnesses backing a **human-driven** terminal session and says nothing about age
 messaging. You can launch codex or opencode in a terminal tab yourself; another agent cannot message
 one there. Delegation requires the latter, hence `gui`.
 
+This target-side limitation does not prevent Codex TUI from originating commissions. Its authorized
+orchestrator route is the receiver adapter above: commissions retain `--expect-reply`, implementers
+explicitly send every usable response to the GUI receiver, and Codex TUI reads that one transcript.
+
 ## Commissioning and acceptance
 
 Commission with a **`writespec`** spec; accept only through **`speccheck`**. See
@@ -152,6 +167,10 @@ the child how to verify and report, so do not additionally ask it to run `trayce
 
 Keep specs to roughly five clauses. An implementer approaching its context limit means the spec
 was oversized — split it rather than resuming the agent.
+
+The receiver route does not make questions part of normal commissioning. Write every spec as though
+the implementer cannot ask, then allow genuinely unforeseen questions through the receiver when the
+orchestrator is Codex TUI.
 
 ## Isolation
 
