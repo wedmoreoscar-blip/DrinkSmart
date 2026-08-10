@@ -8,6 +8,7 @@ documentation helpers are installed by their client and are not copied here.
 |---|---|---|---|
 | `audit-context` | legal repo | Safe personal or project | `docs/workflows/context_audit.md` for project mode |
 | `bench` | legal repo | Project | Benchmark convention and resource lock |
+| `codex-tui-relay` | DrinkSmart | Project; activates only in Traycer Codex TUI | `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` and a Traycer epic |
 | `decision-check` | legal repo | Project | `docs/decisions.md` |
 | `handoff` | legal repo | Safe personal or project | Defers to repo lifecycle; otherwise writes a minimal root handoff |
 | `healthcheck` | `~/.claude/commands/healthcheck.md` | Safe personal or project | None; current-session jobs only |
@@ -28,7 +29,9 @@ documentation helpers are installed by their client and are not copied here.
 | opencode | skill tool by name (no prefix) | `.agents/skills/` + `.claude/skills/` via `opencode.json` | `~/.agents/skills/` + `~/.claude/skills/` via `~/.config/opencode/opencode.jsonc` |
 
 The project copies deliberately share portable frontmatter and instruction bodies. Codex-only
-`agents/openai.yaml` files add interface metadata without changing workflow behavior.
+`agents/openai.yaml` files add interface metadata without changing behavior. The mirrored
+`codex-tui-relay` package remains inert in Claude and OpenCode because its trigger explicitly
+requires a Traycer Codex TUI orchestrator.
 
 ## Precedence warning
 

@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_SKILLS = {
     "audit-context",
     "bench",
+    "codex-tui-relay",
     "decision-check",
     "handoff",
     "healthcheck",
@@ -33,6 +34,7 @@ REQUIRED = {
     ".claude/settings.json",
     "opencode.json",
     "docs/decisions.md",
+    "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
     "docs/agent_setup/CROSS_MACHINE_SETUP.md",
     "docs/workflows/agent_selection.md",
     "tasks/next_session_kickoff.md",
@@ -121,6 +123,18 @@ def main() -> int:
             fail(f"cross-client SKILL.md drift for {name}", failures)
         if not (codex_root / name / "agents/openai.yaml").is_file():
             fail(f"missing Codex UI metadata for {name}", failures)
+
+    relay_checks = {
+        "AGENTS.md": "$codex-tui-relay",
+        "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md": "codex-tui-receiver",
+        "docs/workflows/delegation.md": "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
+        "docs/workflows/agent_selection.md": "$codex-tui-relay",
+        ".agents/skills/codex-tui-relay/SKILL.md":
+            "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
+    }
+    for relative, marker in relay_checks.items():
+        if marker not in (ROOT / relative).read_text():
+            fail(f"{relative} is missing Codex TUI receiver marker {marker!r}", failures)
 
     for relative in ("tools/agent-lock", "tools/test-project", "tools/writespec-guard"):
         mode = (ROOT / relative).stat().st_mode

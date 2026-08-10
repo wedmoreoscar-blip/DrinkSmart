@@ -1,144 +1,144 @@
-# Session Handoff / Kickoff — Git visualiser built, tested, accepted
+# Session Handoff / Kickoff — Codex TUI relay ready; DrinkSmart Wave 3 next
 
-Written 2026-08-10 20:07 BST. Normal-mode handoff. The canonical continuation was replaced.
+Written 2026-08-10 21:01 BST. Normal-mode handoff. The canonical continuation was replaced.
 
-**The visualiser build is done.** This session executed the first full end-to-end exercise of the
-rewritten delegation workflow: two disjoint specs, two fresh implementers, one `integration`
-branch, one `speccheck`, one baseline, a fast-forward into `main`. It worked, it creaked in known
-places, and the tool now exists to watch the next thing (Wave 3) happen.
+## Outcome of this session
 
-## Where things stand
+The Codex-TUI-specific messaging adapter is statically implemented and ready for its first live use.
+A future Traycer-launched Codex TUI can orchestrate through one persistent passive OpenCode GUI /
+DeepSeek receiver instead of losing implementation-agent replies.
 
-### `/home/oscar/git_visual_system` — the product is built and accepted
+The implementation adds the canonical contract at
+`docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`, the repo-local `codex-tui-relay` skill, discovery
+and workflow links, locked decisions, and setup validation. It does not change application code.
 
-- `main` at **`72931c9`**, 7 commits ahead of `origin` — **never pushed, per the standing rule.**
-- **Watcher** (DeepSeek `c599dd03`, worktree `gvs-watcher`): `server/` — git plumbing → `GraphState`
-  → `GraphDiff` over SSE. **Renderer** (Luna `52362b4e`, worktree `gvs-renderer`): `src/` — plain
-  TS + direct SVG DOM, animates the diff. They meet only at `shared/types.ts` (orchestrator-owned).
-- **28 tests in 5 files**, all green: real-repo plumbing (detached HEADs, stash, `origin/HEAD`,
-  upstream resolution, fast-forward derivation), the live server end-to-end over HTTP/SSE
-  (state shape, seq-referencing diffs, empty-diff suppression, 404s), layout stability across
-  frames, palette-vs-reference-SVG equality. Baseline: typecheck PASS, build PASS, 0 vulnerabilities.
-- **One inline repair, named in the acceptance record:** the watcher's first post-connect diff was
-  `from: null` (the renderer would have re-faded the whole graph); it now references the emitted
-  state's seq. Found by clause mapping, locked in by an end-to-end test — the shared-boundary
-  semantic clash the batch path exists to catch.
-- The repo is **fully self-governing**: `check-agent-setup` PASS — `.claude/`, `.agents/`, `.codex/`,
-  `opencode.json`, `tools/`, adapted `docs/workflows/*`, its own `docs/decisions.md` and kickoff.
-  Claude Code, codex, and opencode all run against it exactly as against DrinkSmart.
-- Both worktrees: clean, 0 behind `main`, 28/28, dependencies installed. **Both agents warm — do
-  not re-dispatch, their tickets are closed** (Traycer artifacts `git-visual-system/gvs-1-watcher`
-  and `gvs-2-renderer`, status 2, acceptance records included).
+Static verification completed:
 
-### DrinkSmart — untouched except worktree syncs
+- the official skill validator passed;
+- the Codex and Claude skill bodies are byte-identical;
+- `tools/check-agent-setup` passed with 13 mirrored skills;
+- the setup check was mutation-tested and failed on a deliberately impossible receiver marker;
+- the repo agent-selection guide and `~/.traycer/agent-selection-guide.md` are byte-identical;
+- `git diff --check` passed.
 
-- `main` still at `7771d3d`. **No commits were made to this repo this session.**
-- All four worktrees (DeepSeek ×3, Luna ×1) were synced to `main` by merge — clean, 0 behind,
-  **93/93 tests**, lockfile never moved so no reinstalls. Wave 3 can dispatch into any of them
-  immediately.
+The live receiver was deliberately not provisioned in this session. Its no-code end-to-end smoke test
+is the new Codex TUI's first task.
 
-### Model note
+## Current repository state
 
-This session ran as **Opus 5** (`tui/claude`), verified from the harness. The saved default for new
-Claude Code sessions was reset to `opus` after a `/model opus` invocation had briefly left it on
-`deepseek-v4-flash` — confirm with `/model` when starting a fresh session.
+- DrinkSmart root checkout is `/home/oscar/DrinkSmart`, branch `main`.
+- Before this handoff commit, `main` was `aa6b839`. That commit pins Playwright `1.62.1` and
+  its verified `chromium-1234`; 93/93 tests, typecheck and build passed in that provisioning
+  session. This handoff does not claim a fresh application baseline.
+- Wave 3 engine work W3-A1 and W3-A2 is complete. The remaining implementation tasks are step 6
+  notifications and step 8 wind-down.
+- Four DrinkSmart worktrees exist. They are clean, but the raw Git inspection shows they are at
+  least three commits behind current `main`; two also have historical branch-only commits.
+  Never reset or synchronize one until its agent has been identified and Oscar has approved reuse.
+- `traycer agent list --json` returned no rows from this TUI, so durable history supplies candidate
+  IDs only. The new session must obtain a live Traycer inventory before treating an agent as warm.
 
-## What comes next, in order
+The git visualiser remains built and accepted at `/home/oscar/git_visual_system`. Playwright is now
+provisioned there too, but its separate Luna visual-check phase remains pending. Oscar's current
+direction is to open the next Codex TUI for DrinkSmart Wave 3, so Wave 3 is the canonical next task;
+do not silently fold the git-visualiser visual check into this kickoff.
 
-### 1. The visual-check phase for the renderer (gvs) — the one unverified thing left
+## Required startup sequence
 
-What unit tests cannot judge — lane stability in a live browser, fast-forward vs merge being
-visually distinct, HEAD rendering on the branch — is the final visual check's job
-(`docs/workflows/visual_check.md`, in both repos; the gvs copy is adapted):
+1. From the Traycer-launched Codex TUI in `/home/oscar/DrinkSmart`, invoke
+   `$codex-tui-relay` as the first message.
+2. Locate or provision exactly one epic-scoped `codex-tui-receiver`, activate it, and complete the
+   no-code smoke test in `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`.
+3. Confirm the receiver is OpenCode GUI / DeepSeek V4 Flash / max, stayed passive, changed no files,
+   preserved a test message, and has no unread test message after the processed marker.
+4. Invoke `$kickoff`; kickoff is read-only.
+5. Read the files listed below and inspect current Git, Traycer-agent, and Traycer-worktree state.
+6. Before any worktree synchronization, spec, or implementation commission, present Oscar with the
+   proposed agent-to-task map, including full names, IDs, harness/model, worktree paths, sync needs,
+   and why each model fits. Wait for his confirmation.
 
-- **Blocked on one provisioning decision:** Playwright is **not** installed in `git_visual_system`.
-  Add it as an exactly-pinned devDependency matching the cached Chromium at `~/.cache/ms-playwright`
-  (DrinkSmart pins `1.55.0` against `chromium-1187` — check what is actually cached first).
-- Then **HALT and wait for Oscar** before contacting Luna. Luna-1 recon (report, fix nothing),
-  headcount agreed from the findings, fixers in ONE shared worktree with disjoint file ownership,
-  orchestrator's own final pass + full baseline + fast-forward. No repair loops back to Luna.
-- Two watch-outs: the palette authority is `reference/*.svg` (hex-for-hex, already test-locked);
-  fast-forward and merge animations are **undrawn** elements judged against spec prose, not a drawing.
+## Preliminary Wave 3 roster to verify and present
 
-### 2. Resume DrinkSmart Wave 3 — and watch it through the tool
+This is a recommendation, not dispatch authorization:
 
-The original point of the visualiser. Steps 6 and 8 of `tasks/todo.md` remain:
+| Role | Recommended target | Task |
+| --- | --- | --- |
+| Orchestrator | Current Traycer Codex TUI with `$codex-tui-relay` active | Plan, write specs, poll receiver, answer agents, run `speccheck`, repair, integrate and commit; never implement as a child |
+| Inbound receiver | Persistent `codex-tui-receiver`: OpenCode GUI / DeepSeek V4 Flash / max / no worktree | Receive and preserve questions, status, blockers and handbacks only; never implement or decide |
+| Step 6 implementer | Warm DrinkSmart DeepSeek candidate `827aef2b-1d5e-463e-ba7e-72295ba3e223`, historically bound to `traycer-w2b-plan-buzz-picker` | Notification scheduling/actions and web reminder behavior; non-visual platform/state work |
+| Step 8 implementer | Warm DrinkSmart DeepSeek candidate `2a14d713-f67e-4707-9c27-1606775f00da`, historically bound to `traycer-w2a-bottom-tab-bar` | Wind-down screen from the authoritative text-readable `1f-wind-down.html` and engine summary; this agent was previously earmarked for the task |
+| Later visual check | Warm DrinkSmart Luna-0 candidate `da47f88c-30cb-4b0e-ae9a-ac0b4d15ed74`, historically bound to `traycer-w1b-vessel-meter` | Separate final browser/screenshot acceptance under `visual_check.md`; not a writespec implementation and not contacted until the workflow halt plus Oscar's go-ahead |
 
-- **Step 6 — notification (`1g`)**: `notificationService.ts`, `useWebDrinkReminders`. One
-  notification per drink at its scheduled time; `Had it` / `+15 min` actions; break notifications
-  quieter, no actions. Native delivery `BLOCKED` on real hardware — web toast fallback only.
-- **Step 8 — wind-down screen (`1f`)**: new screen per the locked spec — `SOBER AROUND` + time at
-  76px, three stat rows at 60px min-height with group radii `14 14 4 4` / `4` / `4 4 14 14`,
-  disclaimer verbatim, one care card, `Get home` (64px) and `End session` (56px, text-only). No
-  score, no streak, no praise. Consumes `deriveSessionPhase` + wind-down summary.
+DeepSeek is recommended for both implementation specs because each has a complete textual authority:
+the notification contracts are code/state behavior, and wind-down has literal HTML values plus prose.
+Luna is reserved for the later visual-input/spatial acceptance pass. If the live inventory disproves
+any candidate identity, compatibility, or health, stop and recommend a fresh GUI agent/worktree
+rather than guessing or repurposing by suffix.
 
-Their file scopes are disjoint — the natural second real use of batch integration, visible live in
-the visualiser. Point the watcher at `/home/oscar/DrinkSmart` and watch the `integration` branch
-appear, the worktree branches merge, the fast-forward into `main`, the branch vanish.
+## Wave 3 execution after Oscar confirms the roster
 
-### 3. Decisions on the recorded creaks (this session's review findings)
-
-The workflow was exercised end to end and creaked in five places; the next session may act on them:
-
-1. **`writespec-guard`** blocks `traycer agent send --help` (false positive — matcher too broad),
-   and it validates against the **project** copy of the blocks while the skill appends from the
-   user-wide copy — identical today, a silent divergence trap tomorrow.
-2. **`delegation.md` step 7** demands literal baseline numbers; an empty repo has none. Scaffold
-   first is the unstated workaround — a one-paragraph preamble would make it stated.
-3. **Warm-worktree reuse does not cross repos.** All four warm DrinkSmart worktrees were unusable
-   for the gvs build; `traycer worktree create --workspace <other-repo>` worked (branches
-   `gvs/watcher`, `gvs/renderer`) but the epic is workspace-bound and that path was untested.
-4. **`traycer agent list` latency** (~3s cap) runs inside every GraphState build — acceptable for
-   the product, slows tests; noted, not fixed.
-5. **Batch integration behaved as designed** — disjoint specs merged clean, one baseline, and the
-   single defect found was the shared-contract clash the post-merge end-to-end test exists to catch.
-
-## Verification boundaries (honest)
-
-- **Visual behaviour is UNVERIFIED in a browser.** Unit tests lock layout stability and palette
-  equality; the fast-forward/merge animations, HEAD-on-branch rendering, and worktree lanes have
-  not been looked at by human or Luna.
-- **Vite → watcher proxy handshake is unverified.** Direct `/api/state` was proven live (the
-  watcher served its own integration commit); the through-Vite proxy died with a killed smoke-test
-  server before a verdict. The visual check will exercise it.
-- Nothing was pushed anywhere. DrinkSmart `main` ~55 ahead of `origin`, gvs `main` 7 ahead — both
-  by intent.
-- No decisions ledger changes this session: DrinkSmart's `docs/decisions.md` is unchanged (nothing
-  new to lock), and `git_visual_system/docs/decisions.md` already records its own locked entries.
+- Create two committed `writespec` specs with disjoint file allowlists and live verification
+  baselines. Do not quote the stale lint count from `tasks/todo.md`; run it.
+- Keep `--expect-reply` on both commissions and append the receiver transport preamble with the
+  actual receiver ID. Every implementer sends questions, status, blockers and complete handback
+  envelopes to the receiver.
+- Synchronize only the approved worktrees by merge, preserve unrelated or historical branch work,
+  install only if the lockfile changed, and verify agent model/effort after the first turn.
+- The tasks are intended for parallel implementation and batch integration only if the completed
+  specs prove their file sets disjoint. Point the git visualiser watcher at
+  `/home/oscar/DrinkSmart` if available; it observes but does not govern the work.
+- Poll the receiver throughout. Answer each pending message directly to its sender, then append the
+  matching `PROCESSED` marker.
+- On both handbacks, follow `docs/workflows/delegation.md`: merge to a scratch integration branch,
+  run one `speccheck`, repair inline, run one full baseline, fast-forward `main`, synchronize the
+  accepted worktrees, and keep agents warm.
+- Native iOS/Android notification behavior remains `BLOCKED` without real devices. Do not call web
+  fallback, typecheck, or build evidence native verification.
+- When Wave 3 implementation is accepted, reach the DrinkSmart final visual-check halt and wait for
+  Oscar before contacting Luna-0.
 
 ## Read first
 
-1. `AGENTS.md`, then `docs/workflows/delegation.md` and `docs/workflows/visual_check.md`
-2. `/home/oscar/git_visual_system/AGENTS.md` and its `docs/decisions.md`
-3. The gvs kickoff: `/home/oscar/git_visual_system/tasks/next_session_kickoff.md`
-4. `tasks/todo.md` (Wave 3) — only when resuming Wave 3
-5. The two acceptance records in the Traycer artifacts (`git-visual-system/gvs-1-watcher`,
-   `git-visual-system/gvs-2-renderer`)
+1. `AGENTS.md`
+2. `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`
+3. `docs/decisions.md`
+4. `docs/workflows/agent_selection.md`
+5. `docs/workflows/delegation.md`
+6. `docs/workflows/verification.md`
+7. `tasks/todo.md`
+8. `design_handoff_drinksmart/README.md` and
+   `design_handoff_drinksmart/screens/1f-wind-down.html`
 
-## Explicitly excluded
+## Explicit exclusions
 
-- Do not push, either repo. Do not re-dispatch the two accepted implementers without a fresh spec
-  and the reuse gate. Do not touch `shared/types.ts` without a decision. Do not add a linter or any
-  dependency (including Playwright) without a decision. Wave 3's steps 6 and 8 do not start until
-  the visual check has run and Oscar has said go — the visualiser comes first because watching the
-  resumption is the point of building it.
+- Do not push, deploy, migrate a remote database, rotate secrets, or publish a mobile build.
+- Do not use Codex TUI or the receiver as an implementation agent.
+- Do not commission, reconfigure, or synchronize a warm implementer before showing Oscar the live
+  roster and receiving confirmation.
+- Do not accept a receiver handback as implementation acceptance; `speccheck` remains mandatory.
+- Do not run the pending git-visualiser visual check as an implicit prerequisite for this Wave 3
+  kickoff. It remains separately pending unless Oscar directs otherwise.
+- Do not contact DrinkSmart Luna-0 for the final visual check until that workflow's explicit halt and
+  Oscar's go-ahead.
 
 ## PROMPT
 
 ```text
-The git visualiser is built, tested (28 tests), and accepted on git_visual_system main at
-72931c9. Both worktrees are warm and level; both tickets are closed. DrinkSmart main is untouched
-at 7771d3d and its four worktrees are synced and 93/93.
+Continue DrinkSmart Wave 3 from /home/oscar/DrinkSmart on main.
 
-Next, in order: (1) run the visual-check phase for the renderer per docs/workflows/visual_check.md
-— the first step is a provisioning decision: add Playwright as an exactly-pinned devDependency in
-git_visual_system matching the cached Chromium build, then HALT and wait for Oscar's go-ahead
-before briefing Luna. (2) After the check passes, resume DrinkSmart Wave 3 (steps 6 and 8 of
-tasks/todo.md) and watch the resumption through the visualiser — run the watcher against
-/home/oscar/DrinkSmart so the integration-branch arc renders live. (3) Optionally decide on the
-five recorded workflow creaks (writespec-guard matcher, empty-repo baseline preamble, cross-repo
-warm-worktree reuse, traycer latency, batch integration).
+First, confirm that $codex-tui-relay has already been activated in this new Traycer Codex TUI and
+that its persistent codex-tui-receiver passed the no-code smoke test. If it has not, stop Wave 3 and
+complete that activation first. Then inventory the live Traycer agents and worktrees.
 
-Do not push. Do not re-dispatch the accepted implementers. Do not start Wave 3 until the visual
-check has run and Oscar has said go.
+Before synchronizing a worktree, writing a commission, or delegating anything, tell Oscar exactly
+which full agent name/id/model/worktree you recommend for each role and wait for confirmation. The
+durable preliminary recommendation is: warm DeepSeek 827aef2b... for step 6 notifications; warm
+DeepSeek 2a14d713... for step 8 wind-down; keep warm DrinkSmart Luna-0 da47f88c... for the separate
+final visual check. Verify every identity live because the previous TUI could not list agents.
+
+After Oscar confirms, write and commit two writespec specs with disjoint scopes and live baselines,
+commission both GUI implementers with --expect-reply plus the receiver transport preamble, and
+follow docs/workflows/delegation.md through one batch speccheck, inline repair, one full baseline
+and fast-forward integration. Native notification verification stays BLOCKED without real devices.
+At the final visual-check stage, halt and wait for Oscar before contacting Luna-0. Never push.
 ```
