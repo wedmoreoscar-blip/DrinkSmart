@@ -1,0 +1,416 @@
+#!/usr/bin/env python3
+"""Initialize, append to, validate, and summarize the Codex TUI relay ledger."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import sys
+import time
+
+
+START = "<!-- relay-event:start -->"
+END = "<!-- relay-event:end -->"
+ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
+HEADING_RE = re.compile(r"^## `([0-9A-HJKMNP-TV-Z]{26})` — ([a-z][a-z0-9.-]+)$")
+FIELD_RE = re.compile(r"^- ([A-Za-z][A-Za-z0-9 _-]*): `([^`]*)`$")
+EVENT_TYPES = {
+    "agent.registered",
+    "command.ambiguous",
+    "command.claimed",
+    "command.completed",
+    "command.failed",
+    "command.retrying",
+    "command.reuse",
+    "command.send",
+    "command.spawn",
+    "command.stop",
+    "hub.cycle.completed",
+    "message.processed",
+    "message.received",
+    "note",
+}
+COMMAND_TYPES = {"command.reuse", "command.send", "command.spawn", "command.stop"}
+COMMAND_RESULTS = {
+    "command.ambiguous",
+    "command.claimed",
+    "command.completed",
+    "command.failed",
+    "command.retrying",
+}
+TERMINAL_RESULTS = {"command.ambiguous", "command.completed", "command.failed"}
+RESERVED_FIELDS = {
+    "Time",
+    "Actor",
+    "Ticket",
+    "Target",
+    "In reply to",
+    "Depends on",
+    "Command",
+    "Message ID",
+    "Attempt",
+}
+CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+class LedgerError(Exception):
+    pass
+
+
+def default_ledger(epic_id: str) -> Path:
+    return (
+        Path.home()
+        / ".traycer"
+        / "epics"
+        / epic_id
+        / "artifacts"
+        / "codex-tui-a2a-ledger"
+        / "index.md"
+    )
+
+
+def new_ulid() -> str:
+    value = (int(time.time() * 1000) << 80) | secrets.randbits(80)
+    chars: list[str] = []
+    for _ in range(26):
+        chars.append(CROCKFORD[value & 31])
+        value >>= 5
+    return "".join(reversed(chars))
+
+
+def unwrap(value: str) -> str:
+    return value.strip()
+
+
+def parse_event(block: str, position: int) -> dict[str, object]:
+    inner = block[len(START) : -len(END)].strip("\n")
+    marker = "\n### Content\n"
+    if marker not in inner:
+        raise LedgerError(f"event {position} has no Content section")
+    header, content = inner.split(marker, 1)
+    lines = header.splitlines()
+    if not lines:
+        raise LedgerError(f"event {position} is empty")
+    match = HEADING_RE.fullmatch(lines[0])
+    if not match:
+        raise LedgerError(f"event {position} has an invalid heading")
+    event_id, event_type = match.groups()
+    if event_type not in EVENT_TYPES:
+        raise LedgerError(f"event {event_id} has unknown type {event_type!r}")
+    fields: dict[str, str] = {}
+    for line in lines[1:]:
+        if not line:
+            continue
+        field_match = FIELD_RE.fullmatch(line)
+        if not field_match:
+            raise LedgerError(f"event {event_id} has malformed field line {line!r}")
+        key, value = field_match.groups()
+        if key in fields:
+            raise LedgerError(f"event {event_id} repeats field {key!r}")
+        fields[key] = unwrap(value)
+    for required in ("Time", "Actor"):
+        if not fields.get(required):
+            raise LedgerError(f"event {event_id} is missing {required!r}")
+    try:
+        datetime.fromisoformat(fields["Time"].replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise LedgerError(f"event {event_id} has invalid Time") from exc
+    if event_type in COMMAND_TYPES and not fields.get("Ticket"):
+        raise LedgerError(f"command event {event_id} is missing Ticket")
+    if event_type in COMMAND_RESULTS and not fields.get("Command"):
+        raise LedgerError(f"result event {event_id} is missing Command")
+    if event_type == "message.received" and not fields.get("Message ID"):
+        raise LedgerError(f"message event {event_id} is missing Message ID")
+    if event_type == "message.processed" and not fields.get("In reply to"):
+        raise LedgerError(f"processed event {event_id} is missing In reply to")
+    return {
+        "id": event_id,
+        "type": event_type,
+        "fields": fields,
+        "content": content.rstrip("\n"),
+        "position": position,
+    }
+
+
+def parse_ledger(path: Path) -> list[dict[str, object]]:
+    if not path.is_file():
+        raise LedgerError(f"ledger does not exist: {path}")
+    text = path.read_text(encoding="utf-8")
+    frontmatter = re.match(r"^---\n.*?\n---\n", text, re.DOTALL)
+    if not frontmatter:
+        raise LedgerError("ledger has invalid Traycer frontmatter")
+    body = text[frontmatter.end() :]
+    events: list[dict[str, object]] = []
+    cursor = 0
+    while cursor < len(body):
+        start = body.find(START, cursor)
+        if start == -1:
+            if body[cursor:].strip():
+                raise LedgerError("ledger contains text outside an event block")
+            break
+        if body[cursor:start].strip():
+            raise LedgerError("ledger contains text between event blocks")
+        end = body.find(END, start + len(START))
+        if end == -1:
+            raise LedgerError("ledger has an unterminated event block")
+        end += len(END)
+        events.append(parse_event(body[start:end], len(events) + 1))
+        cursor = end
+
+    validate_event_sequence(events)
+    return events
+
+
+def validate_event_sequence(events: list[dict[str, object]]) -> None:
+    seen: dict[str, dict[str, object]] = {}
+    message_ids: set[str] = set()
+    for event in events:
+        event_id = str(event["id"])
+        fields = event["fields"]
+        assert isinstance(fields, dict)
+        if event_id in seen:
+            raise LedgerError(f"duplicate event id {event_id}")
+        for label in ("In reply to", "Command"):
+            reference = fields.get(label)
+            if reference and reference not in seen:
+                raise LedgerError(f"event {event_id} references unknown prior event {reference}")
+        dependencies = fields.get("Depends on", "")
+        for reference in filter(None, (item.strip() for item in dependencies.split(","))):
+            if reference not in seen:
+                raise LedgerError(f"event {event_id} depends on unknown prior event {reference}")
+        command_id = fields.get("Command")
+        if command_id and seen[command_id]["type"] not in COMMAND_TYPES:
+            raise LedgerError(f"event {event_id} Command does not reference a command")
+        reply_id = fields.get("In reply to")
+        if event["type"] == "message.processed" and reply_id:
+            if seen[reply_id]["type"] != "message.received":
+                raise LedgerError(f"event {event_id} does not process a received message")
+        message_id = fields.get("Message ID")
+        if event["type"] == "message.received" and message_id:
+            if message_id in message_ids:
+                raise LedgerError(f"duplicate Message ID {message_id}")
+            message_ids.add(message_id)
+        seen[event_id] = event
+
+
+def format_event(args: argparse.Namespace, event_id: str) -> str:
+    if args.content and args.content_file:
+        raise LedgerError("use only one of --content or --content-file")
+    if args.content_file:
+        content = Path(args.content_file).read_text(encoding="utf-8").rstrip("\n")
+    else:
+        content = (args.content or "").rstrip("\n")
+    if START in content or END in content:
+        raise LedgerError("content contains a reserved relay-event delimiter")
+
+    fields: list[tuple[str, str]] = [
+        ("Time", datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")),
+        ("Actor", args.actor),
+    ]
+    optional = (
+        ("Ticket", args.ticket),
+        ("Target", args.target),
+        ("In reply to", args.in_reply_to),
+        ("Depends on", ", ".join(args.depends_on)),
+        ("Command", args.command),
+        ("Message ID", args.message_id),
+        ("Attempt", str(args.attempt) if args.attempt is not None else None),
+    )
+    fields.extend((key, value) for key, value in optional if value)
+    used = {key for key, _ in fields}
+    for item in args.meta:
+        if "=" not in item:
+            raise LedgerError(f"invalid --meta {item!r}; expected KEY=VALUE")
+        key, value = item.split("=", 1)
+        key, value = key.strip(), value.strip()
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9 _-]*", key):
+            raise LedgerError(f"invalid metadata key {key!r}")
+        if key in RESERVED_FIELDS or key in used:
+            raise LedgerError(f"reserved or duplicate metadata key {key!r}")
+        if "`" in value:
+            raise LedgerError(f"metadata value for {key!r} contains a backtick")
+        fields.append((key, value))
+        used.add(key)
+    for key, value in fields:
+        if not value or "`" in value or "\n" in value:
+            raise LedgerError(f"invalid value for field {key!r}")
+
+    lines = [START, f"## `{event_id}` — {args.type}", ""]
+    lines.extend(f"- {key}: `{value}`" for key, value in fields)
+    lines.extend(["", "### Content", "", content, "", END, ""])
+    return "\n".join(lines)
+
+
+def lock_path(ledger: Path) -> Path:
+    return ledger.parent / ".relay.lock"
+
+
+def cmd_path(args: argparse.Namespace) -> int:
+    print(default_ledger(args.epic_id))
+    return 0
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    ledger = Path(args.ledger).resolve()
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path(ledger).open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if ledger.exists():
+            parse_ledger(ledger)
+            print(f"EXISTS {ledger}")
+            return 0
+        content = "---\nkind: spec\ntitle: \"Codex TUI A2A relay ledger\"\n---\n"
+        descriptor = os.open(ledger, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            os.write(descriptor, content.encode("utf-8"))
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    print(f"CREATED {ledger}")
+    return 0
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    ledger = Path(args.ledger).resolve()
+    events = parse_ledger(ledger)
+    print(f"VALID {ledger} events={len(events)}")
+    return 0
+
+
+def cmd_append(args: argparse.Namespace) -> int:
+    ledger = Path(args.ledger).resolve()
+    if args.type not in EVENT_TYPES:
+        raise LedgerError(f"unknown event type {args.type!r}")
+    event_id = args.event_id or new_ulid()
+    if not ULID_RE.fullmatch(event_id):
+        raise LedgerError("--event-id must be a 26-character uppercase ULID")
+    block = format_event(args, event_id)
+    with lock_path(ledger).open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        events = parse_ledger(ledger)
+        candidate = parse_event(block, len(events) + 1)
+        validate_event_sequence([*events, candidate])
+        descriptor = os.open(ledger, os.O_WRONLY | os.O_APPEND)
+        try:
+            prefix = "\n" if ledger.stat().st_size else ""
+            os.write(descriptor, (prefix + block).encode("utf-8"))
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        parse_ledger(ledger)
+    print(event_id)
+    return 0
+
+
+def cmd_state(args: argparse.Namespace) -> int:
+    ledger = Path(args.ledger).resolve()
+    events = parse_ledger(ledger)
+    commands = {str(event["id"]): event for event in events if event["type"] in COMMAND_TYPES}
+    results: dict[str, list[dict[str, object]]] = {command_id: [] for command_id in commands}
+    handled_messages: set[str] = set()
+    for event in events:
+        fields = event["fields"]
+        assert isinstance(fields, dict)
+        command_id = fields.get("Command")
+        if command_id in results:
+            results[command_id].append(event)
+        reply_id = fields.get("In reply to")
+        if reply_id and event["type"] in {"command.send", "message.processed"}:
+            handled_messages.add(reply_id)
+
+    pending: list[str] = []
+    claimed: list[str] = []
+    ambiguous: list[str] = []
+    terminal: list[str] = []
+    for command_id, history in results.items():
+        if history and history[-1]["type"] in TERMINAL_RESULTS:
+            terminal.append(command_id)
+            if history[-1]["type"] == "command.ambiguous":
+                ambiguous.append(command_id)
+        elif history and history[-1]["type"] == "command.claimed":
+            claimed.append(command_id)
+        else:
+            pending.append(command_id)
+    unread = [
+        str(event["id"])
+        for event in events
+        if event["type"] == "message.received" and event["id"] not in handled_messages
+    ]
+    state = {
+        "ledger": str(ledger),
+        "event_count": len(events),
+        "pending_commands": pending,
+        "claimed_commands": claimed,
+        "ambiguous_commands": ambiguous,
+        "terminal_commands": terminal,
+        "unread_messages": unread,
+    }
+    if args.json:
+        print(json.dumps(state, indent=2))
+    else:
+        print(f"LEDGER {ledger}")
+        print(f"EVENTS {len(events)}")
+        print(f"PENDING {' '.join(pending) if pending else '-'}")
+        print(f"CLAIMED {' '.join(claimed) if claimed else '-'}")
+        print(f"AMBIGUOUS {' '.join(ambiguous) if ambiguous else '-'}")
+        print(f"UNREAD {' '.join(unread) if unread else '-'}")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command_name", required=True)
+
+    path_parser = subparsers.add_parser("path", help="Print the default ledger path for an epic")
+    path_parser.add_argument("--epic-id", required=True)
+    path_parser.set_defaults(func=cmd_path)
+
+    init_parser = subparsers.add_parser("init", help="Create an empty ledger if it does not exist")
+    init_parser.add_argument("--ledger", required=True)
+    init_parser.set_defaults(func=cmd_init)
+
+    validate_parser = subparsers.add_parser("validate", help="Validate the full ledger")
+    validate_parser.add_argument("--ledger", required=True)
+    validate_parser.set_defaults(func=cmd_validate)
+
+    append_parser = subparsers.add_parser("append", help="Append one validated event")
+    append_parser.add_argument("--ledger", required=True)
+    append_parser.add_argument("--type", required=True, choices=sorted(EVENT_TYPES))
+    append_parser.add_argument("--actor", required=True)
+    append_parser.add_argument("--event-id")
+    append_parser.add_argument("--ticket")
+    append_parser.add_argument("--target")
+    append_parser.add_argument("--in-reply-to")
+    append_parser.add_argument("--depends-on", action="append", default=[])
+    append_parser.add_argument("--command")
+    append_parser.add_argument("--message-id")
+    append_parser.add_argument("--attempt", type=int)
+    append_parser.add_argument("--meta", action="append", default=[])
+    append_parser.add_argument("--content")
+    append_parser.add_argument("--content-file")
+    append_parser.set_defaults(func=cmd_append)
+
+    state_parser = subparsers.add_parser("state", help="Summarize actionable ledger state")
+    state_parser.add_argument("--ledger", required=True)
+    state_parser.add_argument("--json", action="store_true")
+    state_parser.set_defaults(func=cmd_state)
+    return parser
+
+
+def main() -> int:
+    try:
+        args = build_parser().parse_args()
+        return int(args.func(args))
+    except (LedgerError, OSError) as exc:
+        print(f"ERROR {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

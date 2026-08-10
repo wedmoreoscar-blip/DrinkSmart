@@ -1,50 +1,38 @@
 ---
 name: codex-tui-relay
-description: Prepare and operate DrinkSmart's persistent Traycer receiver when a Traycer-launched Codex TUI is acting as orchestrator. Use before that Codex TUI commissions GUI agents, resumes Codex-TUI-orchestrated work, checks for implementation-agent questions or handbacks, or responds through the receiver. Do not use from Codex GUI, Claude Code, OpenCode, or when Codex TUI is not the orchestrator.
+description: Activate or resume DrinkSmart's artifact-ledger A2A hub when a Traycer-launched Codex TUI is the orchestrator. Use at the start of Codex TUI orchestration before kickoff or GUI-agent delegation, and before checking or answering implementation-agent messages. Do not use from Codex GUI, Claude Code, OpenCode, or when Codex TUI is an implementation target.
 ---
 
-# Codex TUI receiver adapter
+# Codex TUI artifact relay
 
-1. Read `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` completely. It is authoritative for this
-   messaging adapter; do not reconstruct the protocol from this skill.
-2. Confirm that the current agent is a Traycer-launched Codex TUI orchestrator. Read
-   `TRAYCER_AGENT_ID` for the authoritative current-agent identity. If the environment is not Codex
-   TUI, or Codex is being considered as an implementation target, stop: Codex implementers use the
-   GUI surface and this adapter does not apply.
-3. List the epic's agents and locate the single persistent agent named `codex-tui-receiver`.
-   Reuse it when its transcript and configuration are healthy. If none exists, create it in the
-   DrinkSmart repository context with:
+1. Read `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` completely. It is authoritative; keep this
+   skill thin and do not reconstruct or replace its protocol.
+2. Confirm the session is a Traycer-launched Codex TUI orchestrator. Require non-empty
+   `TRAYCER_AGENT_ID` and `TRAYCER_EPIC_ID`; treat those values as authoritative. Decline outside
+   Codex TUI or when Codex is an implementation target.
+3. Use `tools/codex-tui-relay-ledger path --epic-id <TRAYCER_EPIC_ID>` to derive the one ledger path.
+   Run `init`, then `validate`; Codex TUI owns creation of the artifact.
+4. List the epic's agents read-only and locate exactly one manually created GUI agent named
+   `codex-tui-a2a-hub`. Never create, configure, send to, or impersonate the hub from Codex TUI.
+   If it is missing or ambiguous, stop and return the canonical one-time hub settings and clean
+   initialization prompt from the document, with absolute repository, artifact and ledger paths.
+5. Confirm the hub is OpenCode GUI / DeepSeek V4 Flash / max / `full_access`, has the epic artifacts
+   directory available, and has a clean `HUB_READY` initialization transcript. Do not trust the
+   hub's self-report as provider/model evidence. If any check is unresolved, report not ready.
+6. If the real hub ID has not been registered, append one `agent.registered` event with actor
+   `codex:<TRAYCER_AGENT_ID>` and its verified identity/configuration. Do not wake an idle hub merely
+   for activation.
+7. Run `tools/codex-tui-relay-ledger state`. Read any referenced unread message blocks in full;
+   inspect implementation-agent transcripts read-only whenever useful. Report the ledger path, hub
+   ID, pending/claimed/ambiguous commands and unread messages.
+8. For later commissions or replies, make every orchestration decision and satisfy all normal
+   workflow gates first, then append the exact `command.spawn`, `command.reuse`, or `command.send`.
+   Add the canonical hub routing preamble to commissions. Never call a mutating Traycer agent command
+   from Codex TUI. Tell the user which event was queued and ask them to prompt the hub:
+   `Check the relay ledger.`
+9. After the hub runs, validate and scan again. Codex decides whether an inbound message needs a
+   reply: append `command.send --in-reply-to <event-id>` when it does, or `message.processed` when it
+   does not. DeepSeek transports; Codex interprets, reviews and accepts.
 
-   ```text
-   traycer agent create --name codex-tui-receiver --harness opencode \
-     --model deepseek:deepseek-v4-flash --reasoning-effort max --surface gui \
-     --cwd <DrinkSmart-repository-root> --permission-mode full_access
-   ```
-
-   If creation times out, treat the resulting agent as misconfigured and stop for user recovery.
-   Do not commission work through an unverified receiver.
-4. For a new receiver, send the canonical passive-receiver initialization message from the
-   document. After its first turn, verify the actual OpenCode provider, model and effort through the
-   harness as required by `docs/workflows/agent_selection.md`. Confirm that the initialization turn
-   used no tools and changed no files.
-5. For a reused receiver, read its transcript before doing anything else. Match every inbound
-   `message_id` to a later processed control marker and identify any pending questions, blockers or
-   handbacks. Confirm that the receiver has remained passive.
-6. Send the receiver a `[no-spec]` activation control message containing the current
-   `TRAYCER_AGENT_ID`. The receiver remains idle outside Codex TUI orchestration and does not decide
-   who owns the next turn.
-7. Add the canonical communication preamble and receiver ID to every implementation commission.
-   Keep `--expect-reply` on the commission. Require the implementer to explicitly run
-   `traycer agent send --to <receiver-id>` for every question, status, blocker and handback; the
-   native reply thread back to Codex TUI is not a usable inbound channel.
-8. While implementation agents are active, poll the one receiver transcript. Answer each pending
-   message with a fresh outbound send directly to its `sender_agent_id`, then append the canonical
-   processed control marker to the receiver transcript. Never delegate interpretation or decisions
-   to the receiver.
-9. If the receiver fails, use individual implementation-agent transcripts only as a recovery path,
-   provision a verified replacement when necessary, and redirect active agents outbound. Never let
-   receiver failure change Git, worktree, specification, review or acceptance rules.
-
-Return the active receiver ID, any pending messages found, and whether receiver creation,
-configuration and passive behavior were verified. Do not claim the adapter ready while any of those
-checks is unresolved.
+Return `READY` only with the exact ledger path, verified hub ID and summarized unresolved state.
+When ready, continue directly into the user's requested workflow, including `$kickoff`.

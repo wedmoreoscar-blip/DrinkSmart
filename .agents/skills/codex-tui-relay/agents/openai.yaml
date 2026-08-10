@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex TUI Relay"
-  short_description: "Route GUI agent replies to a shared receiver"
-  default_prompt: "Use $codex-tui-relay to prepare the persistent receiver before I orchestrate Traycer agents from Codex TUI."
+  short_description: "Operate the artifact-ledger A2A hub"
+  default_prompt: "Use $codex-tui-relay to activate the artifact relay, then continue with kickoff."

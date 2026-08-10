@@ -39,6 +39,7 @@ REQUIRED = {
     "docs/workflows/agent_selection.md",
     "tasks/next_session_kickoff.md",
     "tools/agent-lock",
+    "tools/codex-tui-relay-ledger",
     "tools/test-project",
     "tools/writespec-guard",
 }
@@ -126,7 +127,7 @@ def main() -> int:
 
     relay_checks = {
         "AGENTS.md": "$codex-tui-relay",
-        "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md": "codex-tui-receiver",
+        "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md": "codex-tui-a2a-hub",
         "docs/workflows/delegation.md": "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
         "docs/workflows/agent_selection.md": "$codex-tui-relay",
         ".agents/skills/codex-tui-relay/SKILL.md":
@@ -134,9 +135,14 @@ def main() -> int:
     }
     for relative, marker in relay_checks.items():
         if marker not in (ROOT / relative).read_text():
-            fail(f"{relative} is missing Codex TUI receiver marker {marker!r}", failures)
+            fail(f"{relative} is missing Codex TUI relay marker {marker!r}", failures)
 
-    for relative in ("tools/agent-lock", "tools/test-project", "tools/writespec-guard"):
+    for relative in (
+        "tools/agent-lock",
+        "tools/codex-tui-relay-ledger",
+        "tools/test-project",
+        "tools/writespec-guard",
+    ):
         mode = (ROOT / relative).stat().st_mode
         if not mode & stat.S_IXUSR:
             fail(f"{relative} is not executable", failures)

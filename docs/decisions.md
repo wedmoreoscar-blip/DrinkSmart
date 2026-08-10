@@ -173,9 +173,9 @@ equally to lint, tests, and any future runner.
   authors specs, runs `speccheck`, integrates, and commits. Orchestration, spec authorship, and
   acceptance are never delegated.
 - **Codex TUI is orchestrator-only.** It is never an agent-to-agent implementation target because
-  its TUI cannot expose inbound implementation-agent replies. A Codex implementer always uses the
-  GUI surface. Claude Code TUI uses native bidirectional messaging and does not use the receiver
-  adapter.
+  Traycer does not allow its terminal agent to participate in A2A mutations. A Codex implementer
+  always uses the GUI surface. Claude Code TUI uses native bidirectional messaging and does not use
+  the artifact adapter.
 - **Warm implementers are the default provisioning route (amended 2026-08-09).** Before creating
   an agent or worktree, inventory compatible warm agents and their existing worktrees. If one
   exists, recommend its reuse to Oscar and disclose the agent, worktree and any required sync or
@@ -263,7 +263,11 @@ equally to lint, tests, and any future runner.
   `closing.md` block already governs how a child verifies and reports, and two instruction sets
   would conflict.
 
-## LOCKED — Codex TUI persistent message receiver (2026-08-10)
+## SUPERSEDED — Codex TUI persistent message receiver (2026-08-10)
+
+Superseded on 2026-08-10 by the artifact-ledger A2A hub below. Traycer rejects every A2A mutation
+originating from Codex TUI, so the passive receiver could neither be provisioned nor contacted by
+the orchestrator. The bullets below are retained as design history only.
 
 - This is a **messaging adapter, not a workflow**. `docs/workflows/delegation.md`,
   `visual_check.md`, `writespec`, and `speccheck` retain authority over how work is specified,
@@ -291,6 +295,31 @@ equally to lint, tests, and any future runner.
   `$codex-tui-relay` skill activates it. `AGENTS.md` is the discovery hook. The skill's mirrored
   Claude package exists only for repository parity and does not trigger there.
 
+## LOCKED — Codex TUI artifact-ledger A2A hub (2026-08-10)
+
+- Oscar manually creates and cleanly initializes one epic-scoped OpenCode GUI / DeepSeek V4 Flash /
+  max / `full_access` agent named `codex-tui-a2a-hub`. It has the DrinkSmart root as its primary
+  workspace and the epic artifacts directory as an additional workspace. Codex TUI never creates,
+  configures, messages or impersonates this hub.
+- `$codex-tui-relay` creates or resumes exactly one append-only Traycer artifact ledger per epic.
+  Codex appends exact spawn/reuse/send commands and substantive replies; the hub claims and executes
+  them through its supported A2A identity and appends receipts and implementation-agent messages.
+- Codex remains the sole orchestrator. It selects agents, obtains warm-reuse approval, writes specs,
+  decides whether and how to answer, checks transcripts, reviews, repairs, accepts and integrates.
+  The hub performs transport mechanics only and never edits DrinkSmart source or makes decisions.
+- The user manually wakes the hub with `Check the relay ledger` after Codex queues outbound work.
+  Automatic filesystem-to-GUI prompt injection is excluded because Traycer exposes no supported
+  endpoint for it; private WebSocket automation and sender-identity spoofing are forbidden.
+- The hub issues Codex-authored commissions with `--expect-reply`, so native implementation-agent
+  responses return directly to the hub and are copied verbatim into the ledger. A separate passive
+  receiver message is unnecessary.
+- Ledger appends use a short lock and validation helper. Claims do not expire automatically; stale
+  claims are reconciled against agent lists and transcripts before retry, preventing duplicate
+  agents and messages where Traycer exposes sufficient evidence.
+- `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` remains the canonical contract and the thin
+  repo-local `$codex-tui-relay` skill activates it. All delegation, verification, review and
+  integration workflows remain unchanged outside their transport step.
+
 ## LOCKED — Multi-harness delegation and permission parity (2026-08-08)
 
 Verified empirically; each point cost attempts to discover.
@@ -303,8 +332,9 @@ Verified empirically; each point cost attempts to discover.
   *back a terminal session a human drives*. It documents nothing about agent-to-agent messaging.
   Both are true: you can launch codex or opencode in a terminal tab yourself; you cannot have
   another agent message one there and get a structured reply. An implementation target therefore
-  needs `gui`. Codex TUI may still originate commissions as orchestrator while `$codex-tui-relay`
-  is active; implementers explicitly send usable responses to its GUI receiver.
+  needs `gui`. Codex TUI may still orchestrate while `$codex-tui-relay` is active: it writes exact
+  commands to the epic ledger, and its user-created GUI hub performs the A2A mutations and records
+  native replies.
 - **Custom harness providers do reach Traycer.** A provider defined in `opencode.json` /
   `~/.config/opencode/` appears in `traycer agent list-harness-models opencode` and is accepted by
   `--model`. Traycer is not restricted to its own curated list.

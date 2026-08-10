@@ -83,11 +83,11 @@ role skips to step 6.
    and any repository-specific command trap. A cross-reference to another document is not a
    baseline. A runtime question route does not weaken this requirement.
 8. **Send with `--expect-reply`.** Without it the peer never reports back. When the orchestrator is
-   Codex TUI, activate `$codex-tui-relay` first and append its communication preamble. The native
-   reply thread still targets Codex TUI and is not a usable inbound channel, so the implementer must
-   explicitly send every substantive question, status, blocker and handback to the persistent
-   receiver. `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` owns that transport adapter; all other
-   steps here remain unchanged.
+   Codex TUI, activate `$codex-tui-relay` first and append the complete commission to its artifact
+   ledger instead of calling Traycer's mutating agent commands. The persistent DeepSeek GUI hub
+   executes the commission with `--expect-reply`, so native responses return to that hub and it
+   appends them verbatim to the same ledger. `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` owns that
+   transport adapter; all other steps here remain unchanged.
 
 ### Review
 
