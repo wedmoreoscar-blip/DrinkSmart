@@ -1,251 +1,199 @@
-# Codex TUI Message Receiver
+# Codex TUI artifact relay
 
 ## Purpose and boundary
 
-Use this adapter only when a **Traycer-launched Codex TUI is the orchestrator**. Codex TUI can
-create agents, inspect their transcripts and send outbound messages, but it cannot expose inbound
-agent-to-agent replies. One persistent OpenCode GUI agent therefore acts as the epic's inbound
-receiver, and Codex TUI reads that receiver's transcript.
+Use this adapter only when a **Traycer-launched Codex TUI is the orchestrator**. Traycer does not
+allow that terminal agent to create or message A2A agents, so one user-created OpenCode GUI agent
+performs those operations. Codex and the GUI hub exchange commands and replies through one
+append-only Traycer artifact.
 
-This is a messaging adapter, not a workflow. It does not change how work is specified,
-implemented, checked, repaired or integrated. `AGENTS.md`, `docs/decisions.md`, the applicable
-workflow, `writespec` and `speccheck` retain their existing authority.
-
-Terminology:
-
-- **Adapter** means this complete Codex-TUI-specific messaging system.
-- **Receiver** means the persistent OpenCode GUI/DeepSeek agent that holds the inbound transcript.
-  It does not forward messages, answer questions or make decisions.
-
-## Activation rule
-
-Codex TUI is authorized as orchestrator only while `$codex-tui-relay` is active. Invoke the skill:
-
-- before a Codex TUI commissions any GUI agent;
-- whenever a later Codex TUI resumes orchestration in the epic;
-- before checking for implementation-agent questions, blockers or handbacks; and
-- before responding through the receiver system.
-
-Do not activate it for Codex GUI, Claude Code, OpenCode, or a Codex implementation agent. Codex
-implementation agents always use the GUI surface. Claude Code TUI uses its native bidirectional
-agent-to-agent messaging and does not use this receiver.
+This is a transport adapter, not a delegation workflow. Codex remains the orchestrator and retains
+all decisions. `writespec`, `speccheck`, `docs/workflows/delegation.md`, agent-selection approval
+gates and change-safety rules remain authoritative.
 
 ## Topology
 
 ```mermaid
 flowchart LR
-  O["Codex TUI orchestrator"] -->|"commission and response"| I1["GUI implementer A"]
-  O -->|"commission and response"| I2["GUI implementer B"]
-  O -->|"activate and mark processed"| R["Persistent OpenCode GUI receiver\nDeepSeek V4 Flash · max"]
-  I1 -->|"question, status, blocker, handback"| R
-  I2 -->|"question, status, blocker, handback"| R
-  R -.->|"Codex reads transcript"| O
+  C["Codex TUI orchestrator"] -->|"append commands / replies"| L["One epic-scoped\nartifact ledger"]
+  U["Oscar"] -->|"Check the relay ledger"| H["OpenCode GUI A2A hub\nDeepSeek V4 Flash · max"]
+  H -->|"read / claim / execute / append"| L
+  H -->|"create / configure / send\n--expect-reply"| I["GUI implementation agents"]
+  I -->|"native A2A reply"| H
+  H -->|"append verbatim"| L
+  C -.->|"read-only status / transcript"| I
 ```
 
-The dotted edge is a transcript read, not an inbound Traycer message.
+Codex never calls a mutating Traycer agent command. Because the hub issues each Codex-authored
+commission, native `--expect-reply` responses return to the hub; implementers do not need a second
+receiver-copy message.
 
-## Receiver identity and lifecycle
+## One-time hub setup by Oscar
 
-Each Traycer epic has at most one active receiver named:
+Follow `docs/agent_setup/CODEX_TUI_HUB_SETUP.md`. It is the portable, standalone authority for the
+manual agent settings, clean initial prompt, verification and first `$codex-tui-relay` invocation.
+The hub is created before the ledger; Codex TUI creates the ledger when the skill runs.
+
+## Ledger identity and ownership
+
+The skill creates exactly one ledger per epic at:
 
 ```text
-codex-tui-receiver
+~/.traycer/epics/<TRAYCER_EPIC_ID>/artifacts/codex-tui-a2a-ledger/index.md
 ```
 
-The first Codex TUI orchestrator creates it. The receiver remains idle whenever Codex TUI is not
-orchestrating. A later Codex TUI reuses the same receiver, reads its transcript and reconstructs
-pending state from processed markers before commissioning or answering anyone.
+The ledger is the durable inbox, outbox and operation record shared by every later Codex TUI
+orchestrator in that epic. The hub transcript remains useful runtime evidence but is not the inbox.
 
-Do not create one receiver per Codex session. Do not delete the persistent receiver silently; its
-transcript is the cross-session inbox record. If it becomes unusable, create a numbered replacement,
-redirect active implementation agents outbound and mark the former receiver superseded.
+Only these actors append:
 
-## Locate or provision
+- `codex:<TRAYCER_AGENT_ID>` for commands, substantive replies and processed-without-reply markers;
+- `hub:<hub-agent-id>` for claims, A2A receipts, failures and implementation-agent messages.
 
-Read `TRAYCER_AGENT_ID` before claiming the current orchestrator identity. List the epic's agents and
-look for the exact receiver name. If multiple plausible active receivers exist, stop and resolve the
-ambiguity rather than dividing the inbox.
+Use `tools/codex-tui-relay-ledger` for every initialization, append, validation and state scan. Never
+edit, compact, reorder or rewrite the ledger manually. Its short sidecar `flock` protects only a
+single append; it is not another communication artifact.
 
-When no receiver exists, create it in the normal DrinkSmart repository context without a worktree:
+## Event format
 
-```text
-traycer agent create --name codex-tui-receiver --harness opencode \
-  --model deepseek:deepseek-v4-flash --reasoning-effort max --surface gui \
-  --cwd <DrinkSmart-repository-root> --permission-mode full_access
+Each immutable Markdown event has a generated ULID, UTC timestamp, actor, type and readable body:
+
+```markdown
+<!-- relay-event:start -->
+## `01K...` — command.send
+
+- Time: `2026-08-10T21:10:00Z`
+- Actor: `codex:<agent-id>`
+- Ticket: `W3-A2`
+- Target: `agent:<agent-id>`
+- In reply to: `01K...`
+
+### Content
+
+<exact message>
+
+<!-- relay-event:end -->
 ```
 
-This simple arrangement deliberately relies on DeepSeek's instruction following. The receiver is
-not an implementer and must never edit the repository even though it has `full_access`.
+The supported types are:
 
-Creation can time out while leaving behind a silently misconfigured agent. A clean returned agent ID
-is necessary but not sufficient. After the first turn, follow `docs/workflows/agent_selection.md`:
-use `opencode session list` and `opencode export <session-id>` to confirm
-`deepseek / deepseek-v4-flash / max`. Also confirm that the receiver used no tools and made no
-filesystem or Git changes.
+- commands: `command.spawn`, `command.reuse`, `command.send`, `command.stop`;
+- command state: `command.claimed`, `command.retrying`, `command.completed`, `command.failed`,
+  `command.ambiguous`;
+- messages: `message.received`, `message.processed`;
+- records: `agent.registered`, `hub.cycle.completed`, `note`.
 
-## Initialize a new receiver
+Ticket ID, Traycer agent ID, ledger event ID and the sender's message ID are sufficient routing.
+Codex answers a received message with `command.send --in-reply-to <message-event-id>`. When it
+decides no reply is necessary, it appends `message.processed` with that same reference.
 
-Send this exact role message as a `[no-spec]` communication:
+For a long commission or reply, write the exact body to a temporary file and pass
+`--content-file`; remove only that temporary file after the helper succeeds. Run the helper's
+`--help` for the complete deterministic interface.
 
-```text
-[no-spec]
-You are the persistent passive inbound mailbox for Codex TUI orchestrators in this Traycer epic.
+## Skill activation and resume
 
-For every inbound message:
-1. Do not answer its substantive content.
-2. Do not make decisions, use tools, inspect files, modify files, or contact other agents.
-3. Preserve the incoming message in this conversation transcript.
-4. Respond only with: RECEIVED <message-id>
+`$codex-tui-relay` performs this sequence:
 
-Messages with kind CONTROL are written by the orchestrator to mark activation or processing state.
-Treat them the same way. You are not an orchestrator, implementer, reviewer, or fallback
-decision-maker.
+1. Confirm `TRAYCER_AGENT_ID` and `TRAYCER_EPIC_ID` exist and the current session is Codex TUI.
+2. Derive the ledger path, initialize it if absent, and validate it.
+3. List the epic's agents read-only and locate exactly one `codex-tui-a2a-hub`.
+4. If the hub is absent or ambiguous, stop with the one-time setup instructions above. The skill
+   cannot create the hub because Codex TUI is not an A2A sender.
+5. Confirm the hub is OpenCode GUI / DeepSeek V4 Flash / max / `full_access` and inspect its
+   transcript for the clean `HUB_READY` setup.
+6. Append `agent.registered` if this hub ID is not already registered.
+7. Run the ledger state scan and report pending commands, unresolved claims, ambiguous operations
+   and unread messages.
+8. Return the hub ID, ledger path and ready/not-ready status. When ready, continue directly into the
+   user's requested workflow, including `$kickoff`.
 
-When no Codex TUI orchestrator is using you, remain idle. A later Codex TUI orchestrator may read
-this transcript and activate you again; continue the same passive behavior without interpreting
-earlier messages.
-```
+Do not wake the hub merely to activate or resume an empty ledger.
 
-The incoming prompt is the payload preserved in the transcript. The receiver's response is only a
-receipt. If the receiver uses a tool, edits a file, answers substantively or contacts another agent,
-stop using it, inspect for side effects and provision a replacement.
+## Codex operating contract
 
-## Activate or resume
+Codex owns agent selection, the warm-reuse confirmation question, specs, replies, review and
+integration. It may inspect agent lists and transcripts read-only at any time.
 
-Before using either a new or reused receiver:
+When an A2A action is required:
 
-1. Read its transcript with `traycer agent transcript --agent-id <receiver-id>`.
-2. Confirm that it has remained passive.
-3. Match each inbound `message_id` to a later `PROCESSED` control marker.
-4. Treat any unmatched question, blocker or handback as pending.
-5. Send this activation marker:
+1. Finish all applicable workflow gates first, including user approval before warm reuse and a
+   compliant `writespec` commission.
+2. Append one exact command to the ledger. Include the chosen agent/worktree, harness, model, effort,
+   surface, permissions and complete prompt wherever they apply. The hub must not invent missing
+   choices.
+3. Tell Oscar: `Relay command <event-id> is queued; prompt codex-tui-a2a-hub: Check the relay ledger.`
+4. After the hub turn, validate and scan the ledger. Inspect the target transcript if runtime detail
+   is useful.
 
-```text
-[no-spec]
-[codex-tui-receiver-control]
-kind: ACTIVATED
-orchestrator_agent_id: <current TRAYCER_AGENT_ID>
-[/codex-tui-receiver-control]
-```
+Never work around the relay by changing `TRAYCER_AGENT_ID`, exposing hidden CLI commands, invoking
+Traycer's private WebSocket, or treating Codex as an A2A sender.
 
-The marker records who is currently operating the inbox. It does not give the receiver authority to
-choose, transfer or enforce ownership.
-
-## Implementer message envelope
-
-Every usable implementation-agent message goes to the receiver in this form:
-
-```text
-[codex-tui-receiver]
-ticket: <stable ticket or spec id>
-sender_agent_id: <full Traycer agent id>
-message_id: <ticket>-<sender-short-id>-<monotonic sequence>
-kind: QUESTION | BLOCKER | STATUS | HANDBACK
-reply_required: yes | no
-[/codex-tui-receiver]
-
-<complete message body>
-```
-
-Rules:
-
-- A `message_id` is unique within its delegation and is never reused.
-- The sender always includes its full agent ID, even if transcript metadata also identifies it.
-- The implementer sends the envelope explicitly with
-  `traycer agent send --to <receiver-id> --message <envelope-and-body>`.
-- The implementer-to-receiver send does not use `--expect-reply`; DeepSeek is not the substantive
-  responder.
-- The receiver never interprets, summarizes or answers the message.
-
-## Commissioning from Codex TUI
-
-Continue to commission implementations with a compliant `writespec` specification and
-`--expect-reply`. Add this transport preamble, with the actual receiver ID, to the commission:
+Append this transport preamble to every implementation commission, substituting the real values:
 
 ```text
 Communication route — transport only
 
-The assigning Codex TUI cannot receive agent-to-agent replies directly. For every necessary
-question, blocker, status update or final handback, explicitly run
-`traycer agent send --to <receiver-id>` with the codex-tui-receiver envelope before ending your
-turn. The receiver cannot answer you; the orchestrator will read its transcript and respond
-directly to your agent ID.
+Your assigning agent is the DeepSeek A2A hub `<hub-agent-id>`, acting for Codex TUI on ticket
+`<ticket-id>`. Send every substantive question, blocker, status update and final handback with
+`traycer agent send --to <hub-agent-id>`. Include the ticket ID, your full Traycer agent ID, a unique
+monotonic message ID, the kind (`QUESTION | BLOCKER | STATUS | HANDBACK`), whether a reply is needed,
+and the complete message body.
 
-Continue any safe, independent work while waiting. Do not weaken or reinterpret the specification
-because a question channel exists.
+The hub records messages but does not answer or make decisions; the Codex orchestrator will send any
+necessary response back through it. Continue safe independent work while waiting. Do not weaken or
+reinterpret the specification because this route exists.
 ```
 
-`--expect-reply` opens Traycer's native response thread back to the original Codex TUI sender. That
-thread cannot be redirected to a third agent and is not a usable inbound channel in Codex TUI. The
-explicit send to the receiver is therefore the authoritative usable version of every question,
-status, blocker and handback.
+The original send still uses `--expect-reply`. The preamble covers later messages after that native
+reply thread has been consumed; it does not create a second receiver or duplicate-message route.
 
-The availability of the receiver does not lower the `writespec` standard. Write every specification
-as though clarification will not be available so foreseeable questions are resolved before
-dispatch. An implementer may still use the receiver for genuinely unforeseen uncertainty.
+## Hub operating contract
 
-## Read, answer and mark processed
+On every later turn, whether Oscar says `Check the relay ledger` or an implementation agent replies:
 
-While implementation agents are active, poll the one receiver transcript:
+1. Read this contract and use `tools/codex-tui-relay-ledger`; never write the ledger directly.
+2. If the current turn contains an implementation-agent message, append it first as
+   `message.received`, preserving its complete body verbatim with the real sender agent ID and a
+   unique message ID. Do not answer its substance.
+3. Validate and scan the ledger.
+4. Process pending commands in append order, one at a time. Append `command.claimed` immediately
+   before the external action and a result immediately afterwards.
+5. Perform only the recorded operation. Ordinary CLI construction is allowed; choosing agents,
+   changing specifications, answering questions, reviewing code and accepting work are not.
+6. Continue until no actionable command remains, append `hub.cycle.completed`, and end the turn.
+   Do not wait indefinitely for an implementation agent.
 
-- after every outbound commission;
-- before declaring an agent stalled or complete;
-- whenever returning from other orchestration work; and
-- at regular short intervals while explicitly waiting for handback.
+For `command.spawn`, create the exact requested GUI agent/worktree, record its real ID with
+`agent.registered`, then send the exact commission with `--expect-reply`. For `command.reuse`, use
+only the exact user-approved registered agent and send the commission with `--expect-reply`. For
+`command.send`, deliver the body exactly to the named agent. Never alter or summarize payloads.
 
-For each pending message:
+The hub may use read-only Traycer lists and transcripts to reconcile state. It must not edit
+DrinkSmart source, review diffs, make decisions, create extra agents because one seems slow, or
+retry an ambiguous operation.
 
-1. Read the complete envelope and body.
-2. Send the answer directly outbound to `sender_agent_id`.
-3. Send the receiver this processed marker:
+## Claims and recovery
 
-```text
-[no-spec]
-[codex-tui-receiver-control]
-kind: PROCESSED
-message_id: <handled message id>
-response_sent_to: <sender agent id>
-processed_by: <current TRAYCER_AGENT_ID>
-[/codex-tui-receiver-control]
-```
+Claims never expire automatically. A timeout does not prove that Traycer rejected a create or send.
+Every external prompt includes its ledger command ID so agent lists and transcripts can be checked.
 
-A message is logically unread until a later matching `PROCESSED` marker exists. This state survives
-Codex context compaction, a TUI restart and a later Codex TUI orchestration session. Answer duplicate
-messages at most once.
+For an unresolved claim:
 
-## Questions and handbacks
+- if evidence proves the action happened, append recovered `command.completed` without repeating it;
+- if evidence proves it did not happen, append `command.retrying` and perform it once;
+- if evidence is inconclusive, append `command.ambiguous` and stop for Codex/Oscar.
 
-For a question or blocker, Codex responds directly to the implementation agent and then marks the
-receiver message processed. The implementation agent sends any follow-up back through the receiver.
-
-At completion, the original commission still has `--expect-reply`. Before ending its completion
-turn, the implementer sends its complete clause mapping, verification result and uncertainty report
-to the receiver as a `HANDBACK`. The receiver handback is the only usable inbound completion signal
-for Codex TUI. `speccheck` and the applicable integration workflow remain the sole acceptance path.
-
-## Failure recovery
-
-| Failure | Recovery |
-| --- | --- |
-| Receiver creation times out or is misconfigured | Do not dispatch; remove or retire it through Traycer's supported UI and retry |
-| Receiver acts beyond acknowledgement | Stop using it, inspect side effects, create a replacement and redirect active agents |
-| Receiver transcript is unavailable | Read active implementation-agent transcripts temporarily and provision a replacement |
-| Implementer sends only a native reply | Recover from that agent's transcript, then remind it outbound to use the receiver |
-| Message lacks ticket or sender identity | Resolve it from the source transcript; never guess a response target |
-| Later Codex TUI takes over | Reuse the receiver, reconcile pending messages, then write a new activation marker |
-
-A receiver failure never authorizes Git resets, worktree deletion, redispatch, acceptance without
-review, or any change to the code-production workflow.
+A transport failure never changes Git, worktree, specification, review or acceptance rules.
 
 ## No-code smoke test
 
-Before relying on this adapter for real work, demonstrate that:
+Before relying on a new hub for implementation, demonstrate that:
 
-1. a fresh Codex TUI discovers `$codex-tui-relay` from `AGENTS.md`;
-2. the skill locates the epic's receiver or creates exactly one;
-3. the receiver actually runs OpenCode / DeepSeek V4 Flash / max / GUI;
-4. it records a test `QUESTION` without answering substantively, using tools or changing Git;
-5. Codex TUI reads the question and sends a direct outbound answer;
-6. Codex adds a processed marker and a second scan finds no unread message;
-7. a later Codex TUI reuses the same receiver and writes a new activation marker; and
-8. a non-Codex or non-TUI agent declines to activate the adapter.
+1. the skill creates and validates the ledger and discovers exactly one manually created hub;
+2. the hub configuration and clean `HUB_READY` transcript are verified;
+3. a harmless ledger `command.send` is claimed, delivered once and completed;
+4. a harmless native A2A reply is appended verbatim as `message.received`;
+5. Codex can append a reply command or `message.processed` decision;
+6. a later Codex TUI session reconstructs the same state; and
+7. neither hub nor smoke-test agent modifies DrinkSmart source or Git state.

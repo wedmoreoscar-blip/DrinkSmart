@@ -8,8 +8,8 @@ tools. No chat import is required to recreate the project setup.
 
 - Codex: `AGENTS.md`, `.codex/config.toml`, and `.agents/skills/`.
 - Traycer Codex TUI orchestration: the repo-local `codex-tui-relay` skill and
-  `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`; live receiver identity and transcript remain in the
-  Traycer epic rather than Git.
+  `docs/agent_setup/CODEX_TUI_HUB_SETUP.md` plus `CODEX_TUI_MESSAGE_RELAY.md`; the user-created hub,
+  live ledger and agent identities remain in the Traycer epic rather than Git.
 - Claude Code: `CLAUDE.md` importing `AGENTS.md`, `.claude/settings.json`, and `.claude/skills/`.
 - opencode: `AGENTS.md`, `opencode.json` (registers both skill trees and the change-safety deny
   rules), and both `.agents/skills/` and `.claude/skills/`.
@@ -55,4 +55,4 @@ installation.
 - `.claude/settings.local.json`, `CLAUDE.local.md`, local memories, chats, or approval caches.
 - `.worktrees/`, its lifecycle state, `node_modules/`, `dist/`, or generated benchmark results.
 - A personal skill over an existing same-name project skill without reviewing precedence and diff.
-- A live Codex-TUI receiver ID, receiver transcript, processed-message state, or Traycer agent record.
+- A live Codex-TUI hub ID, relay ledger, hub transcript, or Traycer agent record.
