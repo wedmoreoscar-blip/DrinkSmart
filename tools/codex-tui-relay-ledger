@@ -90,10 +90,16 @@ def unwrap(value: str) -> str:
 
 def parse_event(block: str, position: int) -> dict[str, object]:
     inner = block[len(START) : -len(END)].strip("\n")
-    marker = "\n### Content\n"
+    marker = "\n### Content"
     if marker not in inner:
         raise LedgerError(f"event {position} has no Content section")
-    header, content = inner.split(marker, 1)
+    header, content_section = inner.split(marker, 1)
+    if not content_section:
+        content = ""
+    elif content_section.startswith("\n\n"):
+        content = content_section[2:]
+    else:
+        raise LedgerError(f"event {position} has a malformed Content section")
     lines = header.splitlines()
     if not lines:
         raise LedgerError(f"event {position} is empty")
