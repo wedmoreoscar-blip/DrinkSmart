@@ -158,16 +158,24 @@ equally to lint, tests, and any future runner.
   an observation of the running app does not. Commissioning messages carry `[visual-check]`.
 - **Checking is casual; integration is not.** The orchestrator runs its own visual pass by driving
   the app itself, then one full baseline and a fast-forward. No repair loops back to Luna.
-- **Playwright is a committed devDependency pinned to exactly `1.55.0`** — each release expects a
-  specific Chromium build, and `1.55.0` matches the cached `chromium-1187`. A range resolves to
-  `1.55.1`, wants `chromium-1193`, and fails at launch. It was previously ad-hoc and undeclared, so
-  an `npm install` pruned it and the capability vanished silently.
+- **Playwright is a committed devDependency pinned to exactly `1.62.1`** (amended 2026-08-10) —
+  each release expects a specific Chromium build, and `1.62.1` matches the cached
+  `chromium-1234`. The earlier `1.55.0` pin carried GHSA-7mvr-c777-76hp; the replacement was
+  launch-verified in both repositories and contributes no new audit finding. Raising the pin is a
+  two-step operation: update the package in both repositories, then run
+  `npx playwright install chromium`, because npm does not fetch the browser binary. Keep the pin
+  exact and keep both repositories on the same version so their shared browser cache remains valid.
 
-## LOCKED — Orchestrator and implementer roles (2026-08-08)
+## LOCKED — Orchestrator and implementer roles (2026-08-08; amended 2026-08-10)
 
-- **Orchestrator: Claude Code on Opus 5 or Fable 5**, `tui` surface. It plans, authors specs,
-  runs `speccheck`, integrates, and commits. Orchestration, spec authorship, and acceptance are
-  never delegated.
+- **Default orchestrator: Claude Code on Opus 5 or Fable 5**, `tui` surface. **Codex TUI is an
+  authorized alternative only while `$codex-tui-relay` is active.** Either orchestrator plans,
+  authors specs, runs `speccheck`, integrates, and commits. Orchestration, spec authorship, and
+  acceptance are never delegated.
+- **Codex TUI is orchestrator-only.** It is never an agent-to-agent implementation target because
+  its TUI cannot expose inbound implementation-agent replies. A Codex implementer always uses the
+  GUI surface. Claude Code TUI uses native bidirectional messaging and does not use the receiver
+  adapter.
 - **Warm implementers are the default provisioning route (amended 2026-08-09).** Before creating
   an agent or worktree, inventory compatible warm agents and their existing worktrees. If one
   exists, recommend its reuse to Oscar and disclose the agent, worktree and any required sync or
@@ -255,19 +263,48 @@ equally to lint, tests, and any future runner.
   `closing.md` block already governs how a child verifies and reports, and two instruction sets
   would conflict.
 
+## LOCKED — Codex TUI persistent message receiver (2026-08-10)
+
+- This is a **messaging adapter, not a workflow**. `docs/workflows/delegation.md`,
+  `visual_check.md`, `writespec`, and `speccheck` retain authority over how work is specified,
+  implemented, verified, repaired, and integrated. The adapter owns only Codex-TUI-specific message
+  transport.
+- The first Codex TUI orchestrator creates one epic-scoped receiver named `codex-tui-receiver`:
+  OpenCode GUI, `deepseek:deepseek-v4-flash`, max reasoning effort, DrinkSmart repository context,
+  and `full_access`. It has no worktree and relies on a strict instruction to acknowledge and
+  preserve messages without using tools, editing files, answering substantively, contacting agents,
+  or making decisions.
+- The receiver is the **sole usable inbound channel** while Codex TUI orchestrates. Implementation
+  commissions retain `--expect-reply`, but Traycer's native response thread still targets Codex TUI
+  and cannot be redirected. Every implementation agent therefore explicitly sends each question,
+  status, blocker, and handback to the receiver with `traycer agent send --to <receiver-id>`.
+- Codex TUI reads the one receiver transcript, answers the originating implementation agent with a
+  fresh outbound message, then appends a processed control marker. An unmatched message ID is
+  logically unread; the marker makes handled state recoverable after context compaction, restart, or
+  a later Codex TUI orchestration session.
+- The receiver remains idle when Codex TUI is not orchestrating and is reused by later Codex TUI
+  orchestrators in the epic. A later orchestrator reads the existing transcript, reconciles pending
+  messages, and records its activation; it does not create a per-session receiver.
+- The existence of a question route does not weaken specification quality. `writespec` is applied as
+  though the implementer cannot ask, while genuinely unforeseen questions may use the receiver.
+- `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` is the canonical contract and the thin repo-local
+  `$codex-tui-relay` skill activates it. `AGENTS.md` is the discovery hook. The skill's mirrored
+  Claude package exists only for repository parity and does not trigger there.
+
 ## LOCKED — Multi-harness delegation and permission parity (2026-08-08)
 
 Verified empirically; each point cost attempts to discover.
 
-- **Agent-to-agent messaging on `--surface tui` is Claude-Code-only.** `codex` and `opencode` both
-  fail `agent.create` with `TARGET_TUI_UNSUPPORTED — harness cannot participate in agent-to-agent
-  messaging`. Non-Claude implementers must use `--surface gui`.
+- **Target-side agent-to-agent messaging on `--surface tui` is Claude-Code-only.** `codex` and
+  `opencode` both fail `agent.create` with `TARGET_TUI_UNSUPPORTED — harness cannot participate in
+  agent-to-agent messaging`. Non-Claude implementers must use `--surface gui`.
   This does **not** contradict `docs.traycer.ai/agents-and-models/coding-agents`, which lists Claude
   Code, Codex, and OpenCode as Terminal-interface capable. That matrix is about which harnesses can
   *back a terminal session a human drives*. It documents nothing about agent-to-agent messaging.
   Both are true: you can launch codex or opencode in a terminal tab yourself; you cannot have
-  another agent message one there and get a structured reply. Delegation needs the second, so it
-  needs `gui`.
+  another agent message one there and get a structured reply. An implementation target therefore
+  needs `gui`. Codex TUI may still originate commissions as orchestrator while `$codex-tui-relay`
+  is active; implementers explicitly send usable responses to its GUI receiver.
 - **Custom harness providers do reach Traycer.** A provider defined in `opencode.json` /
   `~/.config/opencode/` appears in `traycer agent list-harness-models opencode` and is accepted by
   `--model`. Traycer is not restricted to its own curated list.

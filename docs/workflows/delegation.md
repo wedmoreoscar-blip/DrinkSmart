@@ -78,10 +78,16 @@ role skips to step 6.
 6. **Write the spec with `writespec`.** Roughly five clauses, an explicit allowlist of modifiable
    files, and the `scope.md` and `closing.md` blocks appended verbatim. `tools/writespec-guard`
    denies non-compliant sends, so this is enforced rather than advisory.
-7. **State the verification baseline in concrete numbers.** The implementer cannot ask. Give the
-   literal lint error and warning counts, the literal test count, and any repository-specific
-   command trap. A cross-reference to another document is not a baseline.
-8. **Send with `--expect-reply`.** Without it the peer never reports back.
+7. **State the verification baseline in concrete numbers.** Write the spec as though the
+   implementer cannot ask. Give the literal lint error and warning counts, the literal test count,
+   and any repository-specific command trap. A cross-reference to another document is not a
+   baseline. A runtime question route does not weaken this requirement.
+8. **Send with `--expect-reply`.** Without it the peer never reports back. When the orchestrator is
+   Codex TUI, activate `$codex-tui-relay` first and append its communication preamble. The native
+   reply thread still targets Codex TUI and is not a usable inbound channel, so the implementer must
+   explicitly send every substantive question, status, blocker and handback to the persistent
+   receiver. `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` owns that transport adapter; all other
+   steps here remain unchanged.
 
 ### Review
 
