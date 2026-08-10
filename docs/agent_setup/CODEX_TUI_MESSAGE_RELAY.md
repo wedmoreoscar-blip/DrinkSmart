@@ -30,46 +30,9 @@ receiver-copy message.
 
 ## One-time hub setup by Oscar
 
-Create this agent manually in Traycer before invoking `$codex-tui-relay`:
-
-| Setting | Value |
-| --- | --- |
-| Name | `codex-tui-a2a-hub` |
-| Interface | GUI / Chat |
-| Harness | OpenCode |
-| Model | DeepSeek V4 Flash (`deepseek:deepseek-v4-flash` in Traycer syntax) |
-| Reasoning effort | `max` |
-| Permission mode | `full_access` |
-| Primary working directory | DrinkSmart repository root |
-
-Do not give the hub a managed implementation worktree. It is persistent epic infrastructure.
-`full_access` plus the repository's OpenCode permissions allow it to run the repo helper, which
-writes the absolute ledger path; no additional-workspace setting is required.
-
-Send this as its first and only setup prompt, substituting both absolute paths:
-
-```text
-[no-spec]
-You are the persistent A2A transport hub for Codex TUI orchestration in this Traycer epic.
-
-Canonical contract:
-<absolute-DrinkSmart-root>/docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md
-
-Expected relay ledger:
-<absolute-epic-artifacts-directory>/codex-tui-a2a-ledger/index.md
-
-Read the canonical contract completely now and follow its "Hub operating contract" for every later
-turn. The ledger may not exist until Codex TUI runs $codex-tui-relay. Do not create, configure,
-message, stop, or otherwise operate an agent unless a valid pending ledger command explicitly
-requires it. Do not make orchestration decisions and do not modify DrinkSmart source or Git state.
-
-Reply exactly: HUB_READY
-```
-
-Confirm the first turn reports `HUB_READY`, uses no A2A mutation, and makes no repository change.
-Confirm the GUI shows OpenCode / DeepSeek V4 Flash / max; do not trust a self-report as model
-evidence. If creation timed out or the actual provider/model/effort is wrong, retire that hub in the
-Traycer UI and create it again before running the skill.
+Follow `docs/agent_setup/CODEX_TUI_HUB_SETUP.md`. It is the portable, standalone authority for the
+manual agent settings, clean initial prompt, verification and first `$codex-tui-relay` invocation.
+The hub is created before the ledger; Codex TUI creates the ledger when the skill runs.
 
 ## Ledger identity and ownership
 

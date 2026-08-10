@@ -35,6 +35,7 @@ REQUIRED = {
     "opencode.json",
     "docs/decisions.md",
     "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
+    "docs/agent_setup/CODEX_TUI_HUB_SETUP.md",
     "docs/agent_setup/CROSS_MACHINE_SETUP.md",
     "docs/workflows/agent_selection.md",
     "tasks/next_session_kickoff.md",
@@ -128,6 +129,7 @@ def main() -> int:
     relay_checks = {
         "AGENTS.md": "$codex-tui-relay",
         "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md": "codex-tui-a2a-hub",
+        "docs/agent_setup/CODEX_TUI_HUB_SETUP.md": "HUB_READY",
         "docs/workflows/delegation.md": "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
         "docs/workflows/agent_selection.md": "$codex-tui-relay",
         ".agents/skills/codex-tui-relay/SKILL.md":

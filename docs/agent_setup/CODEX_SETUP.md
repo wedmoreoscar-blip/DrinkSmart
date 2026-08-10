@@ -27,8 +27,8 @@ the repo root.
 When this Codex session is a Traycer-launched TUI acting as orchestrator, invoke
 `$codex-tui-relay` before kickoff or commissioning GUI agents. The skill creates or resumes the
 epic artifact ledger and verifies Oscar's persistent A2A hub according to
-`CODEX_TUI_MESSAGE_RELAY.md`. Do not invoke it from Codex GUI or when Codex is an implementation
-target.
+`CODEX_TUI_MESSAGE_RELAY.md`. Create the hub once using `CODEX_TUI_HUB_SETUP.md`. Do not invoke the
+skill from Codex GUI or when Codex is an implementation target.
 
 ## Recommended user-level installation
 
