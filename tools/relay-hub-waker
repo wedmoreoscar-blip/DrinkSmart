@@ -74,21 +74,51 @@ def default_ledger(epic_id: str) -> Path:
     )
 
 
-def lookup_agent_id(name: str) -> str:
-    """Resolve a Traycer agent name to its current id. Must be unambiguous."""
+def list_agents(caller_id: str | None) -> list[dict]:
+    """Return the epic's agents.
+
+    `traycer agent list` needs a caller identity of its own, and reports its
+    failures as a JSON object on stdout with a nonzero exit. It also documents
+    --json as NDJSON, so parse line by line and pick the result event rather than
+    assuming one object.
+    """
+    environment = dict(os.environ)
+    if caller_id:
+        environment["TRAYCER_AGENT_ID"] = caller_id
     result = subprocess.run(
-        ["traycer", "agent", "list", "--json"],
+        ["traycer", "agent", "list", "--json", "--no-progress"],
         capture_output=True,
         text=True,
+        env=environment,
     )
-    if result.returncode != 0:
-        raise WakerError((result.stderr or result.stdout).strip() or "agent list failed")
-    try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        raise WakerError(f"unparseable agent list: {exc}") from exc
-    agents = payload.get("data", {}).get("agents", [])
-    matches = [agent for agent in agents if agent.get("title") == name]
+
+    payload = None
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") == "result":
+            payload = event
+            break
+
+    if payload is None:
+        detail = (result.stderr or result.stdout).strip()
+        if not detail:
+            detail = f"no result event on stdout (exit {result.returncode})"
+        raise WakerError(f"agent list failed: {detail}")
+    if payload.get("status") != "ok":
+        message = (payload.get("error") or {}).get("message") or "unknown error"
+        raise WakerError(f"agent list failed: {message}")
+    return payload.get("data", {}).get("agents", [])
+
+
+def lookup_agent_id(name: str, caller_id: str | None) -> str:
+    """Resolve a Traycer agent name to its current id. Must be unambiguous."""
+    matches = [a for a in list_agents(caller_id) if a.get("title") == name]
     if not matches:
         raise WakerError(f"no agent named {name!r}")
     if len(matches) > 1:
@@ -99,18 +129,19 @@ def lookup_agent_id(name: str) -> str:
 class AgentRef:
     """A Traycer agent addressed by stable name, resolved to a volatile id."""
 
-    def __init__(self, name: str | None, fixed_id: str | None) -> None:
+    def __init__(self, name: str | None, fixed_id: str | None, caller: str | None) -> None:
         if not name and not fixed_id:
             raise WakerError("an agent needs either a name or an explicit id")
         self.name = name
         self.fixed_id = fixed_id
+        self.caller = caller
         self._cached = fixed_id
 
     def resolve(self, refresh: bool = False) -> str:
         if self.fixed_id:
             return self.fixed_id
         if self._cached is None or refresh:
-            self._cached = lookup_agent_id(str(self.name))
+            self._cached = lookup_agent_id(str(self.name), self.caller)
         return self._cached
 
     def describe(self) -> str:
@@ -297,9 +328,20 @@ def main() -> int:
         log("ERROR", "need --ledger or --epic-id (or $TRAYCER_EPIC_ID)")
         return 2
 
+    # Listing agents needs a caller identity too, which only an agent's own shell
+    # supplies. Outside one, the pinned sender id doubles as that identity: it is
+    # a real agent, and the daemon already acts as it when sending. That keeps one
+    # id as the whole bootstrap while the hub stays resolved by name.
+    caller = os.environ.get("TRAYCER_AGENT_ID") or args.sender_id
+    if not caller and not (args.hub_id and args.sender_id):
+        log("ERROR", "no Traycer caller identity, so agent names cannot be resolved")
+        log("ERROR", "run from a Traycer agent shell, or pass --sender-id "
+                     "(or set RELAY_WAKER_SENDER_ID) to the a2a-hub-waker agent's id")
+        return 2
+
     try:
-        hub = AgentRef(args.hub_name, args.hub_id)
-        sender = AgentRef(args.sender_name, args.sender_id)
+        hub = AgentRef(args.hub_name, args.hub_id, caller)
+        sender = AgentRef(args.sender_name, args.sender_id, caller)
     except WakerError as exc:
         log("ERROR", str(exc))
         return 2

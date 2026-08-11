@@ -127,7 +127,14 @@ cmd_start() {
        --sender-name "$SENDER_NAME" --preflight >"$STATE_DIR/.preflight" 2>&1; then
     echo "ERROR: preflight failed — the daemon was not started." >&2
     sed 's/^/       /' "$STATE_DIR/.preflight" >&2
-    echo "       Check that agents named '$HUB_NAME' and '$SENDER_NAME' exist." >&2
+    if grep -q "caller identity" "$STATE_DIR/.preflight"; then
+      # Resolving names needs a Traycer identity, which a UI terminal tab lacks.
+      echo "       This shell has no Traycer identity. Either run it from an agent" >&2
+      echo "       shell, or supply the sender id once, which doubles as identity:" >&2
+      echo "         RELAY_WAKER_SENDER_ID=<a2a-hub-waker id> $(basename "$0") ${1:-start}" >&2
+    else
+      echo "       Check that agents named '$HUB_NAME' and '$SENDER_NAME' exist." >&2
+    fi
     rm -f "$STATE_DIR/.preflight"
     exit 1
   fi
