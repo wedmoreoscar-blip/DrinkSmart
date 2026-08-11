@@ -140,6 +140,12 @@ The brief itself:
 Luna-0 drives the running app, captures each screen, compares, and comes back with a finding list
 and a recommendation for how many agents the fixes warrant.
 
+Recon is report-only for product code, **not history-free**. Luna-0 writes exploratory captures to
+the gitignored per-screen `work/` directories and appends each measured conclusion to that screen's
+tracked `notes.md` while it works. It does not promote a milestone capture or edit the shared
+`01-current-state.md` / `02-planned-changes.md` during recon; those happen only as findings are
+resolved and independently accepted below.
+
 **Measure, do not only look.** Eyeballing a screenshot catches layout breakage and misses "that is
 13px, not 14px". The drawings in `design_handoff_drinksmart/screens/*.png` establish appearance;
 the numeric acceptance criteria in `design_handoff_drinksmart/README.md` and `tasks/todo.md`
@@ -184,6 +190,17 @@ routinely share a component; the redesign's primitives (`button`, `card`, `badge
 
 The rule enforced is disjoint *file* ownership. Screen assignment that yields overlapping files is
 not a valid split.
+
+Visual-history ownership is part of the same split, not an afterthought:
+
+- each fixer owns the `docs/visual/screenshots/<screen>/notes.md` files for its assigned screens and
+  keeps them current alongside the code and working captures;
+- Luna-0 alone owns the shared `docs/visual/01-current-state.md` and
+  `docs/visual/02-planned-changes.md`, updating them as the coordinated finding list is resolved;
+- `docs/visual/03-design-requests.md` stays untouched unless drawing availability itself changes.
+
+Two agents must never append to the same notes or shared-history file concurrently. Include these
+documentation paths in the disjoint file-ownership lists given to every fixer.
 
 Luna-0 is the first fixer as well as the coordination hub: it has the recon context, and standing it down
 wastes the best-informed agent. The orchestrator dispatches each fixer with the findings and the
@@ -255,15 +272,21 @@ The orchestrator commits a checkpoint after each fixer reports done. Agents do n
 
 - **Working captures** go in `docs/visual/screenshots/<screen>/work/`, which is gitignored. Agents
   write here freely and reference each other's captures by filename in A2A messages.
+- **Per-screen notes are tracked working history.** The agent owning a screen appends one concise
+  line as each capture is assessed: capture path, state exercised, measured conclusion, and
+  pass/finding/blocker status. Notes advance during recon and repair rather than being reconstructed
+  from memory at the end.
 - **Milestone captures** sit directly in `docs/visual/screenshots/<screen>/` and **are committed** —
-  one per drawn screen per wave, taken once the check passes. These are the visual evolution
-  record that `docs/visual/` exists to hold.
+  one per drawn screen per wave. Working agents do not promote their own candidates: the
+  orchestrator creates or selects the milestone only after its independent §9 pass. These are the
+  visual evolution record that `docs/visual/` exists to hold.
 - Name every capture `<wave>-<agent>-<timestampZ>-<status>.png`, status one of `broken`,
   `suspect`, `ok`, and append a line to that screen's `notes.md` saying what you concluded.
 
-Both halves are needed and they pull in opposite directions: a history wants images that persist,
-a working loop produces dozens that should not. Committing everything gives an unusable history
-and a heavy repository; committing nothing leaves no history at all.
+All three layers are needed and pull in opposite directions: a history wants conclusions and final
+images that persist, while a working loop produces dozens of disposable captures. Committing every
+image gives an unusable history and a heavy repository; committing none of the notes or final
+milestones leaves no history at all.
 
 Keep captures under 5MB — that is the codex image ceiling, and a capture Luna cannot ingest is
 worthless.
