@@ -45,10 +45,15 @@ enumerated in `RELAY_WAKER.md`. Codex can create none of them and must hand them
    `codex:<TRAYCER_AGENT_ID>` and its verified identity/configuration. Do not wake an idle hub merely
    for activation.
 6. Check the waker with `tools/waker-daemon-start status`. Without it the hub is never woken and every
-   queued command waits on the user. If it is `STOPPED`, or the `a2a-hub-waker` agent does not exist,
-   report that plainly and return the bring-up steps from `RELAY_WAKER.md`. Codex must not create the
-   sender agent, must not substitute another agent as sender, and must not start the daemon on the
-   user's behalf without being asked.
+   queued command waits on the user.
+   - If it is `STOPPED`, ask the user to confirm that agents named `codex-tui-a2a-hub` and
+     `a2a-hub-waker` exist, then **start it yourself: `tools/waker-daemon-start start`.** This is the
+     normal route. Codex TUI is an agent shell, so it already holds both the epic id and the caller
+     identity that name resolution needs, and no id has to be typed. Report `RUNNING` and the pid.
+   - Launching the daemon is not an A2A action and does not make Codex a sender: the daemon overrides
+     the sender identity to `a2a-hub-waker` for every wake it sends.
+   - Codex must still never create the `a2a-hub-waker` or hub agent, and never substitute another
+     agent as sender. If either is missing, return the bring-up steps from `RELAY_WAKER.md` and stop.
 7. Run `tools/codex-tui-relay-ledger state`. Read any referenced unread message blocks in full;
    inspect implementation-agent transcripts read-only whenever useful. Report the ledger path, hub
    ID, waker status, pending/claimed/ambiguous commands and unread messages.
