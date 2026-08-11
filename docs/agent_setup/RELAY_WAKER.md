@@ -131,7 +131,21 @@ The last decides it in practice. Inside any Traycer agent terminal in the epic i
 `tools/waker-daemon-start` just works — this is the simplest route. In a plain WSL terminal, export it
 first.
 
-Working directory is irrelevant; every path is absolute or derived from the epic id.
+Working directory is irrelevant to what the daemon *watches* — the ledger path comes from the epic id,
+not from the repo. But the checkout you launch from must actually contain `tools/waker-daemon-start`
+and `tools/relay-hub-waker`, which is a real constraint in practice:
+
+- **A stale delegated worktree cannot start the daemon.** Traycer worktrees sit on their own branches
+  and fall behind `main` by design, so a worktree created before the waker landed has no waker to run.
+  Fast-forward it to `main` first (`git -C <worktree> merge --ff-only main`, only when it is clean and
+  `main` is a descendant), or launch from a checkout that has the tools.
+- **The main checkout is not a Traycer-managed worktree**, so Traycer's UI labels it `(detached)` — its
+  own fallback for an entry with no recorded branch, printed as `entry.branch ?? "(detached)"`. It is
+  not a git detached HEAD and nothing is wrong with the repo. Traycer models the main checkout as a
+  *workspace path* that worktrees are cut from, not as a worktree, even though git counts it as one.
+- **`TRAYCER_EPIC_ID` comes from the agent process environment, not from the worktree.** An agent
+  running in the main checkout has it set and can start the daemon there, which is usually the easiest
+  route: the main checkout is by definition the most up-to-date, so the tools are always present.
 
 Starting the daemon from an agent terminal belonging to a **different epic** watches a ledger nobody
 writes to, and presents as a silent no-op. The launcher prints epic, hub and sender on `start` and
