@@ -346,6 +346,15 @@ def main() -> int:
         log("ERROR", str(exc))
         return 2
 
+    # Take the pidfile before resolving, not after. Each `traycer agent list`
+    # costs seconds and there are two, so a launcher watching for the pidfile
+    # otherwise concludes the daemon failed while it is still starting normally.
+    # Preflight and --once must not take it: preflight runs while a daemon may
+    # already hold it, and neither is long-lived.
+    handle = None
+    if args.pidfile and not args.preflight and not args.once:
+        handle = acquire_pidfile(Path(args.pidfile).expanduser(), log)
+
     # Resolve up front so a misnamed agent fails loudly at launch rather than
     # silently at the first command that matters. Dry runs never send, so they
     # tolerate an unresolvable sender.
@@ -355,14 +364,12 @@ def main() -> int:
             log("RESOLVE", f"sender {sender.describe()} -> {sender.resolve()}")
         except WakerError as exc:
             log("ERROR", f"startup resolution failed: {exc}")
+            if handle is not None:
+                handle.close()   # release the lock so a retry is not blocked
             return 2
 
     if args.preflight:
         return 0
-
-    handle = None
-    if args.pidfile:
-        handle = acquire_pidfile(Path(args.pidfile).expanduser(), log)
 
     try:
         pinged: set[str] = set()

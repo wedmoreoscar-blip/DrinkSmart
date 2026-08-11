@@ -163,13 +163,16 @@ cmd_start() {
     --pidfile "$PIDFILE" \
     >/dev/null 2>>"$LOG" &
 
-  for _ in $(seq 20); do
+  # Generous: `traycer agent list` is 1.7-2s idle and up to 10s under load, and
+  # startup makes two calls. A short wait reports a false failure while the daemon
+  # is starting perfectly well, which happened on 2026-08-11.
+  for _ in $(seq 60); do
     if pid="$(running_pid)"; then
       echo "STARTED  pid $pid"
       echo "log      $LOG"
       return 0
     fi
-    sleep 0.25
+    sleep 0.5
   done
 
   echo "ERROR: daemon did not come up; last log lines:" >&2
