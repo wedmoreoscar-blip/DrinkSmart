@@ -361,6 +361,31 @@ the orchestrator. The bullets below are retained as design history only.
 - `docs/agent_setup/RELAY_WAKER.md` is authoritative for design, bring-up, terminal rules and log
   meanings; the `relay-waker` skill stays thin and defers to it.
 
+### Amendment — three findings from first live operation (2026-08-11)
+
+- **The relay works end to end.** Smoke item 8 passed unattended at 18:36:06Z: Codex appended
+  `01KZS1R9…`, the daemon detected it and woke the hub as `a2a-hub-waker`, and the hub claimed and
+  delivered a W3-STEP6 resume with nobody prompting anything.
+- **Detached processes launched from an agent shell are reaped with Traycer.** Anything started from
+  one inherits the cgroup `/user.slice/…/app.slice/ai.traycer.host.service`; `setsid` escapes the
+  session but **not** the cgroup, so a well-detached process still dies when that service is reaped.
+  Confirmed by the waker daemon and both git visualiser servers dying in the same window, three times
+  in one evening. This is the reason long-running local tooling keeps "silently disappearing". A
+  `systemd --user` unit with `Restart=always` is the fix and is deliberately **not** built; revisit if
+  hand-restarting becomes tiresome, noting that reaping also defeats the hub's end-of-turn liveness
+  check, because a daemon reaped while the hub is idle is noticed by nobody.
+- **Codex's sandbox must allow network for any Traycer CLI call.** `sandbox_mode = "workspace-write"`
+  denies network by default, and the CLI reaches its host service over it, so every `traycer agent
+  list` failed while filesystem work succeeded — a fingerprint that reads convincingly as a code bug.
+  `.codex/config.toml` now sets `network_access = true` under `[sandbox_workspace_write]`. Without it
+  Codex cannot start the daemon that `$codex-tui-relay` instructs it to start.
+- **Tools resolve Traycer identity rather than demanding it.** Only an agent's own shell inherits
+  `TRAYCER_EPIC_ID` and `TRAYCER_AGENT_ID`; a Traycer UI terminal tab does not. Requiring them made
+  both the waker launcher and the visualiser unusable from an ordinary terminal. `tools/traycer-identity`
+  (mirrored into `git_visual_system`) resolves the epic from Traycer's open-tab state and the caller
+  identity from a validated cache it seeds inside any agent session. Any agent the user owns works as
+  a caller.
+
 ## LOCKED — Multi-harness delegation and permission parity (2026-08-08)
 
 Verified empirically; each point cost attempts to discover.
