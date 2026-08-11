@@ -1,0 +1,4 @@
+interface:
+  display_name: "Relay Waker"
+  short_description: "Keep the hub's ledger doorbell alive"
+  default_prompt: "Use $relay-waker to confirm the relay waker daemon is running and restart it if not."

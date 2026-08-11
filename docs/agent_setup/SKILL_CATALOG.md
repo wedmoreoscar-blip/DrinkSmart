@@ -14,6 +14,7 @@ documentation helpers are installed by their client and are not copied here.
 | `healthcheck` | `~/.claude/commands/healthcheck.md` | Safe personal or project | None; current-session jobs only |
 | `kickoff` | legal repo | Safe personal or project | Discovers the repo's continuation source |
 | `make-bench` | legal repo | Project | benchmark convention and safety contract |
+| `relay-waker` | DrinkSmart | Project; used in practice only by the Codex TUI relay hub | `docs/agent_setup/RELAY_WAKER.md`, `tools/waker-daemon-start`, and a Traycer epic |
 | `skill-writing` | `~/.claude/skills/skill-writing/SKILL.md` | Safe personal or project | portable authoring contract; client creator recommended |
 | `speccheck` | `~/.claude/skills/speccheck/SKILL.md` | Safe personal or project | The commissioning spec and the delegated diff |
 | `teacher` | legal repo | Safe personal or project | Current code or subject material |
@@ -31,7 +32,8 @@ documentation helpers are installed by their client and are not copied here.
 The project copies deliberately share portable frontmatter and instruction bodies. Codex-only
 `agents/openai.yaml` files add interface metadata without changing behavior. The mirrored
 `codex-tui-relay` package remains inert in Claude and OpenCode because its trigger explicitly
-requires a Traycer Codex TUI orchestrator.
+requires a Traycer Codex TUI orchestrator. `relay-waker` is mirrored to all three clients for parity
+but is invoked in practice only by the relay's OpenCode hub at the end of each cycle.
 
 ## Precedence warning
 

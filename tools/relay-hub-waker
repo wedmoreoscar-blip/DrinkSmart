@@ -1,0 +1,369 @@
+#!/usr/bin/env python3
+"""Wake the Codex TUI A2A hub when the relay ledger gains actionable work.
+
+The relay is otherwise event-driven with a human in the middle: Codex appends a
+command and Oscar must prompt the hub `Check the relay ledger.` This daemon
+removes that step. It watches the ledger for changes and sends that prompt only
+when a genuinely actionable command appears.
+
+It never interprets, answers, or executes ledger commands. It is a doorbell.
+
+Design notes:
+
+- Agents are addressed by **name**, not id. Traycer agent ids change whenever an
+  agent is recreated; the names are stable. Ids are resolved at startup and
+  re-resolved automatically after a failed send, so a recreated hub or sender
+  heals without restarting the daemon.
+- mtime polling, not inotify: no third-party dependency, and it survives the
+  editor-rename and cross-filesystem cases where WSL2 inotify is unreliable. A
+  2s stat of one local file costs nothing; only the hub's turns cost credits.
+- Only `pending_commands` wakes the hub. Claimed commands are already in
+  flight, and unread messages are addressed to Codex, not the hub.
+- A pending id is pinged once. A hub that fails to clear a command must not be
+  re-pinged in a loop, so re-pings need both a new id and the cooldown.
+- A ledger that fails validation is logged, never pinged on: the hub cannot
+  append to a broken ledger, so waking it would only burn a turn.
+"""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import fcntl
+import json
+from pathlib import Path
+import os
+import subprocess
+import sys
+import time
+
+
+ROOT = Path(__file__).resolve().parents[1]
+LEDGER_TOOL = ROOT / "tools" / "codex-tui-relay-ledger"
+WAKE_PHRASE = "Check the relay ledger."
+DEFAULT_HUB_NAME = "codex-tui-a2a-hub"
+DEFAULT_SENDER_NAME = "a2a-hub-waker"
+
+
+class WakerError(RuntimeError):
+    pass
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+class Log:
+    def __init__(self, path: Path | None) -> None:
+        self.path = path
+
+    def __call__(self, level: str, message: str) -> None:
+        line = f"{now()} {level} {message}"
+        print(line, flush=True)
+        if self.path:
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(line + "\n")
+
+
+def default_ledger(epic_id: str) -> Path:
+    return (
+        Path.home()
+        / ".traycer/epics"
+        / epic_id
+        / "artifacts/codex-tui-a2a-ledger/index.md"
+    )
+
+
+def lookup_agent_id(name: str) -> str:
+    """Resolve a Traycer agent name to its current id. Must be unambiguous."""
+    result = subprocess.run(
+        ["traycer", "agent", "list", "--json"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise WakerError((result.stderr or result.stdout).strip() or "agent list failed")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise WakerError(f"unparseable agent list: {exc}") from exc
+    agents = payload.get("data", {}).get("agents", [])
+    matches = [agent for agent in agents if agent.get("title") == name]
+    if not matches:
+        raise WakerError(f"no agent named {name!r}")
+    if len(matches) > 1:
+        raise WakerError(f"{len(matches)} agents named {name!r}; rename so one is unique")
+    return str(matches[0]["id"])
+
+
+class AgentRef:
+    """A Traycer agent addressed by stable name, resolved to a volatile id."""
+
+    def __init__(self, name: str | None, fixed_id: str | None) -> None:
+        if not name and not fixed_id:
+            raise WakerError("an agent needs either a name or an explicit id")
+        self.name = name
+        self.fixed_id = fixed_id
+        self._cached = fixed_id
+
+    def resolve(self, refresh: bool = False) -> str:
+        if self.fixed_id:
+            return self.fixed_id
+        if self._cached is None or refresh:
+            self._cached = lookup_agent_id(str(self.name))
+        return self._cached
+
+    def describe(self) -> str:
+        return self.name or f"id {self.fixed_id}"
+
+
+def read_state(ledger: Path) -> dict[str, object]:
+    """Return the ledger's actionable state, or raise if it will not parse."""
+    result = subprocess.run(
+        [sys.executable, str(LEDGER_TOOL), "state", "--ledger", str(ledger), "--json"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise WakerError((result.stderr or result.stdout).strip() or "state failed")
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise WakerError(f"unparseable state output: {exc}") from exc
+
+
+def wake_message(pending: list[str]) -> str:
+    return (
+        f"[no-spec] {WAKE_PHRASE}\n\n"
+        "Automated relay waker: the ledger has pending command(s) "
+        f"{', '.join(pending)}. Follow the hub operating contract in "
+        "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md. This message commissions "
+        "no work of its own and needs no reply."
+    )
+
+
+def attempt_send(hub_id: str, sender_id: str, message: str) -> tuple[bool, str]:
+    result = subprocess.run(
+        ["traycer", "agent", "send", "--to", hub_id, "--message", message],
+        capture_output=True,
+        text=True,
+        env=dict(os.environ, TRAYCER_AGENT_ID=sender_id),
+    )
+    if result.returncode == 0:
+        return True, ""
+    return False, (result.stderr or result.stdout).strip()
+
+
+def send_wake(hub: AgentRef, sender: AgentRef, pending: list[str], log: Log) -> bool:
+    """Prompt the hub once, re-resolving ids if the first attempt fails.
+
+    A send failure is most often a stale id left over from a recreated agent, so
+    one forced re-resolution is worth trying before giving up.
+    """
+    message = wake_message(pending)
+    try:
+        ok, error = attempt_send(hub.resolve(), sender.resolve(), message)
+    except WakerError as exc:
+        log("ERROR", f"cannot resolve agents: {exc}")
+        return False
+    if ok:
+        log("WAKE", f"hub {hub.describe()} pinged for pending {' '.join(pending)}")
+        return True
+
+    log("WARN", f"send failed ({error}); re-resolving agent ids and retrying once")
+    try:
+        hub_id = hub.resolve(refresh=True)
+        sender_id = sender.resolve(refresh=True)
+    except WakerError as exc:
+        log("ERROR", f"re-resolution failed: {exc}")
+        return False
+    ok, error = attempt_send(hub_id, sender_id, message)
+    if ok:
+        log("WAKE", f"hub {hub.describe()} pinged after re-resolution ({hub_id})")
+        return True
+    log("ERROR", f"send failed after re-resolution: {error}")
+    return False
+
+
+def acquire_pidfile(path: Path, log: Log):
+    """Single-instance guard. The handle must outlive the caller's scope."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.seek(0)
+        running = handle.read().strip() or "unknown"
+        log("ERROR", f"another waker already holds {path} (pid {running})")
+        raise SystemExit(3)
+    handle.seek(0)
+    handle.truncate()
+    handle.write(f"{os.getpid()}\n")
+    handle.flush()
+    return handle
+
+
+def evaluate(
+    ledger: Path,
+    hub: AgentRef,
+    sender: AgentRef,
+    pinged: set[str],
+    dry_run: bool,
+    log: Log,
+) -> set[str]:
+    """Ping the hub if the ledger holds pending ids we have not pinged for."""
+    try:
+        state = read_state(ledger)
+    except WakerError as exc:
+        log("WARN", f"ledger not actionable: {exc}")
+        return pinged
+
+    pending = [str(item) for item in state.get("pending_commands", [])]
+    if not pending:
+        return set()
+
+    fresh = [item for item in pending if item not in pinged]
+    if not fresh:
+        return pinged
+
+    if dry_run:
+        log("DRYRUN", f"would ping hub {hub.describe()} for pending {' '.join(pending)}")
+        return pinged | set(pending)
+
+    if send_wake(hub, sender, pending, log):
+        return pinged | set(pending)
+    return pinged
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--ledger", help="Ledger path (overrides --epic-id)")
+    parser.add_argument(
+        "--epic-id",
+        default=os.environ.get("TRAYCER_EPIC_ID"),
+        help="Traycer epic id; defaults to $TRAYCER_EPIC_ID",
+    )
+    parser.add_argument(
+        "--hub-name",
+        default=os.environ.get("RELAY_WAKER_HUB_NAME", DEFAULT_HUB_NAME),
+        help=f"Hub agent name to resolve (default {DEFAULT_HUB_NAME})",
+    )
+    parser.add_argument(
+        "--sender-name",
+        default=os.environ.get("RELAY_WAKER_SENDER_NAME", DEFAULT_SENDER_NAME),
+        help=f"Sender agent name to resolve (default {DEFAULT_SENDER_NAME})",
+    )
+    parser.add_argument("--hub-id", help="Pin the hub id, skipping name resolution")
+    parser.add_argument(
+        "--sender-id",
+        default=os.environ.get("RELAY_WAKER_SENDER_ID"),
+        help="Pin the sender id, skipping name resolution",
+    )
+    parser.add_argument("--interval", type=float, default=2.0, help="Stat interval (s)")
+    parser.add_argument(
+        "--fallback",
+        type=float,
+        default=1200.0,
+        help="Re-check even without an mtime change, in case a write is missed (s)",
+    )
+    parser.add_argument(
+        "--cooldown",
+        type=float,
+        default=120.0,
+        help="Minimum seconds between pings (s)",
+    )
+    parser.add_argument("--log", help="Append log lines to this file")
+    parser.add_argument("--pidfile", help="Single-instance lock path")
+    parser.add_argument("--once", action="store_true", help="Evaluate once and exit")
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="Resolve the hub and sender, then exit. Never reads or pings.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Log what would be sent without waking the hub",
+    )
+    args = parser.parse_args()
+
+    log = Log(Path(args.log).expanduser() if args.log else None)
+
+    if args.ledger:
+        ledger = Path(args.ledger).expanduser().resolve()
+    elif args.epic_id:
+        ledger = default_ledger(args.epic_id)
+    else:
+        log("ERROR", "need --ledger or --epic-id (or $TRAYCER_EPIC_ID)")
+        return 2
+
+    try:
+        hub = AgentRef(args.hub_name, args.hub_id)
+        sender = AgentRef(args.sender_name, args.sender_id)
+    except WakerError as exc:
+        log("ERROR", str(exc))
+        return 2
+
+    # Resolve up front so a misnamed agent fails loudly at launch rather than
+    # silently at the first command that matters. Dry runs never send, so they
+    # tolerate an unresolvable sender.
+    if not args.dry_run:
+        try:
+            log("RESOLVE", f"hub {hub.describe()} -> {hub.resolve()}")
+            log("RESOLVE", f"sender {sender.describe()} -> {sender.resolve()}")
+        except WakerError as exc:
+            log("ERROR", f"startup resolution failed: {exc}")
+            return 2
+
+    if args.preflight:
+        return 0
+
+    handle = None
+    if args.pidfile:
+        handle = acquire_pidfile(Path(args.pidfile).expanduser(), log)
+
+    try:
+        pinged: set[str] = set()
+
+        if args.once:
+            evaluate(ledger, hub, sender, pinged, args.dry_run, log)
+            return 0
+
+        log("START", f"watching {ledger} for hub {hub.describe()}")
+        last_mtime: float | None = None
+        last_sweep = 0.0
+        last_ping = 0.0
+
+        while True:
+            try:
+                mtime = ledger.stat().st_mtime
+            except FileNotFoundError:
+                mtime = None
+
+            changed = mtime != last_mtime
+            stale = (time.monotonic() - last_sweep) >= args.fallback
+
+            if (changed or stale) and mtime is not None:
+                if time.monotonic() - last_ping >= args.cooldown:
+                    before = set(pinged)
+                    pinged = evaluate(ledger, hub, sender, pinged, args.dry_run, log)
+                    if pinged != before:
+                        last_ping = time.monotonic()
+                last_sweep = time.monotonic()
+
+            last_mtime = mtime
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        log("STOP", "interrupted")
+        return 0
+    finally:
+        if handle is not None:
+            handle.close()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except WakerError as exc:
+        print(f"ERROR {exc}", file=sys.stderr)
+        sys.exit(1)

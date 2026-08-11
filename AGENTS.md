@@ -120,9 +120,11 @@ notification, and mobile checks are `BLOCKED` until their real infrastructure is
 ## Native workflows
 
 Repo-local skills are available to both clients: audit-context, bench, codex-tui-relay,
-decision-check, handoff, healthcheck, kickoff, make-bench, skill-writing, speccheck, teacher,
-update-decisions, and writespec. `codex-tui-relay` activates only for a Traycer Codex TUI
+decision-check, handoff, healthcheck, kickoff, make-bench, relay-waker, skill-writing, speccheck,
+teacher, update-decisions, and writespec. `codex-tui-relay` activates only for a Traycer Codex TUI
 orchestrator; its mirrored Claude package exists for repository parity and remains inert there.
+`relay-waker` keeps the hub-waking daemon alive and is used in practice only by the Codex TUI relay's
+hub; see `docs/agent_setup/RELAY_WAKER.md`.
 Codex invokes skills with `$<skill>`; Claude Code invokes them with `/<skill>`. opencode invokes
 them by name through its skill tool; its project config registers both skill trees and its
 permission rules enforce the change-safety deny list. Shared workflow contracts live under

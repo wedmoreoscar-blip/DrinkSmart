@@ -23,6 +23,7 @@ EXPECTED_SKILLS = {
     "healthcheck",
     "kickoff",
     "make-bench",
+    "relay-waker",
     "skill-writing",
     "speccheck",
     "teacher",
@@ -39,10 +40,13 @@ REQUIRED = {
     "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
     "docs/agent_setup/CODEX_TUI_HUB_SETUP.md",
     "docs/agent_setup/CROSS_MACHINE_SETUP.md",
+    "docs/agent_setup/RELAY_WAKER.md",
     "docs/workflows/agent_selection.md",
     "tasks/next_session_kickoff.md",
     "tools/agent-lock",
     "tools/codex-tui-relay-ledger",
+    "tools/relay-hub-waker",
+    "tools/waker-daemon-start",
     "tools/test-project",
     "tools/writespec-guard",
 }
@@ -163,6 +167,9 @@ def main() -> int:
         "docs/workflows/agent_selection.md": "$codex-tui-relay",
         ".agents/skills/codex-tui-relay/SKILL.md":
             "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
+        # The waker skill is deliberately thin; it must keep deferring to its doc.
+        ".agents/skills/relay-waker/SKILL.md": "docs/agent_setup/RELAY_WAKER.md",
+        "docs/agent_setup/RELAY_WAKER.md": "a2a-hub-waker",
     }
     for relative, marker in relay_checks.items():
         if marker not in (ROOT / relative).read_text():
@@ -171,6 +178,8 @@ def main() -> int:
     for relative in (
         "tools/agent-lock",
         "tools/codex-tui-relay-ledger",
+        "tools/relay-hub-waker",
+        "tools/waker-daemon-start",
         "tools/test-project",
         "tools/writespec-guard",
     ):

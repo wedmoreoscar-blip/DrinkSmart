@@ -16,7 +16,9 @@ gates and change-safety rules remain authoritative.
 ```mermaid
 flowchart LR
   C["Codex TUI orchestrator"] -->|"append commands / replies"| L["One epic-scoped\nartifact ledger"]
-  U["Oscar"] -->|"Check the relay ledger"| H["OpenCode GUI A2A hub\nDeepSeek V4 Flash · max"]
+  W["relay-hub-waker daemon"] -->|"Check the relay ledger"| H["OpenCode GUI A2A hub\nDeepSeek V4 Flash · max"]
+  L -.->|"pending command appears"| W
+  U["Oscar"] -.->|"manual fallback"| H
   H -->|"read / claim / execute / append"| L
   H -->|"create / configure / send\n--expect-reply"| I["GUI implementation agents"]
   I -->|"native A2A reply"| H
@@ -122,7 +124,9 @@ When an A2A action is required:
 2. Append one exact command to the ledger. Include the chosen agent/worktree, harness, model, effort,
    surface, permissions and complete prompt wherever they apply. The hub must not invent missing
    choices.
-3. Tell Oscar: `Relay command <event-id> is queued; prompt codex-tui-a2a-hub: Check the relay ledger.`
+3. When the waker daemon is running, the append itself wakes the hub and Codex says only that the
+   command is queued. When it is not, tell Oscar:
+   `Relay command <event-id> is queued; prompt codex-tui-a2a-hub: Check the relay ledger.`
 4. After the hub turn, validate and scan the ledger. Inspect the target transcript if runtime detail
    is useful.
 
@@ -163,6 +167,10 @@ On every later turn, whether Oscar says `Check the relay ledger` or an implement
    changing specifications, answering questions, reviewing code and accepting work are not.
 6. Continue until no actionable command remains, append `hub.cycle.completed`, and end the turn.
    Do not wait indefinitely for an implementation agent.
+7. Before ending the turn, run the `relay-waker` skill. It is a health check on the waker daemon,
+   not a ledger operation: it confirms the daemon is alive, restarts it if it died, and reports one
+   line. Running it every cycle is what keeps the relay self-sustaining, because a hub turn is the
+   only reliable moment at which the daemon's liveness is observed.
 
 For `command.spawn`, create the exact requested GUI agent/worktree, record its real ID with
 `agent.registered`, then send the exact commission with `--expect-reply`. For `command.reuse`, use
@@ -172,6 +180,36 @@ only the exact user-approved registered agent and send the commission with `--ex
 The hub may use read-only Traycer lists and transcripts to reconcile state. It must not edit
 DrinkSmart source, review diffs, make decisions, create extra agents because one seems slow, or
 retry an ambiguous operation.
+
+## Automatic hub waking
+
+`tools/relay-hub-waker` removes Oscar from the middle of the loop. It watches the ledger and sends
+the hub `Check the relay ledger.` when — and only when — a pending command appears. It is a
+doorbell: it never claims, interprets, executes, or answers anything, and the hub operating contract
+above is unchanged by its presence.
+
+It wakes the hub only for `pending_commands`. Claimed commands are already in flight, and unread
+messages are addressed to Codex rather than the hub. A pending id is pinged once, so a hub that
+fails to clear a command is not re-pinged in a loop. A ledger that fails validation is logged and
+never pinged on, because the hub cannot append to a broken ledger.
+
+The waker needs a **sender identity**: Traycer requires a real sender agent id for any A2A send,
+read from `TRAYCER_AGENT_ID` or a flag. Confirmed 2026-08-11: a detached process outside any agent
+turn can send successfully when that variable is supplied. The sender must not be the Codex TUI
+orchestrator, which is never an A2A sender, and must not be the hub itself. Use a dedicated agent
+named `a2a-hub-waker`, created once per epic solely as the send origin; it never takes a turn
+and is never prompted, so it costs nothing beyond existing.
+
+**Agents are addressed by name, never by id.** Traycer ids change whenever an agent is recreated, so
+a baked-in id is a stale id waiting to happen. The daemon resolves `codex-tui-a2a-hub` and
+`a2a-hub-waker` at launch and re-resolves both after a failed send, which means a recreated hub
+or sender heals without editing or restarting anything.
+
+Drive the daemon through `tools/waker-daemon-start` (`start`, `stop`, `restart`, `status`, `check`).
+It owns the pidfile, the log path and detachment, and it preflights the two names before launching.
+Preflight never reads the ledger and never sends, so a typo cannot cost a turn. `check` is a dry run
+that detects pending work without waking the hub. The pidfile holds an exclusive `flock`, so a
+second instance exits 3 rather than double-pinging.
 
 ## Claims and recovery
 
@@ -195,5 +233,7 @@ Before relying on a new hub for implementation, demonstrate that:
 3. a harmless ledger `command.send` is claimed, delivered once and completed;
 4. a harmless native A2A reply is appended verbatim as `message.received`;
 5. Codex can append a reply command or `message.processed` decision;
-6. a later Codex TUI session reconstructs the same state; and
-7. neither hub nor smoke-test agent modifies DrinkSmart source or Git state.
+6. a later Codex TUI session reconstructs the same state;
+7. neither hub nor smoke-test agent modifies DrinkSmart source or Git state; and
+8. the waker detects that `command.send` and wakes the hub without Oscar prompting it. Confirm the
+   dry run first, then the real send.

@@ -295,7 +295,7 @@ the orchestrator. The bullets below are retained as design history only.
   `$codex-tui-relay` skill activates it. `AGENTS.md` is the discovery hook. The skill's mirrored
   Claude package exists only for repository parity and does not trigger there.
 
-## LOCKED — Codex TUI artifact-ledger A2A hub (2026-08-10)
+## LOCKED — Codex TUI artifact-ledger A2A hub (2026-08-10; amended 2026-08-11)
 
 - Oscar manually creates and cleanly initializes one epic-scoped OpenCode GUI / DeepSeek V4 Flash /
   max / `full_access` agent named `codex-tui-a2a-hub`. It has the DrinkSmart root as its primary
@@ -308,9 +308,11 @@ the orchestrator. The bullets below are retained as design history only.
 - Codex remains the sole orchestrator. It selects agents, obtains warm-reuse approval, writes specs,
   decides whether and how to answer, checks transcripts, reviews, repairs, accepts and integrates.
   The hub performs transport mechanics only and never edits DrinkSmart source or makes decisions.
-- The user manually wakes the hub with `Check the relay ledger` after Codex queues outbound work.
-  Automatic filesystem-to-GUI prompt injection is excluded because Traycer exposes no supported
-  endpoint for it; private WebSocket automation and sender-identity spoofing are forbidden.
+- ~~The user manually wakes the hub with `Check the relay ledger` after Codex queues outbound work.~~
+  **Superseded 2026-08-11 by the relay waker (below).** Manual waking remains the documented fallback
+  whenever the daemon is not running. The original exclusion stands as written for its actual target:
+  private WebSocket automation and GUI prompt injection are still forbidden, and Codex TUI is still
+  never an A2A sender.
 - The hub issues Codex-authored commissions with `--expect-reply`, so native implementation-agent
   responses return directly to the hub and are copied verbatim into the ledger. A separate passive
   receiver message is unnecessary.
@@ -320,6 +322,43 @@ the orchestrator. The bullets below are retained as design history only.
 - `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` remains the canonical contract and the thin
   repo-local `$codex-tui-relay` skill activates it. All delegation, verification, review and
   integration workflows remain unchanged outside their transport step.
+
+### Amendment — the relay waker closes the manual wake step (2026-08-11)
+
+- **`tools/relay-hub-waker` wakes the hub automatically.** It watches the epic ledger's mtime and
+  sends `Check the relay ledger.` only when `pending_commands` is non-empty. It is a doorbell with no
+  judgement and no authority: it never claims, interprets, executes, answers or accepts anything.
+  Decisions stay with Codex and A2A actions stay with the hub, so the transport boundary is unchanged.
+- **A daemon is the only thing that can do this.** Every agent is reactive — it exists during a turn,
+  and a turn begins because something messaged it — so no agent and no skill can notice a file change.
+  A skill is inert text loaded into a turn that is already happening; it cannot schedule a future one.
+  `tools/waker-daemon-start` is the only supported way to run the daemon.
+- **This uses the supported CLI, not a bypass.** The wake is an ordinary `traycer agent send`,
+  byte-identical to Oscar typing the phrase himself. No private WebSocket, no prompt injection, no
+  Codex-as-sender. The prohibition on "sender-identity spoofing" is narrowed to its intent: **Codex
+  TUI must never be the sender, and no actor may impersonate an agent that acts on its own behalf.** A
+  dedicated never-prompted identity used by a non-agent process is not impersonation, because the
+  daemon has no identity of its own to misrepresent.
+- **Sender identity, confirmed empirically 2026-08-11.** Traycer's `resolveSenderAgentId` requires a
+  real sender agent id from `TRAYCER_AGENT_ID` or a flag, and a detached process outside any agent turn
+  sends successfully when it is supplied. The sender is a dedicated agent named `a2a-hub-waker` that
+  never takes a turn and is never prompted; only a message's recipient is woken or charged. It must
+  never be the Codex TUI orchestrator nor the hub itself. Not yet tested: whether an agent that has
+  never run is accepted as sender.
+- **Agents are addressed by name, never by id.** Traycer ids change whenever an agent is recreated, so
+  a stored id is a stale id waiting to happen. The daemon resolves `codex-tui-a2a-hub` and
+  `a2a-hub-waker` at launch and re-resolves after a failed send, so recreating either heals itself with
+  no edit and no restart. Duplicate names break resolution outright, so the `relay-waker` skill must
+  never create a missing agent or substitute a different sender.
+- **The hub runs `relay-waker` before ending every cycle.** That end-of-turn check is what makes the
+  system self-sustaining, and it is the skill's real purpose: the mechanics live in the launcher, while
+  the skill supplies the trigger and the refusals a script cannot enforce on an eager model.
+- **The self-starting gap is accepted, not fixed.** Liveness is only observed during a hub turn, so a
+  daemon that dies while the hub is idle goes unnoticed until Oscar says `Check the relay ledger.` once.
+  A systemd user unit with `Restart=always` would close it and is deliberately not built: the symptom
+  is obvious and recovery is one prompt. `wsl --shutdown` and reboots kill the daemon undetected.
+- `docs/agent_setup/RELAY_WAKER.md` is authoritative for design, bring-up, terminal rules and log
+  meanings; the `relay-waker` skill stays thin and defers to it.
 
 ## LOCKED — Multi-harness delegation and permission parity (2026-08-08)
 
