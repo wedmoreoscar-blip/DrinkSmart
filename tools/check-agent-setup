@@ -107,6 +107,34 @@ def check_relay_empty_content(failures: list[str]) -> None:
                 return
 
 
+def check_writespec_guard_detection(failures: list[str]) -> None:
+    """The guard must govern real sends and ignore mere mentions of one.
+
+    It once matched the phrase anywhere in the command, so a commit message or a
+    grep discussing a send was denied as an uncommissioned delegation.
+    """
+    guard = ROOT / "tools/writespec-guard"
+    cases = (
+        ("git commit -F - <<'EOF'\nnote: traycer agent send routing\nEOF", False),
+        ('grep -rn "traycer agent send" docs/', False),
+        ('traycer agent send --to a --message "[no-spec] ping"', False),
+        ('traycer agent send --to a --message "build the thing"', True),
+        ('cd /tmp && traycer agent send --to a --message "build it"', True),
+    )
+    for command, should_deny in cases:
+        result = subprocess.run(
+            [str(guard)],
+            input=json.dumps({"tool_name": "Bash", "tool_input": {"command": command}}),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        denied = "permissionDecision" in result.stdout
+        if denied != should_deny:
+            verb = "did not deny" if should_deny else "wrongly denied"
+            fail(f"writespec-guard {verb}: {command!r}", failures)
+
+
 def main() -> int:
     failures: list[str] = []
     for relative in sorted(REQUIRED):
@@ -188,6 +216,7 @@ def main() -> int:
             fail(f"{relative} is not executable", failures)
 
     check_relay_empty_content(failures)
+    check_writespec_guard_detection(failures)
 
     # The selection guide lives in two places. Absent is fine (fresh machine); divergent is not.
     canonical = (ROOT / "docs/workflows/agent_selection.md").read_bytes()
