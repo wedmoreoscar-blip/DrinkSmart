@@ -31,6 +31,8 @@ export type NotificationActionHandler = (
 // listeners while another part of the app still relies on them.
 let listenerRefCount = 0;
 let listenerHandles: PluginListenerHandle[] = [];
+let listenerSetup: Promise<void> | null = null;
+const actionHandlers = new Set<NotificationActionHandler>();
 
 // The action type is registered once per app lifetime; re-registering is
 // unnecessary and would only risk reordering on platforms that re-apply it.
@@ -257,37 +259,55 @@ export const registerNotificationListeners = async (
   if (!isNativePlatform()) return () => {};
 
   listenerRefCount += 1;
-
-  // Already registered by another consumer; just decrement on cleanup.
-  if (listenerRefCount > 1) {
-    return () => {
-      listenerRefCount = Math.max(0, listenerRefCount - 1);
-    };
-  }
+  const registeredHandler: NotificationActionHandler | null = onActionPerformed
+    ? (actionId, entryId, actionTime) => onActionPerformed(actionId, entryId, actionTime)
+    : null;
+  if (registeredHandler) actionHandlers.add(registeredHandler);
 
   try {
-    const receivedHandle = await LocalNotifications.addListener('localNotificationReceived', (notification) => {
-      console.log('Notification received:', notification);
-    });
+    if (listenerHandles.length === 0 && !listenerSetup) {
+      listenerSetup = (async () => {
+        let receivedHandle: PluginListenerHandle | null = null;
+        try {
+          receivedHandle = await LocalNotifications.addListener(
+            'localNotificationReceived',
+            (notification) => {
+              console.log('Notification received:', notification);
+            }
+          );
 
-    const actionHandle = await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
-      const { actionId, notification } = action;
-      const entryId = notification.extra?.entryId;
-      if (
-        (actionId === ACTION_HAD_IT || actionId === ACTION_PLUS_15) &&
-        typeof entryId === 'string' &&
-        entryId.length > 0
-      ) {
-        const actionTime = notification.schedule?.at
-          ? new Date(notification.schedule.at)
-          : new Date();
-        onActionPerformed?.(actionId, entryId, actionTime);
-      }
-    });
+          const actionHandle = await LocalNotifications.addListener(
+            'localNotificationActionPerformed',
+            (action) => {
+              const { actionId, notification } = action;
+              const entryId = notification.extra?.entryId;
+              if (
+                (actionId === ACTION_HAD_IT || actionId === ACTION_PLUS_15) &&
+                typeof entryId === 'string' &&
+                entryId.length > 0
+              ) {
+                const actionTime = new Date();
+                actionHandlers.forEach((handler) => handler(actionId, entryId, actionTime));
+              }
+            }
+          );
 
-    listenerHandles = [receivedHandle, actionHandle];
+          listenerHandles = [receivedHandle, actionHandle];
+        } catch (error) {
+          await receivedHandle?.remove();
+          throw error;
+        }
+      })();
+    }
 
+    await listenerSetup;
+    listenerSetup = null;
+
+    let cleanedUp = false;
     return () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      if (registeredHandler) actionHandlers.delete(registeredHandler);
       listenerRefCount = Math.max(0, listenerRefCount - 1);
       if (listenerRefCount === 0) {
         listenerHandles.forEach((h) => h.remove());
@@ -296,6 +316,8 @@ export const registerNotificationListeners = async (
     };
   } catch (error) {
     console.error('Error registering notification listeners:', error);
+    listenerSetup = null;
+    if (registeredHandler) actionHandlers.delete(registeredHandler);
     listenerRefCount = Math.max(0, listenerRefCount - 1);
     return () => {};
   }

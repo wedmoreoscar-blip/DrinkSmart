@@ -1,0 +1,84 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+const phaseMock = vi.hoisted(() => vi.fn(() => "winding-down"));
+const windDownProps = vi.hoisted(() => ({ current: null as null | Record<string, unknown> }));
+const timeline = vi.hoisted(() => [
+  {
+    kind: "alcohol" as const,
+    entryId: "lager:unit:1",
+    drinkId: "lager",
+    drinkName: "Lager",
+    unitNumber: 1,
+    totalUnits: 1,
+    time: new Date(Date.now() + 60_000),
+    pureAlcoholMl: 12,
+    percentageOfTarget: 25,
+    icon: "",
+    unit: "ml",
+    intervalMinutes: 30,
+  },
+]);
+const consumed = vi.hoisted(() => []);
+const effectiveEnd = vi.hoisted(() => new Date(Date.now() - 1_000));
+
+vi.mock("@/contexts/AppContext", () => ({
+  useAppContext: () => ({
+    state: {
+      drinkTimeline: timeline,
+      consumedTimelineEntries: consumed,
+      effectivePlanEndTime: effectiveEnd,
+      drinkingStartTime: new Date(),
+      drinks: [],
+    },
+    reorderTimelineEntries: vi.fn(),
+    toggleLockedDrink: vi.fn(),
+    updateDrinks: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/sessionEngine", () => ({ deriveSessionPhase: phaseMock }));
+vi.mock("@/hooks/useNotifications", () => ({
+  useNotifications: () => ({
+    isNative: false,
+    notificationsEnabled: false,
+    isLoading: false,
+    toggleNotifications: vi.fn(),
+    scheduleFromTimeline: vi.fn(),
+  }),
+}));
+vi.mock("@/hooks/useWebDrinkReminders", () => ({ useWebDrinkReminders: vi.fn() }));
+vi.mock("@dnd-kit/core", () => ({
+  DndContext: ({ children }: { children: React.ReactNode }) => children,
+  closestCenter: vi.fn(),
+  KeyboardSensor: class {},
+  PointerSensor: class {},
+  useSensor: vi.fn(),
+  useSensors: vi.fn(() => []),
+}));
+vi.mock("@dnd-kit/sortable", () => ({
+  SortableContext: ({ children }: { children: React.ReactNode }) => children,
+  sortableKeyboardCoordinates: vi.fn(),
+  verticalListSortingStrategy: {},
+}));
+vi.mock("@/components/tabs/WindDownScreen", () => ({
+  default: (props: Record<string, unknown>) => {
+    windDownProps.current = props;
+    return React.createElement("div", null, "wind-down-marker");
+  },
+}));
+
+import TimelineTab from "@/components/tabs/TimelineTab";
+
+describe("TimelineTab wind-down routing", () => {
+  it("uses the authoritative phase inputs and forwards the existing exit callback", () => {
+    const onNext = vi.fn();
+    const html = renderToStaticMarkup(<TimelineTab onNext={onNext} />);
+
+    expect(html).toContain("wind-down-marker");
+    expect(phaseMock).toHaveBeenCalledWith(timeline, consumed, effectiveEnd, expect.any(Date));
+    expect(windDownProps.current?.onNext).toBe(onNext);
+    expect(windDownProps.current?.currentTime).toEqual(expect.any(Date));
+  });
+});

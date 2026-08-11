@@ -4,6 +4,13 @@ import { useAppContext } from '@/contexts/AppContext';
 import { buildTimelineNotifications } from '@/lib/notificationService';
 import type { TimelineEntry } from '@/lib/sessionEngine';
 
+const REMINDER_WINDOW_MS = 1500;
+
+export const isReminderDue = (nowMs: number, scheduledMs: number): boolean => {
+  const elapsedMs = nowMs - scheduledMs;
+  return elapsedMs >= 0 && elapsedMs < REMINDER_WINDOW_MS;
+};
+
 /**
  * Hook to show toast notifications for drink and break reminders in the web
  * browser. Checks every second if any timeline time has been reached and shows
@@ -36,15 +43,8 @@ export const useWebDrinkReminders = (
 
     reminders.forEach((reminder) => {
       const entryTime = reminder.time.getTime();
-      const timeDiff = now.getTime() - entryTime;
-
-      // Check if we're within the notification window (trigger early so the center of
-      // the moving indicator aligns with the drink icon center when the toast appears)
-      // We trigger 1500ms early to account for the visual positioning of the pulsing indicator
-      const triggerOffset = 1500; // ms early
       if (
-        timeDiff >= -triggerOffset &&
-        timeDiff < 500 &&
+        isReminderDue(now.getTime(), entryTime) &&
         !notifiedIdsRef.current.has(reminder.entryId)
       ) {
         notifiedIdsRef.current.add(reminder.entryId);
@@ -62,6 +62,24 @@ export const useWebDrinkReminders = (
             action: {
               label: '+15 min',
               onClick: () => delayTimelineEntry(reminder.entryId, 15),
+            },
+            classNames: {
+              cancelButton:
+                'group-[.toast]:!bg-transparent group-[.toast]:text-primary-hover group-[.toast]:font-medium group-[.toast]:px-4 group-[.toast]:flex-1',
+              actionButton:
+                'group-[.toast]:!bg-transparent group-[.toast]:text-foreground group-[.toast]:font-normal group-[.toast]:px-4 group-[.toast]:flex-1 group-[.toast]:border-l group-[.toast]:border-border',
+            },
+            cancelButtonStyle: {
+              height: 'auto',
+              minHeight: '60px',
+              fontSize: '19px',
+              fontWeight: 500,
+            },
+            actionButtonStyle: {
+              height: 'auto',
+              minHeight: '60px',
+              fontSize: '19px',
+              fontWeight: 400,
             },
           });
         } else {
