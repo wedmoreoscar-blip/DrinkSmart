@@ -65,13 +65,16 @@ export const useWebDrinkReminders = (
             },
             classNames: {
               cancelButton:
-                '!bg-transparent !text-primary-hover font-medium px-4 flex-1',
+                '!bg-transparent !text-primary-hover font-medium px-1 w-[72px] shrink-0 whitespace-nowrap',
               actionButton:
-                '!bg-transparent !text-foreground font-normal px-4 flex-1 border-l border-border',
+                '!bg-transparent !text-foreground font-normal px-1 w-[72px] shrink-0 whitespace-nowrap border-l border-border',
             },
             cancelButtonStyle: {
               height: 'auto',
               minHeight: '60px',
+              width: '72px',
+              flex: '0 0 72px',
+              whiteSpace: 'nowrap',
               fontSize: '19px',
               fontWeight: 500,
               color: '#b5abfc',
@@ -79,6 +82,9 @@ export const useWebDrinkReminders = (
             actionButtonStyle: {
               height: 'auto',
               minHeight: '60px',
+              width: '72px',
+              flex: '0 0 72px',
+              whiteSpace: 'nowrap',
               fontSize: '19px',
               fontWeight: 400,
               color: '#e9e9ed',

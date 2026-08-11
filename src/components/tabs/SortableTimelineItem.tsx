@@ -16,6 +16,7 @@ type DrinkTimelineEntry = {
   icon: string;
   unit: string;
   volumeMl?: number;
+  durationMinutes?: number;
 };
 
 type SortableTimelineItemProps = {
@@ -99,7 +100,10 @@ export const SortableTimelineItem = ({
   const volumeMl = getVolumeMl(entry);
   const abv = volumeMl && entry.pureAlcoholMl > 0 ? (entry.pureAlcoholMl / volumeMl) * 100 : null;
 
-  let detail = isBreak ? `${volumeLabel || ""} · break`.trim() : `${unitLabel} · ${volumeLabel || ""}`.trim();
+  const breakDetail = isFuture && entry.durationMinutes
+    ? `${entry.durationMinutes} min break`
+    : "break";
+  let detail = isBreak ? `${volumeLabel || ""} · ${breakDetail}`.trim() : `${unitLabel} · ${volumeLabel || ""}`.trim();
   if (isPast && !isCurrent && !isBreak) detail = `${unitLabel} · had`;
   if (isLockedRow) detail = `${volumeLabel || unitLabel} ${unitLabel} · stays if you re-plan`;
   if (isCurrent && !isBreak) {
@@ -163,7 +167,15 @@ export const SortableTimelineItem = ({
           }
           style={isDraggable && isFuture && !isLocked ? { touchAction: "none" } : undefined}
         >
-          <div className={isCurrent ? "text-[25px] leading-[1.2] font-medium tracking-[-0.015em]" : "text-lead leading-[1.25]"}>
+          <div
+            className={
+              isCurrent
+                ? "text-[25px] leading-[1.2] font-medium tracking-[-0.015em]"
+                : isBreak
+                  ? "text-lead leading-[1.25] text-[#cfd3e5]"
+                  : "text-lead leading-[1.25]"
+            }
+          >
             {displayName}
             {isLockedRow && (
               <Badge variant="kept" className="ml-2">kept</Badge>
@@ -175,7 +187,7 @@ export const SortableTimelineItem = ({
               isCurrent
                 ? "mt-0.5 text-body leading-[1.35] text-[#cfd3e5]"
                 : isBreak
-                  ? "mt-0.5 text-[15px] leading-[1.3] text-[#cfd3e5]"
+                  ? "mt-0.5 text-[15px] leading-[1.3] text-[#b2b6ca]"
                   : "mt-0.5 text-[15px] leading-[1.3] text-muted-foreground"
             }
           >

@@ -1,6 +1,6 @@
 # Visual state — as built
 
-**Snapshot updated 2026-08-08, after Wave 1 integration.** This file records what the app
+**Snapshot updated 2026-08-11, after the Wave 3 final visual check.** This file records what the app
 *currently looks like in code*, not
 what it should look like. It is the "before" half of the visual history; see
 `02-planned-changes.md` for what is being changed and `03-design-requests.md` for what has been
@@ -12,9 +12,12 @@ Update this file only when a change has actually landed and been verified, never
 
 ## What has landed
 
-**The token layer plus Wave 1.** Step 1 applied the handoff's `tokens/index.css` and
-`tokens/tailwind.config.ts` (`b46de81`), then forced dark (`d1d2be8`). Wave 1 then landed the
-geometry for the five drawn primitives and the meter (`afa6c5e`, `eff7f94`).
+**The token layer and the designed session path through Wave 3.** Step 1 applied the handoff's
+`tokens/index.css` and `tokens/tailwind.config.ts` (`b46de81`), then forced dark (`d1d2be8`). Wave
+1 landed the geometry for the five drawn primitives and the meter (`afa6c5e`, `eff7f94`); later
+waves landed the bottom chrome, four-band Plan screen, fixed-hero Timeline, reminder surfaces, and
+terminal wind-down state. The 2026-08-11 archive entries under `docs/visual/screenshots/` are the
+rendered 402×874 after-state.
 
 Before Wave 1 the app had the redesign's **colours and none of its geometry** — components picked
 up colour automatically through CSS variables, while every hardcoded Tailwind class for height,
@@ -40,8 +43,8 @@ radius, type size and weight was untouched. Wave 1 closed that gap for `button`,
 | Shadow | `sm` · `md` · `lg` — all edge-plus-ambient, never stacked drop shadows |
 | Motion | `calm` `cubic-bezier(.32,.72,0,1)` · `liquid` `cubic-bezier(.4,0,.2,1)` |
 
-`tap`, `act` and `vessel` exist but are **used nowhere yet**. They were added by the token layer in
-anticipation of the primitives work.
+`tap`, `act` and `vessel` now drive the drawn primitives and session surfaces. Undrawn form
+controls remain on their existing scale until their own implementation wave.
 
 **Known gap:** the nudge controls in design 1c are 12px radius, which is not on the scale. Add a
 token or use an arbitrary value when 1c lands.
@@ -88,8 +91,8 @@ separately.
 2. ~~**The meter is a battery.**~~ **FIXED** by Wave 1. Replaced by the 1h vertical vessel.
 3. ~~**Buttons are filled.**~~ **FIXED** by Wave 1 (`afa6c5e`). Outlined on transparent everywhere;
    no variant emits a solid `bg-primary`.
-4. **Chrome is wrong.** `Dashboard.tsx` still renders a centred title and top tabs. The design has
-   no header and puts the three tabs in a 58px bottom bar. **Owned by Wave 2.**
+4. ~~**Chrome is wrong.**~~ **FIXED.** The normal session surfaces use the 58px bottom bar; the
+   terminal wind-down state hides it while mounted and restores it on exit.
 5. **The touch floor is met only by the five drawn primitives.** Inputs, selects, dialogs and the
    rest remain at 40px and below. **Blocked on `03-design-requests.md` §A.**
 
@@ -109,13 +112,17 @@ Confirmed on `main` after Wave 1 integration, 2026-08-08:
 - **Historical Wave 1 note:** `npm run dev` had not been run at that checkpoint, so Wave 1 was
   typechecked and built, not seen. The Wave 3 browser evidence is recorded below.
 
-## Wave 3 visual fixer status — crosscut pass, 2026-08-11
+## Wave 3 final visual acceptance — 2026-08-11
 
-The restored 402×874 browser check verified the two crosscut findings assigned to Luna-0. Web
-reminder toast actions now use the drawn roles: `Had it` is #b5abfc, `+15 min` is #e9e9ed, and
-the divider is #383a46; the 362×64px shell and 60px action rows remain intact. The terminal
-wind-down state now hides the common 58px tab bar only while that state is mounted, restoring the
-drawn action anchors at y=722 and y=796. Plan and Timeline repairs are also verified: Plan's
-primary action is 22px with the target/build anchors at y=610/y=738, and Water is `330 ml · break`
-without a lock affordance while alcohol-row locking remains intact. The three-fixer pass is complete;
-the orchestrator's independent whole-app pass remains.
+The independent 402×874 browser pass opened and compared every selected, available drawing and
+read its numeric criteria back from the rendered app. Plan's primary is 22px with target/build
+anchors at y=610/y=738. Timeline Water is `330 ml · 20 min break`, uses the drawn muted roles, and
+has no lock affordance while alcohol-row locking remains. Web reminder actions are readable,
+non-wrapping 72×60px columns scoped to that hook; their 362px card keeps a 64px minimum and grows
+for longer dynamic copy. Terminal wind-down hides the common bar only while mounted and restores
+the drawn actions at y=722/y=796. Tokens, normal tab chrome, the selected 1h meter, Plan 1n/1o,
+Timeline 1d, the web fallback for 1g, and wind-down 1f all have committed `*-ok.png` milestones.
+
+Native notification appearance and foreground/background/killed-process action delivery remain
+**BLOCKED** on physical iOS/Android hardware. The unselected 1i/1j meter alternatives and optional
+1e timeline are not claimed as shipped states.

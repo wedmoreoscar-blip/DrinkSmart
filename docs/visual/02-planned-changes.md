@@ -68,13 +68,13 @@ specs editing one file for the same purpose.
 
 ## Wave 2 — Designed screens
 
-Blocked until Wave 1 integrates.
+Status: **integrated and visually accepted 2026-08-11.**
 
 | Spec | Files | Agent |
 | --- | --- | --- |
-| W2-A bottom tab bar | `Dashboard.tsx`, `ui/tabs.tsx` | DeepSeek |
-| W2-B Plan / buzz picker (**1n/1o**, not 1c) | `PlanTab.tsx`, `data/buzzLevels.ts` | DeepSeek |
-| W2-C Timeline (1d) | `TimelineTab.tsx`, `SortableTimelineItem.tsx` | Luna |
+| W2-A bottom tab bar | `Dashboard.tsx`, `ui/tabs.tsx` | DeepSeek — **DONE** |
+| W2-B Plan / buzz picker (**1n/1o**, not 1c) | `PlanTab.tsx`, `data/buzzLevels.ts` | DeepSeek — **DONE** |
+| W2-C Timeline (1d) | `TimelineTab.tsx`, `SortableTimelineItem.tsx` | Luna — **DONE** |
 
 W2-B carries a live hazard: `getBACForLevel` throws on an unknown level, and deleting levels 8–10
 must not strand a persisted `drinksmart.session.v1` or a `profiles` row pointing at a deleted level.
@@ -82,9 +82,10 @@ Clamp to 7; do not bump the localStorage version for it.
 
 ## Wave 3 — Notification and wind-down
 
-`notificationService.ts`, `useWebDrinkReminders`, plus design 1f. Wind-down needs engine work the
-current model cannot express, and hits the test-runner question — vitest requires explicit approval
-as a new dev dependency. Raise before starting.
+Status: **integrated and visually accepted 2026-08-11.** `notificationService.ts`,
+`useWebDrinkReminders`, the deterministic session-engine support, and design 1f are complete.
+Browser fallback visuals pass; native notification delivery and platform appearance remain
+**BLOCKED** on physical iOS/Android hardware.
 
 ## Wave 4 — Undesigned screens
 
@@ -116,10 +117,9 @@ codex quota was at 80% for the week on 2026-08-08.
   known **FAIL at 9 errors / 11 warnings** that must not get worse, build **PASS**, browser
   **BLOCKED**.
 
-## Wave 3 visual fixer status — crosscut pass
+## Wave 3 final visual status
 
-**Resolved 2026-08-11 by Luna-0.** The web reminder toast fallback keeps its measured card geometry
-while restoring the accent/foreground action roles and neutral divider. The 1f terminal wind-down
-state hides the common bottom chrome only for that terminal state, returning the bottom actions to
-their drawn positions. Plan and Timeline finding repairs are complete as well; the orchestrator's
-independent whole-app pass remains the finish line.
+**COMPLETE 2026-08-11.** Three Luna fixers repaired the five recon findings in one shared worktree;
+the orchestrator then independently re-captured, opened, compared, and measured every selected
+drawn state. The accepted `*-ok.png` milestones and conclusions are committed under
+`docs/visual/screenshots/`. Native notification verification remains the only infrastructure block.
