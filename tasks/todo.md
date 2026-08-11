@@ -1,6 +1,6 @@
 # Active Plan — frontend redesign, steps 2 through 8
 
-Source of truth: `design_handoff_drinksmart/README.md` (the spec) and `screens/*.png` (appearance).
+Source of truth: `design_handoffs/design_handoff_drinksmart/README.md` (the spec) and `screens/*.png` (appearance).
 Read `docs/decisions.md` first; the three redesign LOCKED entries constrain every step below.
 
 **Step 1 (tokens) is complete** — `b46de81` applied `tokens/index.css` and `tokens/tailwind.config.ts`;

@@ -465,7 +465,7 @@ Verified empirically; each point cost attempts to discover.
 
 ## LOCKED — Frontend redesign source of truth (2026-08-07)
 
-- `design_handoff_drinksmart/` is the authority for the frontend redesign. `README.md` is the spec
+- `design_handoffs/design_handoff_drinksmart/` is the authority for the frontend redesign. `README.md` is the spec
   and is self-sufficient; `screens/*.png` are the ground truth for appearance; `screens/*.html` are
   inline-styled prototypes to port into React, never to paste in; `tokens/` alone is production code.
 - Do not read or parse `DrinkSmart-design-reference.html` (1.3 MB compiled output, for a human).
@@ -482,11 +482,15 @@ Verified empirically; each point cost attempts to discover.
   in the repo copy and were never sent upstream. They were restored. The precedence ladder ranks
   design sources against *each other*; it does not let a drawing overrule a decision recorded here.
   When an export regresses an amendment, restore the amendment and consider sending it upstream.
-- **The canonical bundle path is `design_handoff_drinksmart/{README.md,screens/,tokens/}`.** Exports
-  may nest it deeper; lift it back, because docs and specs reference those paths directly. The wider
-  project export (`DrinkSmart.dc.html`, `_ds/`, `ios-frame.jsx`, `support.js`, `uploads/`) sits under
-  `design_handoff_drinksmart/project/`. Strip `:Zone.Identifier` files when unzipping on Windows
-  into WSL.
+- **Canonical archive path (amended 2026-08-11).** `design_handoffs/` contains Claude Design
+  handoffs in chronological order. The newest unsuffixed bundle,
+  `design_handoffs/design_handoff_drinksmart/{README.md,screens/,tokens/}`, is authoritative; older
+  exports remain alongside it with `depreciated` in the directory name and are historical only.
+  This supersedes the former repository-root `design_handoff_drinksmart/` path. Exports may nest
+  the active bundle deeper; lift it back to the path above because current docs and specs reference
+  it directly. The wider project export (`DrinkSmart.dc.html`, `_ds/`, `ios-frame.jsx`,
+  `support.js`, `uploads/`) sits under `design_handoffs/design_handoff_drinksmart/project/`. Strip
+  `:Zone.Identifier` files when unzipping on Windows into WSL; they are never tracked.
 - ~~Two in-repo amendments to the bundled README (2026-08-06) are part of the spec.~~
   **Superseded 2026-08-08 by designs `1n`/`1o`.** The amendments held the four-band scale as prose;
   it is now drawn, and README §1n/1o states *"supersedes 1c"* and carries the whole spec. Prose
@@ -498,7 +502,7 @@ Verified empirically; each point cost attempts to discover.
 backend design concerning those entities. Where sources disagree, the higher rank wins outright and
 the lower is treated as stale — no reconciliation, no averaging:
 
-1. `design_handoff_drinksmart/tokens/` — production code; already applied.
+1. `design_handoffs/design_handoff_drinksmart/tokens/` — production code; already applied.
 2. `screens/*.html` — literal inline values (sizes, radii, colours, weights, copy). Authoritative
    for **values**.
 3. `screens/*.png` — authoritative for **appearance**; the visual check on 2.
@@ -591,11 +595,11 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
 
 ## PENDING
 
-- **Still undrawn after the 2026-08-08 export:** Profile / onboarding (`StatsForm`,
-  `PreferencesPicker`), drink picker, menu scanner, establishment browsing, and auth. Under the
-  precedence ladder these fall to rank 6, implementer judgement, which is what the ladder exists to
-  prevent. **Wave 4 stays blocked** until they are drawn. Form primitives (`1l`, `1m`) and the
-  four-band picker (`1n`, `1o`) were delivered and are no longer blockers.
+- ~~**Still undrawn after the 2026-08-08 export:** Profile / onboarding (`StatsForm`,
+  `PreferencesPicker`), drink picker, menu scanner, establishment browsing, and auth.~~ **Closed
+  2026-08-11:** the active export draws §B–G as `4a`–`4n`, supplies exact prose/HTML criteria, and
+  adds the only new primitive as `4o`. Form primitives remain covered by `1l`/`1m`. **Wave 4 is
+  unblocked.**
 - ~~Band names and subtitles for the four-band picker are proposed, not drawn.~~ **Closed
   2026-08-08** — drawn as `1n`/`1o`, wording as proposed (Light / Social / Loose / Heavy, "gaps in
   the night" for Heavy).

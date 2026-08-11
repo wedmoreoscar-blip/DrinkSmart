@@ -35,7 +35,7 @@ interface — correct partitioning should avoid that.
 
 ## Wave 1 — Foundation
 
-Status: **W1-A and W1-B integrated 2026-08-08.** W1-C still deferred.
+Status: **W1-A and W1-B integrated 2026-08-08. W1-C is designed and unblocked, not implemented.**
 
 | Spec | Files | Agent | Status |
 | --- | --- | --- | --- |
@@ -57,10 +57,9 @@ pattern will recur:
 - **A prototype's buttons are full-width, so they carry no horizontal padding.** Ported literally,
   inline buttons had text flush to the border. Padding needs stating explicitly.
 
-**W1-C is deferred on purpose.** Claude Design never drew the form vocabulary, so building it now
-means inventing values — rank 6 on the precedence ladder, which is exactly what the ladder demotes.
-It is blocked on §A of `03-design-requests.md`. Interim cost, accepted: forms show 64px buttons
-above 40px inputs until the drawings arrive.
+**W1-C is now ready to commission from `1l` and `1m`.** Those drawings close §A with exact control,
+state, touch, and surface geometry. Interim cost until implementation: forms still show redesigned
+64px buttons beside stock-height inputs.
 
 `tabs.tsx` is deliberately **excluded** from Wave 1. The prototype shows tabs only as the bottom
 bar, so that file belongs to Wave 2's chrome work; splitting it across two waves would have two
@@ -87,10 +86,13 @@ Status: **integrated and visually accepted 2026-08-11.** `notificationService.ts
 Browser fallback visuals pass; native notification delivery and platform appearance remain
 **BLOCKED** on physical iOS/Android hardware.
 
-## Wave 4 — Undesigned screens
+## Wave 4 — Remaining application surfaces
 
-Blocked on `03-design-requests.md` §B–G. These screens have no drawing at all, and Wave 1 will
-visibly break them the moment it lands.
+Status: **UNBLOCKED 2026-08-11; implementation not started.** The active Claude Design handoff
+delivers Profile (`4a`), onboarding (`4b`–`4c`), the drink picker (`4d`–`4f`), menu scanning
+(`4g`–`4j`), establishments (`4k`–`4l`), account upgrade (`4m`–`4n`), and the shared numeric
+keypad field-group primitive (`4o`). Each frame has a PNG, matching literal HTML, and numeric/copy
+criteria in the active README. Wave 4 can now be broken into implementation specs.
 
 ---
 

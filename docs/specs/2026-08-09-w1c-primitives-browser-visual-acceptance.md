@@ -12,10 +12,10 @@ only browser-evidence-backed corrections within the allowed files below.
 
 The authoritative references are:
 
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1l-form-primitives.png`
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1l-form-primitives.html`
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1m-sheet-radio-time-toast.png`
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1m-sheet-radio-time-toast.html`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1l-form-primitives.png`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1l-form-primitives.html`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1m-sheet-radio-time-toast.png`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1m-sheet-radio-time-toast.html`
 
 The HTML owns literal values and the PNG owns appearance. Use GPT-5.6 Luna visual input and spatial
 judgement, not an implementation-only reading of the markup. This is only the W1-C primitive pass.

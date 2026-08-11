@@ -1,0 +1,53 @@
+<!-- DrinkSmart design reference — 4n  (§G — Auth, waiting)
+     Markup extracted from the design prototype. NOT production code.
+     Device frame is 402 x 874, drawn at 1x; PNG is 2x. All styling is inline and literal.
+     Copy and formatting rules are in the trailing <script> block — read it.
+-->
+<div class="dv-opt" id="4n"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#4n">4n</a><b style="color:#e9e9ed;font-weight:500">§G</b> &nbsp;The half-finished state — the same three steps, now a progress reading. The app is not paused</div>
+<div class="dv-card" data-screen-label="Auth — waiting" style="width:402px;height:874px;display:flex;flex-direction:column;padding:22px 20px 0;background:#161826;overflow:hidden;">
+<div style="min-height:56px;display:flex;align-items:center;gap:12px;flex:none"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" style="flex:none"><path d="M13 4.5L6.5 11l6.5 6.5" stroke="#e9e9ed" stroke-width="1.8" stroke-linecap="round"/></svg><div style="font:400 19px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed;flex:1">Account</div></div>
+<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding-top:4px">
+<div style="font:500 28px/1.15 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed">Check oscar@gmail.com</div>
+<div style="margin-top:8px"><div style="font:400 17px/1.4 Inter,system-ui,sans-serif;color:#b2b6ca">The link in it confirms the address. The password link is the one after that.</div></div>
+<div style="margin:20px 0 2px"><div style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca">Where you are</div></div>
+<div style="min-height:56px;display:flex;align-items:center;gap:14px"><div style="width:28px;height:28px;flex:none;border-radius:50%;background:#9184d9;box-shadow:0 0 0 1.5px #9184d9;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex:none"><path d="M3.5 8.5l3 3L12.5 5" stroke="#161826" stroke-width="2.2" stroke-linecap="round"/></svg></div><div style="font:400 19px/1.3 Inter,system-ui,sans-serif;color:#e9e9ed;flex:1">Email given</div></div>
+<div style="min-height:56px;display:flex;align-items:center;gap:14px"><div style="width:28px;height:28px;flex:none;border-radius:50%;background:transparent;box-shadow:0 0 0 1.5px #9184d9;display:flex;align-items:center;justify-content:center"><span style="font:500 15px/1 Inter,system-ui,sans-serif;color:#b5abfc;font-variant-numeric:tabular-nums">2</span></div><div style="font:400 19px/1.3 Inter,system-ui,sans-serif;color:#e9e9ed;flex:1">Confirm link sent</div><div style="flex:none;padding:5px 9px;border-radius:8px;background:#2b2741;font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.04em;color:#b5abfc">waiting</div></div>
+<div style="min-height:56px;display:flex;align-items:center;gap:14px"><div style="width:28px;height:28px;flex:none;border-radius:50%;background:transparent;box-shadow:0 0 0 1.5px #383a46;display:flex;align-items:center;justify-content:center"><span style="font:500 15px/1 Inter,system-ui,sans-serif;color:#75798c;font-variant-numeric:tabular-nums">3</span></div><div style="font:400 19px/1.3 Inter,system-ui,sans-serif;color:#75798c;flex:1">Password link</div></div>
+<div style="height:1px;margin:12px 0 14px;background:linear-gradient(to right,transparent,rgba(233,233,237,.16) 48px,rgba(233,233,237,.16) calc(100% - 48px),transparent)"></div>
+<div style="background:#232532;border-radius:14px;padding:18px;display:flex;flex-direction:column;"><div style="font:400 19px/1.35 Inter,system-ui,sans-serif;color:#e9e9ed">Nothing is paused. Tonight&rsquo;s plan, your stats and the timeline all work while this sits here.</div></div>
+<div style="margin-top:16px"><div style="font:400 13px/1.4 Inter,system-ui,sans-serif;color:#75798c">Signed in as this account since 4 May. Finishing changes nothing about it except the password.</div></div>
+</div>
+<div style="padding:12px 0 0;flex:none">
+<div style="min-height:64px;margin:0;border:1px solid #9184d9;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;font:500 22px/1 Inter,system-ui,sans-serif;color:#b5abfc">Back to tonight</div>
+<div style="display:flex;gap:10px;margin-top:10px">
+<div style="flex:1;min-height:56px;border-radius:12px;box-shadow:0 0 0 1px #383a46;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font:400 19px/1 Inter,system-ui,sans-serif;color:#e9e9ed">Send it again</span><span style="font:400 13px/1 Inter,system-ui,sans-serif;color:#75798c;font-variant-numeric:tabular-nums">in 0:42</span></div>
+<div style="flex:1;min-height:56px;border-radius:12px;box-shadow:0 0 0 1px #383a46;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#e9e9ed">Another email</div>
+</div>
+<div style="height:12px"></div>
+</div>
+<div style="margin:0 -20px;background:#161826;border-top:1px solid #292b31;display:flex;flex:none"><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#b5abfc"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7" r="4" fill="#b5abfc"/><path d="M3.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" stroke="#b5abfc" stroke-width="1.6"/></svg><span style="font:500 13px/1 Inter,system-ui,sans-serif">Profile</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="6" y="2.5" width="10" height="17" rx="3" stroke="#75798c" stroke-width="1.6"/><path d="M6.5 11h9v5.5a3 3 0 0 1-3 3h-3a3 3 0 0 1-3-3V11z" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Plan</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2.5v17" stroke="#75798c" stroke-width="1.6"/><circle cx="11" cy="7" r="2.6" fill="#75798c"/><circle cx="11" cy="15" r="2.6" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Timeline</span></div></div>
+</div></div>
+<script>
+/* 4n — §G Auth, waiting between the two emails · copy and formatting rules */
+const AUTH_WAIT_COPY = {
+  title: email => "Check " + email,
+  body: "The link in it confirms the address. The password link is the one after that.",
+  stepsHeader: "Where you are",
+  steps: [ "Email given", "Confirm link sent", "Password link" ],
+  notPaused: "Nothing is paused. Tonight's plan, your stats and the timeline all work while this sits here.",
+  since: d => "Signed in as this account since " + fmtDate(d) + ". Finishing changes nothing about it except the password.",
+  leave: "Back to tonight",             // the 64px primary: leaving is the right move
+  resend: "Send it again",
+  resendCooldown: s => "in " + Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"),
+  change: "Another email",
+};
+/* This state can last days, and the app must not nag. It is reachable from Profile,
+   never forced, and it is the ONLY place the half-finished account is mentioned.
+   Step marks: done = filled #9184d9 disc with a #161826 tick; current = 1.5px #9184d9
+   ring with a #b5abfc numeral and a "waiting" tag; pending = 1.5px #383a46 ring,
+   #75798c numeral and label. Same three lines as 4m, in the same order — the screen the
+   user already read, now reading back their position in it.
+   Resend is rate-limited by the platform: show the cooldown as a 13px line inside the
+   56px control, never as a disabled button with no explanation. */
+
+</script>

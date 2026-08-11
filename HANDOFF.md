@@ -106,8 +106,8 @@ rather than guessing or repurposing by suffix.
 5. `docs/workflows/delegation.md`
 6. `docs/workflows/verification.md`
 7. `tasks/todo.md`
-8. `design_handoff_drinksmart/README.md` and
-   `design_handoff_drinksmart/screens/1f-wind-down.html`
+8. `design_handoffs/design_handoff_drinksmart/README.md` and
+   `design_handoffs/design_handoff_drinksmart/screens/1f-wind-down.html`
 
 ## Explicit exclusions
 

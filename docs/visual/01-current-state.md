@@ -61,10 +61,10 @@ token or use an arbitrary value when 1c lands.
 | `slider` | **DONE** — track 12px, thumb **56px** |
 | `vessel-meter` | **NEW** — 96×300 vertical vessel, target line at 78% of height |
 | `tabs` | not used at all — the bottom bar replaces it. Owned by Wave 2 |
-| `input` / `select` / `dialog` / `popover` / … | `h-10` (40px) and below. Undrawn; see `03-design-requests.md` §A |
+| `input` / `select` / `dialog` / `popover` / … | `h-10` (40px) and below in code; now drawn by `1l`/`1m`, with W1-C unblocked |
 
 **Consequence to expect:** every screen now mixes 56px buttons with 40px inputs. That is the
-accepted interim cost of the global scale, and it closes when §A is drawn and W1-C runs.
+accepted interim cost of the global scale, and it closes when the now-unblocked W1-C runs.
 
 ### Measured usage, 2026-08-08
 
@@ -93,8 +93,9 @@ separately.
    no variant emits a solid `bg-primary`.
 4. ~~**Chrome is wrong.**~~ **FIXED.** The normal session surfaces use the 58px bottom bar; the
    terminal wind-down state hides it while mounted and restores it on exit.
-5. **The touch floor is met only by the five drawn primitives.** Inputs, selects, dialogs and the
-   rest remain at 40px and below. **Blocked on `03-design-requests.md` §A.**
+5. **The touch floor is met only by the implemented primitives.** Inputs, selects, dialogs and the
+   rest remain at 40px and below in code. Their `1l`/`1m` designs are available and W1-C is
+   unblocked; implementation remains outstanding.
 
 ## Verification baseline
 

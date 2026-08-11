@@ -22,7 +22,7 @@ Read these sources before editing:
 - `/home/oscar/DrinkSmart/docs/decisions.md`, especially the deterministic-engine and whole-app
   redesign entries
 - `/home/oscar/DrinkSmart/tasks/todo.md`, steps 6–8 and especially step 7
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/README.md`, sections 1d, 1f, 1g, and
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/README.md`, sections 1d, 1f, 1g, and
   "State & engine work required"
 - `/home/oscar/DrinkSmart/src/contexts/AppContext.tsx`
 - `/home/oscar/DrinkSmart/src/lib/sessionStore.ts`

@@ -1,0 +1,44 @@
+<!-- DrinkSmart design reference — 4g  (§E — Menu scanner, capture)
+     Markup extracted from the design prototype. NOT production code.
+     Device frame is 402 x 874, drawn at 1x; PNG is 2x. All styling is inline and literal.
+     Copy and formatting rules are in the trailing <script> block — read it.
+-->
+<div class="dv-opt" id="4g"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#4g">4g</a><b style="color:#e9e9ed;font-weight:500">§E</b> &nbsp;Menu scanner, capture — no tab bar, because this is a flow you finish or leave</div>
+<div class="dv-card" data-screen-label="Scanner — capture" style="width:402px;height:874px;display:flex;flex-direction:column;padding:22px 20px 0;background:#161826;overflow:hidden;">
+<div style="min-height:56px;display:flex;align-items:center;gap:12px;flex:none">
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none" style="flex:none"><path d="M5 5l12 12M17 5L5 17" stroke="#e9e9ed" stroke-width="1.8" stroke-linecap="round"/></svg>
+<div style="font:400 19px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed;flex:1">Scan a menu</div>
+</div>
+<div style="flex:1;margin:8px 0 0;border-radius:14px;background:#1c1e2c;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:18px">
+<div style="position:absolute;left:26px;top:26px;right:26px;bottom:26px">
+<div style="position:absolute;left:0;top:0;width:34px;height:34px;border-left:2px solid #e9e9ed;border-top:2px solid #e9e9ed;border-radius:8px 0 0 0"></div>
+<div style="position:absolute;right:0;top:0;width:34px;height:34px;border-right:2px solid #e9e9ed;border-top:2px solid #e9e9ed;border-radius:0 8px 0 0"></div>
+<div style="position:absolute;left:0;bottom:0;width:34px;height:34px;border-left:2px solid #e9e9ed;border-bottom:2px solid #e9e9ed;border-radius:0 0 0 8px"></div>
+<div style="position:absolute;right:0;bottom:0;width:34px;height:34px;border-right:2px solid #e9e9ed;border-bottom:2px solid #e9e9ed;border-radius:0 0 8px 0"></div>
+</div>
+<div style="position:absolute;left:60px;top:120px;right:60px;display:flex;flex-direction:column;gap:14px;opacity:.5">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:13px;width:154px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:125.99999999999999px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:168px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:13px;width:105px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:140px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:118.99999999999999px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:13px;width:161px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:112px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div>
+</div>
+<div style="position:relative;padding:14px 16px;border-radius:14px;background:rgba(10,11,18,.72)"><div style="font:400 17px/1.4 Inter,system-ui,sans-serif;color:#e9e9ed">One page, filling the frame. If you can read the prices, so can we.</div></div>
+</div>
+<div style="padding:14px 0 0;flex:none">
+<div style="min-height:64px;margin:0;border:1px solid #9184d9;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;font:500 22px/1 Inter,system-ui,sans-serif;color:#b5abfc">Take the photo</div>
+<div style="min-height:56px;margin:8px 0 0;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#b2b6ca">Choose a photo instead</div>
+<div style="text-align:center;padding-bottom:12px"><div style="font:400 13px/1.4 Inter,system-ui,sans-serif;color:#75798c">The photo is used once and not kept.</div></div>
+</div>
+</div></div>
+<script>
+/* 4g — §E Menu scanner, capture · copy and formatting rules */
+const SCAN_CAPTURE_COPY = {
+  title: "Scan a menu",
+  guidance: "One page, filling the frame. If you can read the prices, so can we.",
+  shutter: "Take the photo",
+  pick: "Choose a photo instead",
+  privacy: "The photo is used once and not kept.",
+};
+/* No tab bar on any scanner screen: this is a flow, entered from 4k and left by the X.
+   Leaving mid-flow discards nothing that exists yet.
+   The guidance line is the one piece of copy that must survive: nearly every failure in
+   4j is glare, a folded page, or two pages at once. Say it before, not after. */
+
+</script>

@@ -9,11 +9,11 @@ not an implementation-only reading of the HTML.
 Compare the application against these authoritative reference pairs at a **402×874 CSS-pixel
 viewport with device scale factor 2**:
 
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1n-buzz-picker-four-band.png` and `.html`
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1o-buzz-picker-heavy.png` and `.html`
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1d-timeline.png` and `.html`
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1l-form-primitives.png` and `.html`
-- `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1m-sheet-radio-time-toast.png` and `.html`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1n-buzz-picker-four-band.png` and `.html`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1o-buzz-picker-heavy.png` and `.html`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1d-timeline.png` and `.html`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1l-form-primitives.png` and `.html`
+- `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1m-sheet-radio-time-toast.png` and `.html`
 
 The root orchestrator's first captured application renders are available at:
 

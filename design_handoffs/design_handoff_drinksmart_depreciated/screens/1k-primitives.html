@@ -1,0 +1,138 @@
+<!-- DrinkSmart design reference — 1k
+     Markup extracted from the design prototype. NOT production code.
+     {{ name }} holes are live prototype bindings; replace with React state.
+     Device frame is 402 x 874. All styling is inline and literal.
+-->
+<div class="dv-opt" id="1k"><div class="dv-olabel"><a class="dv-oid" href="#1k">1k</a>Buttons, cards, slider, tabs, badges — at the sizes the app actually uses them</div>
+<div class="dv-card" style="width:1180px;padding:30px 32px;display:grid;grid-template-columns:repeat(3,1fr);gap:34px">
+
+<div>
+<div style="font:500 11px/1 Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#75798c;margin-bottom:14px">Buttons — 64px primary, 56px floor</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="height:64px;border:1px solid #9184d9;border-radius:14px;display:flex;align-items:center;justify-content:center;font:500 22px/1 Inter,system-ui,sans-serif;color:#b5abfc">Had it</div>
+<div style="height:64px;border:1px solid #b5abfc;background:rgba(145,132,217,.14);border-radius:14px;display:flex;align-items:center;justify-content:center;font:500 22px/1 Inter,system-ui,sans-serif;color:#d2cefd">pressed</div>
+<div style="height:56px;border:1px solid #383a46;border-radius:14px;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif">Re-plan the rest</div>
+<div style="height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#b2b6ca">End session</div>
+<div style="height:64px;border:1px solid #292b31;border-radius:14px;display:flex;align-items:center;justify-content:center;font:500 22px/1 Inter,system-ui,sans-serif;color:#5f6377">Build the night</div>
+<div style="display:flex;gap:10px"><div style="width:56px;height:56px;border:1px solid #383a46;border-radius:12px;display:flex;align-items:center;justify-content:center"><svg width="22" height="2" viewBox="0 0 22 2"><rect width="22" height="2" rx="1" fill="#e9e9ed"/></svg></div>
+<div style="width:56px;height:56px;border:1px solid #383a46;border-radius:12px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 22 22"><rect y="10" width="22" height="2" rx="1" fill="#e9e9ed"/><rect x="10" width="2" height="22" rx="1" fill="#e9e9ed"/></svg></div>
+<div style="width:56px;height:56px;border:1px solid #383a46;border-radius:12px;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="3" y="7.5" width="12" height="8.5" rx="2" stroke="#e9e9ed" stroke-width="1.5"/><path d="M6 7.5V5a3 3 0 0 1 6 0" stroke="#e9e9ed" stroke-width="1.5"/></svg></div></div>
+<div style="font:400 13px/1.5 Inter,system-ui,sans-serif;color:#75798c">Outlined, never filled — Nocturne's rule, and it keeps the accent legible on a dark ground. Focus ring is 2px accent at 2px offset.</div>
+</div>
+</div>
+
+<div>
+<div style="font:500 11px/1 Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#75798c;margin-bottom:14px">Sliders — 12px track, 56px thumb</div>
+<div style="padding:20px 18px;background:#1c1e2c;border-radius:14px;display:flex;flex-direction:column;gap:26px">
+<div>
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px"><span style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca">Duration</span><span style="font:500 22px/1 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums">4h</span></div>
+<div style="position:relative;height:56px;display:flex;align-items:center">
+<div style="position:absolute;left:0;right:0;height:12px;border-radius:6px;background:#292b31"></div>
+<div style="position:absolute;left:0;width:56%;height:12px;border-radius:6px;background:#9184d9"></div>
+<div style="position:absolute;left:calc(56% - 28px);width:56px;height:56px;border-radius:50%;background:#161826;box-shadow:0 0 0 2px #b5abfc, 0 6px 18px rgba(0,0,0,.55)"></div>
+</div>
+<div style="display:flex;justify-content:space-between;font:400 13px/1 Inter,system-ui,sans-serif;color:#75798c;font-variant-numeric:tabular-nums"><span>1h</span><span>4h</span><span>8h</span></div>
+</div>
+<div>
+<div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca;margin-bottom:12px">Within band</div>
+<div style="display:flex;gap:8px"><div style="flex:1;min-height:56px;border-radius:12px;background:#161826;box-shadow:0 0 0 1px #9184d9;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#e9e9ed">softer</div><div style="flex:1;min-height:56px;border-radius:12px;background:#161826;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#b2b6ca">stronger</div></div>
+</div>
+</div>
+<div style="font:400 13px/1.5 Inter,system-ui,sans-serif;color:#75798c;margin-top:12px">The 1–10 slider is gone. Ten unlabelled stops is a precision the number can't honour, and stops 7–10 shouldn't be reachable at all.</div>
+
+<div style="font:500 11px/1 Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#75798c;margin:26px 0 14px">Badges</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<span style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;border-radius:8px;background:#423a6a;color:#e7e5fe">kept</span>
+<span style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;border-radius:8px;border:1px solid #9397ab;color:#cfd3e5">break</span>
+<span style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;border-radius:8px;background:#3a2c1a;color:#e5bd85">8 ml over</span>
+<span style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;border-radius:8px;background:#292b31;color:#b2b6ca">had</span>
+<span style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;border-radius:8px;background:#9184d9;color:#161826">now</span>
+</div>
+</div>
+
+<div>
+<div style="font:500 11px/1 Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#75798c;margin-bottom:14px">Cards</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="padding:18px;background:#232532;border-radius:14px">
+<div style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca">Last time</div>
+<div style="font:500 25px/1.2 Inter,system-ui,sans-serif;margin-top:8px">4h, Social, six drinks</div>
+<div style="font:400 17px/1.4 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px">Two pints, a red, a shot, two waters.</div>
+<div style="height:56px;margin-top:14px;border:1px solid #9184d9;border-radius:12px;display:flex;align-items:center;justify-content:center;font:500 19px/1 Inter,system-ui,sans-serif;color:#b5abfc">Same again</div>
+</div>
+<div style="padding:18px;background:#1c1e2c;border-radius:14px;box-shadow:0 0 0 1px #6b4f27">
+<div style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#d29a51">Over target</div>
+<div style="font:400 19px/1.4 Inter,system-ui,sans-serif;color:#cfd3e5;margin-top:8px">Two more than planned. The rest of the night has been re-spaced; the plan now ends 01:55.</div>
+</div>
+<div style="padding:18px;background:#1c1e2c;border-radius:14px;box-shadow:0 0 0 1px #383a46">
+<div style="font:400 19px/1.4 Inter,system-ui,sans-serif;color:#cfd3e5">Four hours to reach Loose is fast. Stretch it to five, or take Social.</div>
+</div>
+</div>
+
+<div style="font:500 11px/1 Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#75798c;margin:26px 0 14px">Tabs — bottom, thumb-reachable</div>
+<div style="width:100%;background:#161826;border-top:1px solid #292b31;display:flex;border-radius:0 0 8px 8px">
+<div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c">
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7" r="4" stroke="#75798c" stroke-width="1.6"/><path d="M3.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Profile</span></div>
+<div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#b5abfc">
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="6" y="2.5" width="10" height="17" rx="3" stroke="#b5abfc" stroke-width="1.6"/><path d="M6.5 11h9v5.5a3 3 0 0 1-3 3h-3a3 3 0 0 1-3-3V11z" fill="#b5abfc"/></svg><span style="font:500 13px/1 Inter,system-ui,sans-serif">Plan</span></div>
+<div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c">
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2.5v17" stroke="#75798c" stroke-width="1.6"/><circle cx="11" cy="7" r="2.6" fill="#75798c"/><circle cx="11" cy="15" r="2.6" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Timeline</span></div>
+</div>
+<div style="font:400 13px/1.5 Inter,system-ui,sans-serif;color:#75798c;margin-top:12px">Glyphs are abstract by category — a vessel outline, not a photograph of a pint. The centred title and tagline are gone; the screen is the product name.</div>
+</div>
+
+</div></div>
+</div>
+
+<p class="dv-next">Try next: "resolve <a class="dv-oid" href="#1i">1i</a> as the Plan meter and <a class="dv-oid" href="#1j">1j</a> as the Timeline one" · "<a class="dv-oid" href="#1e">1e</a>'s time axis, but with <a class="dv-oid" href="#1d">1d</a>'s hero card pinned on top" · "now do Profile and onboarding" · "show the over-target and re-plan flow as states"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1240,&quot;height&quot;:940}}">
+const TBW_G = 46680; // Watson TBW for the profile shown: 82kg, 180cm, 28, male
+const BANDS = {
+  light:  { softer: 0.02,  stronger: 0.045 },
+  social: { softer: 0.075, stronger: 0.105 },
+  loose:  { softer: 0.135, stronger: 0.175 },
+};
+const PLAN_ML = 98.5; // 3 pints Carling + 175ml House Red + 25ml vodka
+
+class Component extends DCLogic {
+  state = { band: "social", nudge: "stronger", dur: 240 };
+
+  ring(on) { return on ? "0 0 0 1px #9184d9" : "0 0 0 1px transparent"; }
+
+  renderVals() {
+    const bac = BANDS[this.state.band][this.state.nudge];
+    const hours = this.state.dur / 60;
+    const target = ((bac / 100) + 0.00015 * hours) * TBW_G / 0.789;
+    const pct = (PLAN_ML / target) * 100;
+    const over = PLAN_ML - target;
+    const endMin = 21 * 60 + 30 + this.state.dur;
+    const h = Math.floor(this.state.dur / 60), m = this.state.dur % 60;
+    return {
+      softLightRing: this.ring(this.state.band === "light"),
+      socialRing: this.ring(this.state.band === "social"),
+      looseRing: this.ring(this.state.band === "loose"),
+      softerRing: this.ring(this.state.nudge === "softer"),
+      strongerRing: this.ring(this.state.nudge === "stronger"),
+      pickLight: () => this.setState({ band: "light" }),
+      pickSocial: () => this.setState({ band: "social" }),
+      pickLoose: () => this.setState({ band: "loose" }),
+      pickSofter: () => this.setState({ nudge: "softer" }),
+      pickStronger: () => this.setState({ nudge: "stronger" }),
+      durMinus: () => this.setState(s => ({ dur: Math.max(60, s.dur - 15) })),
+      durPlus: () => this.setState(s => ({ dur: Math.min(480, s.dur + 15) })),
+      durLabel: m === 0 ? h + "h" : h + "h " + m + "m",
+      endClock: String(Math.floor(endMin / 60) % 24).padStart(2, "0") + ":" + String(endMin % 60).padStart(2, "0"),
+      targetMl: target.toFixed(1),
+      fillHeight: Math.min(100, pct * 0.78) + "%",
+      overColor: over > 0.5 ? "#d29a51" : "#b2b6ca",
+      overNote: over > 0.5
+        ? "plan is " + over.toFixed(0) + " ml over — trim it"
+        : "plan covers " + Math.round(pct) + "% of it",
+    };
+  }
+}
+</script>
+</body>
+</html>

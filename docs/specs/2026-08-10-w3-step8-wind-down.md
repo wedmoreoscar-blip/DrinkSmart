@@ -23,7 +23,7 @@ package manifest, lockfile, or Supabase file.
 - `TimelineTab.tsx` already owns a once-per-second `currentTime` update and receives `onNext`, which
   returns to Plan. Reuse both rather than introducing a second timer or changing Dashboard routing.
 - The literal visual/copy authority is
-  `/home/oscar/DrinkSmart/design_handoff_drinksmart/screens/1f-wind-down.html`, backed by the existing
+  `/home/oscar/DrinkSmart/design_handoffs/design_handoff_drinksmart/screens/1f-wind-down.html`, backed by the existing
   Tailwind tokens in `src/index.css`. Port it to React/Tailwind; do not paste prototype HTML.
 
 ## Requirements
