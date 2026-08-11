@@ -608,12 +608,13 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   night is guaranteed to fit without scrolling.
 - Meter form: 1h continuous is recommended for the Plan target card, 1j mid-session for the Timeline.
   Pick one object and use it everywhere.
-- Nothing in the redesign has been rendered in a browser. `npm run dev` has not been run since the
-  token layer landed.
+- ~~Nothing in the redesign has been rendered in a browser.~~ **Closed 2026-08-11:** Waves 2 and 3
+  completed independent browser/screenshot acceptance. Wave 4 is designed but has not yet been
+  implemented or rendered.
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
-- Unit coverage for the extracted AppContext session/pacing engine remains pending in W3-A2.
-  W3-A1 now covers planner budgets, generated-unit normalization, request fingerprints, planning
-  windows, and greedy fallback with 46 Vitest cases.
+- ~~Unit coverage for the extracted AppContext session/pacing engine remains pending in W3-A2.~~
+  **Closed 2026-08-11:** W3-A2 added the pure session engine and checker-derived coverage; the
+  accepted Wave 3 suite contains 93 tests across planner and session behavior.
 - ~~A test runner so `speccheck`'s spec-derived tests are runnable.~~ **Closed 2026-08-09** — Oscar
   approved Vitest `^3.2.7`; W3-A1 installed it and added `npm test` to the verification profiles.

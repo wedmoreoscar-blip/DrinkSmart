@@ -1,144 +1,139 @@
-# Session Handoff / Kickoff — Codex TUI relay ready; DrinkSmart Wave 3 next
+# Session Handoff / Kickoff — DrinkSmart Wave 4 next
 
-Written 2026-08-10 21:01 BST. Normal-mode handoff. The canonical continuation was replaced.
+Written 2026-08-11 23:14 BST. Normal-mode handoff. The canonical continuation was replaced.
 
 ## Outcome of this session
 
-The Codex-TUI-specific messaging adapter is statically implemented and ready for its first live use.
-A future Traycer-launched Codex TUI can orchestrate through one persistent passive OpenCode GUI /
-DeepSeek receiver instead of losing implementation-agent replies.
+Wave 3 is integrated and visually accepted. Its notification and wind-down work, independent
+browser pass, screenshot history, and full integration are recorded through `07c21db`. Native
+notification delivery and platform appearance remain `BLOCKED` on physical iOS/Android hardware.
 
-The implementation adds the canonical contract at
-`docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`, the repo-local `codex-tui-relay` skill, discovery
-and workflow links, locked decisions, and setup validation. It does not change application code.
+The Codex TUI artifact-ledger relay also completed its first live operation. The hub, ledger, and
+waker transported the Wave 3 delegations end to end. The detached waker can still be reaped with
+Traycer's process cgroup; one manual `Check the relay ledger.` prompt remains the recovery path.
 
-Static verification completed:
-
-- the official skill validator passed;
-- the Codex and Claude skill bodies are byte-identical;
-- `tools/check-agent-setup` passed with 13 mirrored skills;
-- the setup check was mutation-tested and failed on a deliberately impossible receiver marker;
-- the repo agent-selection guide and `~/.traycer/agent-selection-guide.md` are byte-identical;
-- `git diff --check` passed.
-
-The live receiver was deliberately not provisioned in this session. Its no-code end-to-end smoke test
-is the new Codex TUI's first task.
+Claude Design's newest export is now the active authority at
+`design_handoffs/design_handoff_drinksmart/`. The preceding export is preserved at
+`design_handoffs/design_handoff_drinksmart_depreciated/` as history. All 15 Wave 4 HTML/PNG pairs
+(`4a`–`4o`) were opened and checked, repository references were migrated, 61
+`:Zone.Identifier` files were stripped, and the decision/design records now mark Wave 4
+unblocked. That archive landed in `d11c8bc`.
 
 ## Current repository state
 
-- DrinkSmart root checkout is `/home/oscar/DrinkSmart`, branch `main`.
-- Before this handoff commit, `main` was `aa6b839`. That commit pins Playwright `1.62.1` and
-  its verified `chromium-1234`; 93/93 tests, typecheck and build passed in that provisioning
-  session. This handoff does not claim a fresh application baseline.
-- Wave 3 engine work W3-A1 and W3-A2 is complete. The remaining implementation tasks are step 6
-  notifications and step 8 wind-down.
-- Four DrinkSmart worktrees exist. They are clean, but the raw Git inspection shows they are at
-  least three commits behind current `main`; two also have historical branch-only commits.
-  Never reset or synchronize one until its agent has been identified and Oscar has approved reuse.
-- `traycer agent list --json` returned no rows from this TUI, so durable history supplies candidate
-  IDs only. The new session must obtain a live Traycer inventory before treating an agent as warm.
+- The integration target is `/home/oscar/DrinkSmart` on `main`.
+- Before this handoff commit, `main` was clean at `d11c8bc`.
+- Four warm Traycer worktrees are clean at `07c21db`:
+  `traycer-redesign-step2-primitives`, `traycer-w1b-vessel-meter`,
+  `traycer-w2a-bottom-tab-bar`, and `traycer-w2b-plan-buzz-picker`. They deliberately have not
+  been advanced across the design-archive or handoff commits. Reuse requires Oscar's confirmation,
+  then synchronization by merge under `docs/workflows/delegation.md`.
+- `traycer agent list --json` returned no rows from this TUI. Do not infer live agent identities
+  from suffixes or historical IDs; reconcile the relay ledger and live Traycer inventory first.
+- This design/archive session did not rerun the application baseline because it changed only
+  design assets and documentation. Its checks were clean-tree/diff checks, 15/15 paired assets,
+  historical-bundle hash equality, path-reference reconciliation, and zero remaining
+  `:Zone.Identifier` files. Derive a fresh baseline before writing any Wave 4 spec.
 
-The git visualiser remains built and accepted at `/home/oscar/git_visual_system`. Playwright is now
-provisioned there too, but its separate Luna visual-check phase remains pending. Oscar's current
-direction is to open the next Codex TUI for DrinkSmart Wave 3, so Wave 3 is the canonical next task;
-do not silently fold the git-visualiser visual check into this kickoff.
+## Wave 4 starting boundary
 
-## Required startup sequence
+Wave 4 covers the six previously undrawn application areas:
 
-1. From the Traycer-launched Codex TUI in `/home/oscar/DrinkSmart`, invoke
-   `$codex-tui-relay` as the first message.
-2. Locate or provision exactly one epic-scoped `codex-tui-receiver`, activate it, and complete the
-   no-code smoke test in `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`.
-3. Confirm the receiver is OpenCode GUI / DeepSeek V4 Flash / max, stayed passive, changed no files,
-   preserved a test message, and has no unread test message after the processed marker.
-4. Invoke `$kickoff`; kickoff is read-only.
-5. Read the files listed below and inspect current Git, Traycer-agent, and Traycer-worktree state.
-6. Before any worktree synchronization, spec, or implementation commission, present Oscar with the
-   proposed agent-to-task map, including full names, IDs, harness/model, worktree paths, sync needs,
-   and why each model fits. Wait for his confirmation.
-
-## Preliminary Wave 3 roster to verify and present
-
-This is a recommendation, not dispatch authorization:
-
-| Role | Recommended target | Task |
+| Section | Surface | Design frames |
 | --- | --- | --- |
-| Orchestrator | Current Traycer Codex TUI with `$codex-tui-relay` active | Plan, write specs, poll receiver, answer agents, run `speccheck`, repair, integrate and commit; never implement as a child |
-| Inbound receiver | Persistent `codex-tui-receiver`: OpenCode GUI / DeepSeek V4 Flash / max / no worktree | Receive and preserve questions, status, blockers and handbacks only; never implement or decide |
-| Step 6 implementer | Warm DrinkSmart DeepSeek candidate `827aef2b-1d5e-463e-ba7e-72295ba3e223`, historically bound to `traycer-w2b-plan-buzz-picker` | Notification scheduling/actions and web reminder behavior; non-visual platform/state work |
-| Step 8 implementer | Warm DrinkSmart DeepSeek candidate `2a14d713-f67e-4707-9c27-1606775f00da`, historically bound to `traycer-w2a-bottom-tab-bar` | Wind-down screen from the authoritative text-readable `1f-wind-down.html` and engine summary; this agent was previously earmarked for the task |
-| Later visual check | Warm DrinkSmart Luna-0 candidate `da47f88c-30cb-4b0e-ae9a-ac0b4d15ed74`, historically bound to `traycer-w1b-vessel-meter` | Separate final browser/screenshot acceptance under `visual_check.md`; not a writespec implementation and not contacted until the workflow halt plus Oscar's go-ahead |
+| §B | Profile | `4a` |
+| §C | Onboarding | `4b`, `4c` |
+| §D | Drink picker and custom-drink sheet | `4d`–`4f` |
+| §E | Menu scanner | `4g`–`4j` |
+| §F | Establishments | `4k`, `4l` |
+| §G | Anonymous-account upgrade | `4m`, `4n` |
 
-DeepSeek is recommended for both implementation specs because each has a complete textual authority:
-the notification contracts are code/state behavior, and wind-down has literal HTML values plus prose.
-Luna is reserved for the later visual-input/spatial acceptance pass. If the live inventory disproves
-any candidate identity, compatibility, or health, stop and recommend a fresh GUI agent/worktree
-rather than guessing or repurposing by suffix.
+The new shared numeric keypad field group is `4o`. The earlier form-control vocabulary in
+`1l`/`1m` is also designed but W1-C remains unimplemented. The locked primitives-first rule
+therefore makes W1-C plus `4o` the serialization boundary to plan before the screen specs.
+Do not guess the final spec count or file split: inspect the current React ownership first and make
+every concurrent implementation allowlist disjoint.
 
-## Wave 3 execution after Oscar confirms the roster
+## Required startup and execution sequence
 
-- Create two committed `writespec` specs with disjoint file allowlists and live verification
-  baselines. Do not quote the stale lint count from `tasks/todo.md`; run it.
-- Keep `--expect-reply` on both commissions and append the receiver transport preamble with the
-  actual receiver ID. Every implementer sends questions, status, blockers and complete handback
-  envelopes to the receiver.
-- Synchronize only the approved worktrees by merge, preserve unrelated or historical branch work,
-  install only if the lockfile changed, and verify agent model/effort after the first turn.
-- The tasks are intended for parallel implementation and batch integration only if the completed
-  specs prove their file sets disjoint. Point the git visualiser watcher at
-  `/home/oscar/DrinkSmart` if available; it observes but does not govern the work.
-- Poll the receiver throughout. Answer each pending message directly to its sender, then append the
-  matching `PROCESSED` marker.
-- On both handbacks, follow `docs/workflows/delegation.md`: merge to a scratch integration branch,
-  run one `speccheck`, repair inline, run one full baseline, fast-forward `main`, synchronize the
-  accepted worktrees, and keep agents warm.
-- Native iOS/Android notification behavior remains `BLOCKED` without real devices. Do not call web
-  fallback, typecheck, or build evidence native verification.
-- When Wave 3 implementation is accepted, reach the DrinkSmart final visual-check halt and wait for
-  Oscar before contacting Luna-0.
+1. In a Traycer-launched Codex TUI, activate `$codex-tui-relay` before kickoff or reading agent
+   messages. Confirm the epic ledger has no unprocessed Wave 3 commands or replies; restart the
+   waker if appropriate, with manual hub prompting as fallback.
+2. Invoke `$kickoff`, then read the files below and inspect current Git, worktree, agent, and relay
+   state. Treat this bundle as the continuation, but higher-authority locked decisions still win.
+3. Audit the Wave 4 prototypes and existing React files. Produce acceptance criteria and a
+   dependency/file-ownership map. Sequence W1-C and `4o` before consumers that require them.
+4. Inventory compatible warm agents. Present Oscar with the proposed full agent names, IDs,
+   harness/model/effort, worktrees, synchronization needs, task split, and rationale. Wait for his
+   confirmation before mutating worktrees or commissioning implementation.
+5. Run the live verification baseline. Write and commit every delegation through `writespec`,
+   including exact design authority, disjoint allowlists, current baseline results, exclusions, and
+   the fixed scope/closing blocks. DeepSeek is the default where literal HTML fully determines the
+   work; reserve Luna for a real visual-input or spatial-reasoning need.
+6. Follow all fifteen steps of `docs/workflows/delegation.md`: keep agents/worktrees warm, review
+   the merged tree on an integration branch with `speccheck`, repair inline, run one full baseline
+   after repairs, and advance `main` only by fast-forward.
+7. After all Wave 4 implementation is integrated, loudly announce the
+   `docs/workflows/visual_check.md` halt and wait for Oscar. Do not contact Luna until he says go.
+   Once authorized, follow that workflow in full, including tracked notes, selective working
+   screenshots, committed final milestones, independent orchestrator capture, baseline, and
+   fast-forward integration.
 
 ## Read first
 
 1. `AGENTS.md`
-2. `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`
-3. `docs/decisions.md`
-4. `docs/workflows/agent_selection.md`
-5. `docs/workflows/delegation.md`
+2. `docs/decisions.md`
+3. `docs/workflows/delegation.md`
+4. `docs/workflows/visual_check.md`
+5. `docs/workflows/agent_selection.md`
 6. `docs/workflows/verification.md`
-7. `tasks/todo.md`
-8. `design_handoffs/design_handoff_drinksmart/README.md` and
-   `design_handoffs/design_handoff_drinksmart/screens/1f-wind-down.html`
+7. `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`
+8. `tasks/todo.md`
+9. `docs/visual/01-current-state.md`
+10. `docs/visual/02-planned-changes.md`
+11. `docs/visual/03-design-requests.md`
+12. `design_handoffs/README.md`
+13. `design_handoffs/design_handoff_drinksmart/README.md` and
+    `screens/{1l-form-primitives,1m-sheet-radio-time-toast,4a-profile,4b-onboarding-stats,4c-onboarding-taste,4d-picker-categories,4e-picker-category,4f-picker-custom-sheet,4g-scanner-capture,4h-scanner-waiting,4i-scanner-review,4j-scanner-failed,4k-establishments,4l-establishments-empty,4m-auth-email,4n-auth-waiting,4o-keypad-field-group}.html`
 
-## Explicit exclusions
+## Explicit exclusions and boundaries
 
-- Do not push, deploy, migrate a remote database, rotate secrets, or publish a mobile build.
-- Do not use Codex TUI or the receiver as an implementation agent.
-- Do not commission, reconfigure, or synchronize a warm implementer before showing Oscar the live
-  roster and receiving confirmation.
-- Do not accept a receiver handback as implementation acceptance; `speccheck` remains mandatory.
-- Do not run the pending git-visualiser visual check as an implicit prerequisite for this Wave 3
-  kickoff. It remains separately pending unless Oscar directs otherwise.
-- Do not contact DrinkSmart Luna-0 for the final visual check until that workflow's explicit halt and
-  Oscar's go-ahead.
+- Never use the depreciated bundle as current authority.
+- Do not improvise the undrawn drink-detail edit or notification-permission screens.
+- Do not refactor `DrinksTab.tsx` beyond files and behavior explicitly required by an approved
+  Wave 4 spec.
+- Do not alter deterministic BAC/pacing formulas unless an approved spec explicitly places them in
+  scope.
+- Do not re-enable the light theme, add a dependency or styling system, or weaken RLS.
+- Do not push, deploy Supabase functions, apply remote migrations, rotate secrets, or publish a
+  mobile build.
+- Do not run the final visual check on the delegation path, and do not contact Luna before the
+  workflow halt plus Oscar's go-ahead.
 
 ## PROMPT
 
 ```text
-Continue DrinkSmart Wave 3 from /home/oscar/DrinkSmart on main.
+Continue DrinkSmart with Wave 4 from /home/oscar/DrinkSmart on main.
 
-First, confirm that $codex-tui-relay has already been activated in this new Traycer Codex TUI and
-that its persistent codex-tui-receiver passed the no-code smoke test. If it has not, stop Wave 3 and
-complete that activation first. Then inventory the live Traycer agents and worktrees.
+First confirm that $codex-tui-relay is active, reconcile the epic ledger and live Traycer
+agent/worktree inventory, and then follow this kickoff. Wave 3 is complete. The active Claude Design
+authority is design_handoffs/design_handoff_drinksmart/, with Wave 4 frames 4a–4o; never use the
+depreciated bundle as current authority.
 
-Before synchronizing a worktree, writing a commission, or delegating anything, tell Oscar exactly
-which full agent name/id/model/worktree you recommend for each role and wait for confirmation. The
-durable preliminary recommendation is: warm DeepSeek 827aef2b... for step 6 notifications; warm
-DeepSeek 2a14d713... for step 8 wind-down; keep warm DrinkSmart Luna-0 da47f88c... for the separate
-final visual check. Verify every identity live because the previous TUI could not list agents.
+Start Wave 4 by auditing the current React ownership and breaking §B–§G into committed writespec
+delegation specs with exact acceptance criteria and disjoint file allowlists. The locked
+primitives-first rule applies: W1-C form controls from 1l/1m remain unimplemented, and the new 4o
+numeric keypad field group is shared by Wave 4, so plan that primitive boundary before its screen
+consumers. Do not guess the number of specs or split files by screen name alone.
 
-After Oscar confirms, write and commit two writespec specs with disjoint scopes and live baselines,
-commission both GUI implementers with --expect-reply plus the receiver transport preamble, and
-follow docs/workflows/delegation.md through one batch speccheck, inline repair, one full baseline
-and fast-forward integration. Native notification verification stays BLOCKED without real devices.
-At the final visual-check stage, halt and wait for Oscar before contacting Luna-0. Never push.
+Before synchronizing or mutating a worktree or commissioning an implementer, show Oscar the proposed
+full agent roster, model/harness/effort, worktree paths, sync needs, task/file split, and rationale,
+and wait for confirmation. Then derive the baseline live, commission through the relay, and follow
+all fifteen steps of docs/workflows/delegation.md through speccheck, inline repair, one post-repair
+full baseline, and fast-forward integration.
+
+When all Wave 4 implementation is integrated, announce the visual-check halt loudly and wait for
+Oscar before contacting Luna. Once authorized, follow docs/workflows/visual_check.md fully,
+including the visual-history notes, working captures, committed final milestones, and independent
+orchestrator pass. Never push or deploy.
 ```

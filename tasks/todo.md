@@ -135,9 +135,11 @@ step is one spec. Every spec states its baseline explicitly:
 
 ## Exclusions
 
-Not designed, not in scope: Profile/onboarding (`StatsForm`, `PreferencesPicker`), the drink picker and
-menu scanner, establishment browsing, auth. A `DrinksTab.tsx` refactor beyond its meter. Re-enabling a
-light theme. Pushing to `origin`.
+Profile/onboarding (`StatsForm`, `PreferencesPicker`), the drink picker and menu scanner,
+establishment browsing, and account upgrade are now designed as Wave 4 and are no longer excluded.
+Still excluded: undrawn drink-detail editing and notification-permission screens; unrelated
+`DrinksTab.tsx` refactoring beyond the exact Wave 4 surface work; re-enabling a light theme; and
+pushing to `origin`.
 
 ## Agent infrastructure — Codex TUI receiver adapter (2026-08-10)
 
