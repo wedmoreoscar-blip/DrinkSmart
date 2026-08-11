@@ -1,70 +1,97 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
+import { useAppContext } from '@/contexts/AppContext';
+import { buildTimelineNotifications } from '@/lib/notificationService';
+import type { TimelineEntry } from '@/lib/sessionEngine';
 
-type TimelineEntry = {
-  drinkId: string;
-  drinkName: string;
-  time: Date;
-  icon: string;
-  unitNumber: number;
-  totalUnits: number;
+const REMINDER_WINDOW_MS = 1500;
+
+export const isReminderDue = (nowMs: number, scheduledMs: number): boolean => {
+  const elapsedMs = nowMs - scheduledMs;
+  return elapsedMs >= 0 && elapsedMs < REMINDER_WINDOW_MS;
 };
 
 /**
- * Hook to show toast notifications for drink reminders in the web browser.
- * Checks every second if any drink time has been reached and shows a toast.
+ * Hook to show toast notifications for drink and break reminders in the web
+ * browser. Checks every second if any timeline time has been reached and shows
+ * a toast, deduplicating by the stable timeline entryId.
  */
 export const useWebDrinkReminders = (
   timeline: TimelineEntry[],
   enabled: boolean
 ) => {
-  // Track which drink times have already been notified (by their timestamp)
-  const notifiedTimesRef = useRef<Set<number>>(new Set());
+  const { markTimelineEntryHadIt, delayTimelineEntry } = useAppContext();
 
-  // Reset notified times when timeline changes significantly
+  // Track which timeline entries have already been notified (by entryId)
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
+
+  // Build the notification copy once per timeline, shared with the native
+  // scheduling model so both surfaces say the same thing.
+  const reminders = useMemo(() => buildTimelineNotifications(timeline), [timeline]);
+
+  // Reset notified entries when timeline is empty or completely different
   useEffect(() => {
-    // Clear notifications if timeline is empty or completely different
     if (timeline.length === 0) {
-      notifiedTimesRef.current.clear();
+      notifiedIdsRef.current.clear();
     }
   }, [timeline]);
 
   const checkAndNotify = useCallback(() => {
-    if (!enabled || timeline.length === 0) return;
+    if (!enabled || reminders.length === 0) return;
 
     const now = new Date();
 
-    timeline.forEach((entry) => {
-      const entryTime = entry.time.getTime();
-      const timeDiff = now.getTime() - entryTime;
-
-      // Check if we're within the notification window (trigger early so the center of 
-      // the moving indicator aligns with the drink icon center when the toast appears)
-      // We trigger 1500ms early to account for the visual positioning of the pulsing indicator
-      const triggerOffset = 1500; // ms early
+    reminders.forEach((reminder) => {
+      const entryTime = reminder.time.getTime();
       if (
-        timeDiff >= -triggerOffset &&
-        timeDiff < 500 &&
-        !notifiedTimesRef.current.has(entryTime)
+        isReminderDue(now.getTime(), entryTime) &&
+        !notifiedIdsRef.current.has(reminder.entryId)
       ) {
-        notifiedTimesRef.current.add(entryTime);
+        notifiedIdsRef.current.add(reminder.entryId);
 
-        const unitText =
-          entry.totalUnits > 1
-            ? ` (${entry.unitNumber}/${entry.totalUnits})`
-            : '';
-
-        toast(`${entry.icon} Time to drink!`, {
-          description: `${entry.drinkName}${unitText}`,
-          duration: 10000,
-          action: {
-            label: 'Cheers! 🍻',
-            onClick: () => {},
-          },
-        });
+        if (reminder.actionTypeId) {
+          // Alcohol reminders carry the same two actions, in the same order:
+          // "Had it" first (left), "+15 min" second (right).
+          toast(reminder.title, {
+            description: reminder.body,
+            duration: 10000,
+            cancel: {
+              label: 'Had it',
+              onClick: () => markTimelineEntryHadIt(reminder.entryId),
+            },
+            action: {
+              label: '+15 min',
+              onClick: () => delayTimelineEntry(reminder.entryId, 15),
+            },
+            classNames: {
+              cancelButton:
+                'group-[.toast]:!bg-transparent group-[.toast]:text-primary-hover group-[.toast]:font-medium group-[.toast]:px-4 group-[.toast]:flex-1',
+              actionButton:
+                'group-[.toast]:!bg-transparent group-[.toast]:text-foreground group-[.toast]:font-normal group-[.toast]:px-4 group-[.toast]:flex-1 group-[.toast]:border-l group-[.toast]:border-border',
+            },
+            cancelButtonStyle: {
+              height: 'auto',
+              minHeight: '60px',
+              fontSize: '19px',
+              fontWeight: 500,
+            },
+            actionButtonStyle: {
+              height: 'auto',
+              minHeight: '60px',
+              fontSize: '19px',
+              fontWeight: 400,
+            },
+          });
+        } else {
+          // Break reminders are the quieter copy-only variant.
+          toast(reminder.title, {
+            description: reminder.body,
+            duration: 10000,
+          });
+        }
       }
     });
-  }, [enabled, timeline]);
+  }, [enabled, reminders, markTimelineEntryHadIt, delayTimelineEntry]);
 
   // Check every second
   useEffect(() => {
@@ -77,10 +104,10 @@ export const useWebDrinkReminders = (
     return () => clearInterval(interval);
   }, [enabled, checkAndNotify]);
 
-  // Clear notified times when disabled
+  // Clear notified entries when disabled
   useEffect(() => {
     if (!enabled) {
-      notifiedTimesRef.current.clear();
+      notifiedIdsRef.current.clear();
     }
   }, [enabled]);
 };

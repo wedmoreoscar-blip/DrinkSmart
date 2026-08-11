@@ -3,6 +3,11 @@
 Create this persistent hub manually in Traycer before invoking `$codex-tui-relay` in a new epic.
 Codex TUI creates the relay artifact; the hub performs only the A2A operations recorded there.
 
+**Three things are the user's to create, and Codex can create none of them:** this hub, the
+`a2a-hub-waker` sender agent, and the waker daemon. This file covers the hub; the other two are below
+under *Then the waker*, and in full in `RELAY_WAKER.md`. A relay with a hub but no daemon works, but
+every queued command waits for the user to prompt the hub by hand.
+
 ## Agent settings
 
 | Setting | Value |
@@ -54,7 +59,33 @@ The ledger does not need to exist yet. `$codex-tui-relay` creates it after disco
 3. If creation timed out or the provider, model or effort is wrong, retire the hub through Traycer's
    UI and create it again.
 4. Start a Traycer Codex TUI in the same epic and invoke `$codex-tui-relay`.
-5. After the skill reports `READY`, invoke `$kickoff` and continue the recorded project work.
+5. Set up the waker (below).
+6. After the skill reports `READY`, invoke `$kickoff` and continue the recorded project work.
+
+## Then the waker
+
+Without it, the hub is only ever woken by the user typing `Check the relay ledger.` Two more manual
+steps, neither of which Codex may perform. `RELAY_WAKER.md` is authoritative; this is the short form.
+
+1. **Create a second agent named exactly `a2a-hub-waker`.** Harness, model, directory and permissions
+   are all irrelevant. Send it `do nothing` if creation requires a first message, then leave it idle
+   forever — a real session sidesteps the untested question of whether a never-run agent is accepted
+   as a sender. It exists solely so the daemon has
+   a real sender id, because Traycer refuses any A2A send without one. Never create two agents with
+   this name: duplicates break name resolution and the daemon can no longer send at all.
+2. **Start the daemon** from a terminal whose `TRAYCER_EPIC_ID` is this epic — any Traycer agent
+   terminal in the epic already has it set:
+
+   ```bash
+   tools/waker-daemon-start check    # dry run; wakes nothing
+   tools/waker-daemon-start start
+   tools/waker-daemon-start status   # expect RUNNING plus two RESOLVE lines
+   ```
+
+Both agents are addressed by name, never by id, so recreating either one needs no edit anywhere.
+
+Order does not matter against step 4: the daemon tolerates a ledger that does not exist yet and picks
+it up when `$codex-tui-relay` creates one.
 
 Create one hub per Traycer epic. Reuse that hub and the epic's single ledger across later Codex TUI
 sessions; do not create one hub per Codex session.

@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useAppContext } from "@/contexts/AppContext";
+import { deriveSessionPhase } from "@/lib/sessionEngine";
 import { Bell, BellOff, Clock, Plus, RotateCcw } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWebDrinkReminders } from "@/hooks/useWebDrinkReminders";
 import { getUnitDisplayText } from "@/lib/timelineHelpers";
+import WindDownScreen from "./WindDownScreen";
 import { OZ_ML, PINT_ML, SHOT_ML, GLASS_ML } from "@/lib/drinkConstants";
 import {
   DndContext,
@@ -193,6 +195,17 @@ const TimelineTab = ({ onNext }: TimelineTabProps) => {
         </Card>
       </div>
     );
+  }
+
+  const phase = deriveSessionPhase(
+    state.drinkTimeline,
+    state.consumedTimelineEntries,
+    state.effectivePlanEndTime,
+    currentTime,
+  );
+
+  if (phase === "winding-down") {
+    return <WindDownScreen currentTime={currentTime} onNext={onNext} />;
   }
 
   return (

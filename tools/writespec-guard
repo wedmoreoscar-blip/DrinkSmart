@@ -8,6 +8,12 @@ writespec scope.md + closing.md blocks.
 
 Replies (--response-id) are not commissions and pass through.
 
+Only an actual invocation is governed. The phrase appearing inside a heredoc,
+a commit message, or a grep pattern is a mention, not a send. Fixed 2026-08-11
+after this guard denied the commit that introduced the relay waker, because the
+commit message discussed `traycer agent send`. `tools/check-agent-setup` holds
+the regression cases.
+
 Messages carrying the literal marker [no-spec] also pass through. The sender
 adds it deliberately to assert the message commissions no work: a status ping,
 an acknowledgement, a stand-down. It is bypassable on purpose - this guard
@@ -58,6 +64,36 @@ def norm(s):
     return re.sub(r"\s+", " ", s).strip()
 
 
+# A heredoc body is data, not shell: a commit message or spec that merely discusses
+# `traycer agent send` must not be read as issuing one. Stripping bodies before the
+# invocation test fixes the false denial that blocked this guard's own commit.
+HEREDOC_RE = re.compile(
+    r"<<-?\s*(['\"]?)([A-Za-z_]\w*)\1.*?^\s*\2\s*$",
+    re.DOTALL | re.MULTILINE,
+)
+
+# Wrappers and env assignments legitimately precede the real command.
+_WRAPPER = (
+    r"(?:\w+=\S*\s+|nohup\s+|setsid\s+|command\s+|time\s+|"
+    r"env\s+(?:-[iu]\s+\S+\s+|\w+=\S*\s+)*)*"
+)
+
+# The phrase must sit at a command-start position to count as an invocation; a
+# mention inside prose sits mid-sentence and is ignored. A bare quote is NOT a
+# boundary, because `grep "traycer agent send" docs/` is a normal thing to do and
+# denying it is worse than missing the contrived `bash -c` route. Only a quote
+# introducing a nested shell counts.
+INVOKE_RE = re.compile(
+    r"""(?:\A|[;&|()\n]|\|\||&&|-l?c\s*["'])\s*""" + _WRAPPER
+    + r"traycer\s+agent\s+send\b"
+)
+
+
+def commissions_a_send(cmd):
+    """True when cmd actually invokes `traycer agent send`, not merely mentions it."""
+    return bool(INVOKE_RE.search(HEREDOC_RE.sub(" ", cmd)))
+
+
 def main():
     try:
         payload = json.load(sys.stdin)
@@ -68,7 +104,7 @@ def main():
         allow()
 
     cmd = payload.get("tool_input", {}).get("command", "")
-    if "traycer agent send" not in cmd:
+    if not commissions_a_send(cmd):
         allow()
     if "--response-id" in cmd:
         allow()  # a reply, not a commission

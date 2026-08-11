@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# Start, stop, and inspect the Codex TUI relay waker daemon.
+#
+# No agent ids appear anywhere in here on purpose. Traycer ids change whenever
+# an agent is recreated; the daemon resolves the hub and sender by name at
+# launch and again after any failed send, so a recreated agent heals itself
+# without editing or restarting anything.
+#
+#   tools/waker-daemon-start            start it (detached, survives this shell)
+#   tools/waker-daemon-start status     is it alive, and what did it last do
+#   tools/waker-daemon-start stop       stop it
+#   tools/waker-daemon-start restart    stop then start
+#   tools/waker-daemon-start check      dry run: detect without waking the hub
+#
+# The epic is taken from TRAYCER_EPIC_ID, else RELAY_WAKER_EPIC_ID, else a second
+# argument (`start <epic-id>`), else discovered from the one epic holding a relay
+# ledger. Override the agent names with RELAY_WAKER_HUB_NAME / _SENDER_NAME.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WAKER="$ROOT/tools/relay-hub-waker"
+
+HUB_NAME="${RELAY_WAKER_HUB_NAME:-codex-tui-a2a-hub}"
+SENDER_NAME="${RELAY_WAKER_SENDER_NAME:-a2a-hub-waker}"
+
+# Only an agent's own shell inherits TRAYCER_EPIC_ID. A Traycer UI terminal tab
+# does not, so requiring the variable made this script unrunnable from exactly
+# the place a user would try first. Fall back to finding the epic that already
+# owns a relay ledger, which is unambiguous whenever one epic runs the relay.
+EPIC_ID="${TRAYCER_EPIC_ID:-${RELAY_WAKER_EPIC_ID:-${2:-}}}"
+
+if [[ -z "$EPIC_ID" ]]; then
+  mapfile -t _found < <(
+    find "$HOME/.traycer/epics" -mindepth 4 -maxdepth 4 \
+      -path "*/artifacts/codex-tui-a2a-ledger/index.md" 2>/dev/null
+  )
+  if [[ ${#_found[@]} -eq 1 ]]; then
+    EPIC_ID="$(basename "$(dirname "$(dirname "$(dirname "${_found[0]}")")")")"
+    echo "note     discovered epic $EPIC_ID from its relay ledger"
+  elif [[ ${#_found[@]} -gt 1 ]]; then
+    echo "ERROR: ${#_found[@]} epics have a relay ledger, so the epic is ambiguous." >&2
+    printf '       %s\n' "${_found[@]}" >&2
+    echo "       Pass one explicitly: $(basename "$0") ${1:-start} <epic-id>" >&2
+    exit 2
+  else
+    echo "ERROR: no epic id, and no relay ledger found to infer one from." >&2
+    echo "       Run from a Traycer agent shell, or pass it explicitly:" >&2
+    echo "         $(basename "$0") ${1:-start} <epic-id>" >&2
+    echo "       A brand-new epic has no ledger until \$codex-tui-relay creates one." >&2
+    exit 2
+  fi
+fi
+
+STATE_DIR="$HOME/.traycer/relay-waker"
+LOG="$STATE_DIR/$EPIC_ID.log"
+PIDFILE="$STATE_DIR/$EPIC_ID.pid"
+mkdir -p "$STATE_DIR"
+
+running_pid() {
+  [[ -s "$PIDFILE" ]] || return 1
+  local pid
+  pid="$(tr -d '[:space:]' <"$PIDFILE")"
+  [[ -n "$pid" ]] || return 1
+  # A pidfile can outlive its process, and the pid can be recycled by something
+  # unrelated, so confirm the process really is a waker before trusting it.
+  if kill -0 "$pid" 2>/dev/null && tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null | grep -q relay-hub-waker; then
+    echo "$pid"
+    return 0
+  fi
+  return 1
+}
+
+cmd_status() {
+  local pid
+  if pid="$(running_pid)"; then
+    echo "RUNNING  pid $pid"
+  else
+    echo "STOPPED"
+  fi
+  echo "epic     $EPIC_ID"
+  echo "hub      $HUB_NAME"
+  echo "sender   $SENDER_NAME"
+  echo "log      $LOG"
+  if [[ -s "$LOG" ]]; then
+    echo "--- last 5 log lines ---"
+    tail -n 5 "$LOG"
+  fi
+}
+
+cmd_stop() {
+  local pid
+  if pid="$(running_pid)"; then
+    kill "$pid"
+    for _ in $(seq 20); do
+      running_pid >/dev/null || { echo "STOPPED  pid $pid"; return 0; }
+      sleep 0.25
+    done
+    kill -9 "$pid" 2>/dev/null || true
+    echo "KILLED   pid $pid"
+  else
+    echo "STOPPED  (was not running)"
+  fi
+}
+
+cmd_check() {
+  echo "Dry run — detects pending work, wakes nothing, spends nothing."
+  "$WAKER" \
+    --epic-id "$EPIC_ID" \
+    --hub-name "$HUB_NAME" \
+    --sender-name "$SENDER_NAME" \
+    --once --dry-run
+  echo "(no DRYRUN line above means nothing is pending, which is normal)"
+}
+
+cmd_start() {
+  local pid
+  if pid="$(running_pid)"; then
+    echo "ALREADY RUNNING  pid $pid  (use restart to replace it)"
+    return 0
+  fi
+
+  # Fail loudly here rather than in a background process nobody is watching.
+  # --preflight only resolves the two agents: it never reads the ledger and can
+  # never ping the hub, so a name typo cannot cost a turn.
+  if ! "$WAKER" --epic-id "$EPIC_ID" --hub-name "$HUB_NAME" \
+       --sender-name "$SENDER_NAME" --preflight >"$STATE_DIR/.preflight" 2>&1; then
+    echo "ERROR: preflight failed — the daemon was not started." >&2
+    sed 's/^/       /' "$STATE_DIR/.preflight" >&2
+    if grep -q "caller identity" "$STATE_DIR/.preflight"; then
+      # Resolving names needs a Traycer identity, which a UI terminal tab lacks.
+      echo "       This shell has no Traycer identity. Either run it from an agent" >&2
+      echo "       shell, or supply the sender id once, which doubles as identity:" >&2
+      echo "         RELAY_WAKER_SENDER_ID=<a2a-hub-waker id> $(basename "$0") ${1:-start}" >&2
+    else
+      echo "       Check that agents named '$HUB_NAME' and '$SENDER_NAME' exist." >&2
+    fi
+    rm -f "$STATE_DIR/.preflight"
+    exit 1
+  fi
+  rm -f "$STATE_DIR/.preflight"
+
+  # setsid detaches from this terminal; without it the daemon dies when the
+  # shell closes, which is a confusing way to discover the relay went quiet.
+  # stdout is dropped because the daemon already writes those lines to $LOG
+  # itself; stderr is kept, so an unhandled traceback lands in the log instead of
+  # vanishing. A daemon that dies silently is otherwise undiagnosable after the
+  # fact -- which is exactly what happened on 2026-08-11.
+  nohup setsid "$WAKER" \
+    --epic-id "$EPIC_ID" \
+    --hub-name "$HUB_NAME" \
+    --sender-name "$SENDER_NAME" \
+    --log "$LOG" \
+    --pidfile "$PIDFILE" \
+    >/dev/null 2>>"$LOG" &
+
+  for _ in $(seq 20); do
+    if pid="$(running_pid)"; then
+      echo "STARTED  pid $pid"
+      echo "log      $LOG"
+      return 0
+    fi
+    sleep 0.25
+  done
+
+  echo "ERROR: daemon did not come up; last log lines:" >&2
+  tail -n 10 "$LOG" >&2 2>/dev/null || true
+  exit 1
+}
+
+case "${1:-start}" in
+  start)   cmd_start ;;
+  stop)    cmd_stop ;;
+  restart) cmd_stop; cmd_start ;;
+  status)  cmd_status ;;
+  check)   cmd_check ;;
+  *)
+    echo "usage: $(basename "$0") [start|stop|restart|status|check]" >&2
+    exit 2
+    ;;
+esac
