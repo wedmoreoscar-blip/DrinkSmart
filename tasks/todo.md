@@ -61,12 +61,22 @@ The largest single step. Includes the code half of the level-7 decision.
 - Copy rule: additions and locked drinks read as *adjustment*, never breakage. Never "you've gone off plan".
 - Ship 1d. 1e (proportional time axis) is an option only if the night is guaranteed to fit unscrolled.
 
-### 6. Notification (1g) — `notificationService.ts`, `useWebDrinkReminders`
+### 6. Notification (1g) — `notificationService.ts`, `useWebDrinkReminders` — **COMPLETE**
 - Acceptance: one notification per drink at the scheduled time; the same two actions (`Had it`,
   `+15 min`) in the same two places every time; both must work without opening the app; break
   notifications are the quieter variant with no actions.
 - Verification is `BLOCKED` on real iOS/Android hardware. `npm run dev` exercises the web toast
   fallback only. State that boundary; do not report native behaviour as verified.
+- **Accepted and integrated at `789323f`.** Native and web reminders share stable entry IDs and copy;
+  alcohol reminders expose `Had it` then `+15 min`, while break reminders remain action-free.
+  Checker-derived tests cover copy, future-only scheduling, stable IDs, duplicate timestamps, web
+  timing, native action dispatch, and listener lifecycle.
+- **Acceptance repairs:** the checker replaced the scheduled notification timestamp with the real
+  action time for `Had it`; removed the web fallback's 1.5-second early trigger; made the single
+  native listener pair fan out only to live callbacks with safe partial-setup cleanup; and moved the
+  60px split-action styling off global Sonner defaults so unrelated toast types remain unchanged.
+  Real foreground/background/killed-process delivery and platform styling remain **BLOCKED** on
+  physical iOS/Android device infrastructure.
 
 ### 7. Engine work — `src/contexts/AppContext.tsx` — **COMPLETE**
 Three things the engine cannot currently express. Logic, not styling. Highest-risk step.
@@ -82,7 +92,7 @@ Three things the engine cannot currently express. Logic, not styling. Highest-ri
   Fixed inline by the checker, with six tests derived from the spec. The submitted suite had
   reported that clause as covered by a test containing no anchor; it is renamed to what it
   exercises. Treat delivered tests as claims, not evidence — see `docs/workflows/delegation.md`.
-- Steps 5, 6, and 8 may now be dispatched; they consume this engine.
+- Steps 5, 6, and 8 now consume this engine and are integrated.
 - **Breaks and water entries.** Every timeline entry currently carries ethanol; a 0% ABV row cannot be
   represented and would take 0% of target and 0 time, clustering at t=0. Needs its own entry type
   driven by duration, with an optional volume and no BAC contribution.
@@ -100,11 +110,16 @@ Three things the engine cannot currently express. Logic, not styling. Highest-ri
   approved on 2026-08-09. DeepSeek owns the planner, persistence, and engine implementation/tests;
   Luna is reserved for later visual wiring and browser acceptance.
 
-### 8. Wind-down screen (1f) — new
+### 8. Wind-down screen (1f) — **COMPLETE**
 Depends on step 7's terminal state.
 - Acceptance: `SOBER AROUND` + time at 76px; three stat rows, 60px min-height, group radii
   `14 14 4 4` / `4` / `4 4 14 14`; the disclaimer wording kept verbatim; one care card; `Get home`
   (64px) and `End session` (56px text-only). No score, no streak, no praise.
+- **Accepted and integrated at `789323f`.** `TimelineTab` gates exclusively on
+  `deriveSessionPhase`; `WindDownScreen` consumes `deriveWindDownSummary`, renders honest em-dash
+  states, exact terminal copy and controls, and forwards `End session` through the existing
+  `onNext`. Checker-derived tests cover phase wiring, live formatting, restrained copy, and null
+  states. Final pixel and screenshot acceptance belongs to the separate Luna visual check.
 
 ## Delegation and verification
 
