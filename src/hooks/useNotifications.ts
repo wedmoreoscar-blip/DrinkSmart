@@ -3,11 +3,14 @@ import {
   isNativePlatform,
   checkNotificationPermissions,
   requestNotificationPermissions,
-  scheduleDrinkNotifications,
+  scheduleTimelineNotifications,
   cancelAllDrinkNotifications,
   registerNotificationListeners,
-  DrinkNotification,
+  ACTION_HAD_IT,
+  ACTION_PLUS_15,
 } from '@/lib/notificationService';
+import type { TimelineEntry } from '@/lib/sessionEngine';
+import { useAppContext } from '@/contexts/AppContext';
 
 type PermissionState = 'unknown' | 'granted' | 'denied' | 'prompt' | 'not-available';
 
@@ -32,11 +35,19 @@ const safeStorageSet = (key: string, value: string): void => {
 };
 
 export const useNotifications = () => {
+  const { markTimelineEntryHadIt, delayTimelineEntry } = useAppContext();
   const [isNative, setIsNative] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<PermissionState>('unknown');
   const [isLoading, setIsLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const callbacksRef = useRef({ markTimelineEntryHadIt, delayTimelineEntry });
+
+  // Keep the latest AppContext callbacks for the long-lived native listener
+  // without re-registering it on every render.
+  useEffect(() => {
+    callbacksRef.current = { markTimelineEntryHadIt, delayTimelineEntry };
+  }, [markTimelineEntryHadIt, delayTimelineEntry]);
 
   // Check platform and permissions on mount
   useEffect(() => {
@@ -53,7 +64,14 @@ export const useNotifications = () => {
       }
 
       // Register listeners (handle fast unmount race)
-      const cleanup = await registerNotificationListeners();
+      const cleanup = await registerNotificationListeners((actionId, entryId, actionTime) => {
+        const callbacks = callbacksRef.current;
+        if (actionId === ACTION_HAD_IT) {
+          callbacks.markTimelineEntryHadIt(entryId, actionTime);
+        } else if (actionId === ACTION_PLUS_15) {
+          callbacks.delayTimelineEntry(entryId, 15);
+        }
+      });
       if (cancelled) {
         cleanup();
         return;
@@ -111,28 +129,10 @@ export const useNotifications = () => {
 
   // Schedule notifications from timeline
   const scheduleFromTimeline = useCallback(
-    async (
-      timeline: Array<{
-        drinkId: string;
-        drinkName: string;
-        time: Date;
-        icon: string;
-        unitNumber: number;
-        totalUnits: number;
-      }>
-    ): Promise<boolean> => {
+    async (timeline: TimelineEntry[]): Promise<boolean> => {
       if (!isNative || !notificationsEnabled) return false;
 
-      const notifications: DrinkNotification[] = timeline.map((entry) => ({
-        id: `${entry.drinkId}-${entry.unitNumber}`,
-        drinkName: entry.drinkName,
-        time: entry.time,
-        icon: entry.icon,
-        unitNumber: entry.unitNumber,
-        totalUnits: entry.totalUnits,
-      }));
-
-      return scheduleDrinkNotifications(notifications);
+      return scheduleTimelineNotifications(timeline);
     },
     [isNative, notificationsEnabled]
   );
