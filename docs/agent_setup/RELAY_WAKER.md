@@ -143,9 +143,12 @@ and `tools/relay-hub-waker`, which is a real constraint in practice:
   own fallback for an entry with no recorded branch, printed as `entry.branch ?? "(detached)"`. It is
   not a git detached HEAD and nothing is wrong with the repo. Traycer models the main checkout as a
   *workspace path* that worktrees are cut from, not as a worktree, even though git counts it as one.
-- **`TRAYCER_EPIC_ID` comes from the agent process environment, not from the worktree.** An agent
-  running in the main checkout has it set and can start the daemon there, which is usually the easiest
-  route: the main checkout is by definition the most up-to-date, so the tools are always present.
+- **Only an agent's own shell inherits `TRAYCER_EPIC_ID`.** A Traycer **UI terminal tab does not**,
+  which is the place a user would try first, so the launcher no longer requires the variable. It takes
+  the epic from `TRAYCER_EPIC_ID`, else `RELAY_WAKER_EPIC_ID`, else a second argument
+  (`start <epic-id>`), else it discovers the one epic that already holds a relay ledger and says so.
+  Discovery is only ambiguous if two epics run the relay, and only unavailable on a brand-new epic
+  whose ledger `$codex-tui-relay` has not yet created — both cases print the explicit form to use.
 
 Starting the daemon from an agent terminal belonging to a **different epic** watches a ledger nobody
 writes to, and presents as a silent no-op. The launcher prints epic, hub and sender on `start` and

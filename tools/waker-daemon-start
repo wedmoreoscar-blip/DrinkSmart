@@ -12,21 +12,44 @@
 #   tools/waker-daemon-start restart    stop then start
 #   tools/waker-daemon-start check      dry run: detect without waking the hub
 #
-# Override the defaults with RELAY_WAKER_HUB_NAME / RELAY_WAKER_SENDER_NAME.
+# The epic is taken from TRAYCER_EPIC_ID, else RELAY_WAKER_EPIC_ID, else a second
+# argument (`start <epic-id>`), else discovered from the one epic holding a relay
+# ledger. Override the agent names with RELAY_WAKER_HUB_NAME / _SENDER_NAME.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WAKER="$ROOT/tools/relay-hub-waker"
 
-EPIC_ID="${TRAYCER_EPIC_ID:-}"
 HUB_NAME="${RELAY_WAKER_HUB_NAME:-codex-tui-a2a-hub}"
 SENDER_NAME="${RELAY_WAKER_SENDER_NAME:-a2a-hub-waker}"
 
+# Only an agent's own shell inherits TRAYCER_EPIC_ID. A Traycer UI terminal tab
+# does not, so requiring the variable made this script unrunnable from exactly
+# the place a user would try first. Fall back to finding the epic that already
+# owns a relay ledger, which is unambiguous whenever one epic runs the relay.
+EPIC_ID="${TRAYCER_EPIC_ID:-${RELAY_WAKER_EPIC_ID:-${2:-}}}"
+
 if [[ -z "$EPIC_ID" ]]; then
-  echo "ERROR: TRAYCER_EPIC_ID is not set. Run this from a Traycer agent shell," >&2
-  echo "       or export TRAYCER_EPIC_ID=<epic-id> first." >&2
-  exit 2
+  mapfile -t _found < <(
+    find "$HOME/.traycer/epics" -mindepth 4 -maxdepth 4 \
+      -path "*/artifacts/codex-tui-a2a-ledger/index.md" 2>/dev/null
+  )
+  if [[ ${#_found[@]} -eq 1 ]]; then
+    EPIC_ID="$(basename "$(dirname "$(dirname "$(dirname "${_found[0]}")")")")"
+    echo "note     discovered epic $EPIC_ID from its relay ledger"
+  elif [[ ${#_found[@]} -gt 1 ]]; then
+    echo "ERROR: ${#_found[@]} epics have a relay ledger, so the epic is ambiguous." >&2
+    printf '       %s\n' "${_found[@]}" >&2
+    echo "       Pass one explicitly: $(basename "$0") ${1:-start} <epic-id>" >&2
+    exit 2
+  else
+    echo "ERROR: no epic id, and no relay ledger found to infer one from." >&2
+    echo "       Run from a Traycer agent shell, or pass it explicitly:" >&2
+    echo "         $(basename "$0") ${1:-start} <epic-id>" >&2
+    echo "       A brand-new epic has no ledger until \$codex-tui-relay creates one." >&2
+    exit 2
+  fi
 fi
 
 STATE_DIR="$HOME/.traycer/relay-waker"
