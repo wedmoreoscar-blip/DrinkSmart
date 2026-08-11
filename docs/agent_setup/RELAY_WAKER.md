@@ -193,5 +193,27 @@ but the symptom is obvious — Codex has appended something and the hub has not 
 is one manual `Check the relay ledger.` The hub runs its cycle and the `relay-waker` skill restarts
 the daemon at the end of that turn. Autonomous again from there.
 
-Two ways to lose the daemon: `wsl --shutdown` and a reboot. Neither is detected. Starting it twice is
-harmless.
+### What actually kills it
+
+`wsl --shutdown` and reboots, as expected — but the common cause is neither, and it was found the hard
+way on 2026-08-11.
+
+**The daemon dies whenever Traycer's host service is reaped.** Anything launched from an agent shell
+inherits the cgroup `/user.slice/…/app.slice/ai.traycer.host.service`. `setsid` escapes the *session*,
+so the daemon survives its terminal closing — but a new session is still inside that cgroup, and when
+the cgroup goes, everything in it goes however well detached. The git visualiser's two servers were
+confirmed dead in the same window from the same cause.
+
+Nothing announces it. On 2026-08-11 the daemon woke the hub successfully, died shortly after, and the
+next status check reported `STOPPED` — which read as broken tooling rather than a reaped process.
+
+`stderr` is captured to the log, so a crash leaves a traceback; an absent traceback next to a dead
+process points at the cgroup rather than a bug.
+
+Escaping it properly means a `systemd --user` unit, which places the daemon in its own cgroup with
+`Restart=always` and would also remove the manual-recovery step above. Deliberately not built: judged
+more maintenance than the restart is worth. That trade should be revisited if reaping turns out to be
+frequent, because it defeats the end-of-turn liveness check — a daemon reaped while the hub is idle is
+noticed by nobody.
+
+Starting it twice is harmless.

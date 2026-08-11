@@ -142,13 +142,17 @@ cmd_start() {
 
   # setsid detaches from this terminal; without it the daemon dies when the
   # shell closes, which is a confusing way to discover the relay went quiet.
+  # stdout is dropped because the daemon already writes those lines to $LOG
+  # itself; stderr is kept, so an unhandled traceback lands in the log instead of
+  # vanishing. A daemon that dies silently is otherwise undiagnosable after the
+  # fact -- which is exactly what happened on 2026-08-11.
   nohup setsid "$WAKER" \
     --epic-id "$EPIC_ID" \
     --hub-name "$HUB_NAME" \
     --sender-name "$SENDER_NAME" \
     --log "$LOG" \
     --pidfile "$PIDFILE" \
-    >/dev/null 2>&1 &
+    >/dev/null 2>>"$LOG" &
 
   for _ in $(seq 20); do
     if pid="$(running_pid)"; then
