@@ -5,6 +5,13 @@ model_reasoning_effort = "high"
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 
+# The Traycer CLI reaches its local host service over the network, so a sandbox
+# without network access fails every `traycer` call while filesystem work still
+# succeeds. That fingerprint cost an hour on 2026-08-11: the relay ledger helper
+# worked, dry runs worked, and every agent list returned no result event.
+[sandbox_workspace_write]
+network_access = true
+
 [agents]
 enabled = true
 max_concurrent_threads_per_session = 6

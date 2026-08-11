@@ -28,6 +28,15 @@ SENDER_NAME="${RELAY_WAKER_SENDER_NAME:-a2a-hub-waker}"
 # does not, so requiring the variable made this script unrunnable from exactly
 # the place a user would try first. Fall back to finding the epic that already
 # owns a relay ledger, which is unambiguous whenever one epic runs the relay.
+# Outside an agent session neither id is set, and name resolution needs both. The
+# resolver finds them from Traycer's own window state and a cache it maintains, so
+# this works from an ordinary terminal without anyone typing an id.
+if [[ -z "${TRAYCER_AGENT_ID:-}" ]]; then
+  if identity="$("$ROOT/tools/traycer-identity" 2>/dev/null)"; then
+    eval "$identity"
+  fi
+fi
+
 EPIC_ID="${TRAYCER_EPIC_ID:-${RELAY_WAKER_EPIC_ID:-${2:-}}}"
 
 if [[ -z "$EPIC_ID" ]]; then

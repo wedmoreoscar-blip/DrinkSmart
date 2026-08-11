@@ -143,13 +143,15 @@ and `tools/relay-hub-waker`, which is a real constraint in practice:
   own fallback for an entry with no recorded branch, printed as `entry.branch ?? "(detached)"`. It is
   not a git detached HEAD and nothing is wrong with the repo. Traycer models the main checkout as a
   *workspace path* that worktrees are cut from, not as a worktree, even though git counts it as one.
-- **Name resolution needs a Traycer caller identity.** `traycer agent list` requires one of its own
-  and reports failure as a JSON object on stdout with a nonzero exit, so only an agent's own shell can
-  resolve names unaided. Outside one, supply the sender id once —
-  `RELAY_WAKER_SENDER_ID=<a2a-hub-waker id>` — and it doubles as that identity, since the daemon
-  already acts as that agent when sending. The hub stays resolved by name either way. Running from an
-  agent shell is preferable, because then *both* names resolve and recreating either agent still heals
-  itself.
+- **Name resolution needs a Traycer caller identity**, which `traycer agent list` takes from the
+  environment and only an agent's own shell inherits. The launcher no longer requires it:
+  `tools/traycer-identity` resolves both ids — the epic from Traycer's open-tab state
+  (`desktop-windows.json`, authoritative because an epic is reachable only through an open tab), and the
+  identity from `~/.cache/traycer/identity.env`, seeded whenever the resolver runs inside an agent
+  session and validated before being trusted. Any agent the user owns works as a caller, so a cached id
+  for a deleted agent is discarded and rediscovered. `tools/traycer-identity --check` prints what it
+  found. Failing that, `RELAY_WAKER_SENDER_ID=<a2a-hub-waker id>` doubles as the identity, since the
+  daemon already acts as that agent when sending.
 - **Only an agent's own shell inherits `TRAYCER_EPIC_ID`.** A Traycer **UI terminal tab does not**,
   which is the place a user would try first, so the launcher no longer requires the variable. It takes
   the epic from `TRAYCER_EPIC_ID`, else `RELAY_WAKER_EPIC_ID`, else a second argument
