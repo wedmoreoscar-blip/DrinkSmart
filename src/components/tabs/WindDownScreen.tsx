@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useAppContext } from "@/contexts/AppContext";
 import { deriveWindDownSummary } from "@/lib/sessionEngine";
 
@@ -11,6 +12,18 @@ const formatClock = (date: Date) =>
 
 const WindDownScreen = ({ currentTime, onNext }: WindDownScreenProps) => {
   const { state } = useAppContext();
+
+  useEffect(() => {
+    const tabBar = document.querySelector<HTMLElement>("[data-wind-down-tab-bar]");
+    if (!tabBar) return;
+
+    const previousDisplay = tabBar.style.display;
+    tabBar.style.display = "none";
+
+    return () => {
+      tabBar.style.display = previousDisplay;
+    };
+  }, []);
 
   const summary = deriveWindDownSummary({
     userMetrics: state.userMetrics,

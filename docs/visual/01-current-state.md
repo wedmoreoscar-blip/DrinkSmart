@@ -106,5 +106,16 @@ Confirmed on `main` after Wave 1 integration, 2026-08-08:
 > references, so without `-b` it compiles zero files and passes vacuously. It did exactly that for
 > the whole life of the project, concealing four real errors until 2026-08-08. See `CLAUDE.md`.
 
-- **Nothing has been rendered in a browser.** `npm run dev` has still not been run. Wave 1 is
-  typechecked and built, not seen. No claim in this file is visually verified.
+- **Historical Wave 1 note:** `npm run dev` had not been run at that checkpoint, so Wave 1 was
+  typechecked and built, not seen. The Wave 3 browser evidence is recorded below.
+
+## Wave 3 visual fixer status — crosscut pass, 2026-08-11
+
+The restored 402×874 browser check verified the two crosscut findings assigned to Luna-0. Web
+reminder toast actions now use the drawn roles: `Had it` is #b5abfc, `+15 min` is #e9e9ed, and
+the divider is #383a46; the 362×64px shell and 60px action rows remain intact. The terminal
+wind-down state now hides the common 58px tab bar only while that state is mounted, restoring the
+drawn action anchors at y=722 and y=796. Plan and Timeline repairs are also verified: Plan's
+primary action is 22px with the target/build anchors at y=610/y=738, and Water is `330 ml · break`
+without a lock affordance while alcohol-row locking remains intact. The three-fixer pass is complete;
+the orchestrator's independent whole-app pass remains.

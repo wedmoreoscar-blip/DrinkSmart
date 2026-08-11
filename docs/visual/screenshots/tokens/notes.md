@@ -1,0 +1,1 @@
+- `recon-measurements.json` — 2026-08-11 20:40Z — measured through the rendered Plan/Timeline surfaces at 402×874: dark background `rgb(22, 24, 39)`, `--fs-body: 19px`, `--fs-hero: 76px`, `--touch-min: 56px`, `--touch-primary: 64px`, warning/accent roles and liquid transition match the handoff. PASS; no standalone token-screen capture exists in the product.

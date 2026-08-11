@@ -115,3 +115,11 @@ codex quota was at 80% for the week on 2026-08-08.
 - Every spec states the verification baseline explicitly: after install, typecheck **PASS**, lint a
   known **FAIL at 9 errors / 11 warnings** that must not get worse, build **PASS**, browser
   **BLOCKED**.
+
+## Wave 3 visual fixer status — crosscut pass
+
+**Resolved 2026-08-11 by Luna-0.** The web reminder toast fallback keeps its measured card geometry
+while restoring the accent/foreground action roles and neutral divider. The 1f terminal wind-down
+state hides the common bottom chrome only for that terminal state, returning the bottom actions to
+their drawn positions. Plan and Timeline finding repairs are complete as well; the orchestrator's
+independent whole-app pass remains the finish line.

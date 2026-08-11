@@ -65,21 +65,24 @@ export const useWebDrinkReminders = (
             },
             classNames: {
               cancelButton:
-                'group-[.toast]:!bg-transparent group-[.toast]:text-primary-hover group-[.toast]:font-medium group-[.toast]:px-4 group-[.toast]:flex-1',
+                '!bg-transparent !text-primary-hover font-medium px-4 flex-1',
               actionButton:
-                'group-[.toast]:!bg-transparent group-[.toast]:text-foreground group-[.toast]:font-normal group-[.toast]:px-4 group-[.toast]:flex-1 group-[.toast]:border-l group-[.toast]:border-border',
+                '!bg-transparent !text-foreground font-normal px-4 flex-1 border-l border-border',
             },
             cancelButtonStyle: {
               height: 'auto',
               minHeight: '60px',
               fontSize: '19px',
               fontWeight: 500,
+              color: '#b5abfc',
             },
             actionButtonStyle: {
               height: 'auto',
               minHeight: '60px',
               fontSize: '19px',
               fontWeight: 400,
+              color: '#e9e9ed',
+              borderLeft: '1px solid #383a46',
             },
           });
         } else {

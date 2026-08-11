@@ -37,7 +37,7 @@ const Dashboard = () => {
             <TimelineTab onNext={() => setActiveTab("plan")} />
           </TabsContent>
 
-          <TabsList>
+          <TabsList data-wind-down-tab-bar>
             <TabsTrigger value="profile">
               <User className="h-[22px] w-[22px]" strokeWidth={1.6} />
               Profile
