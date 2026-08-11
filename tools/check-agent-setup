@@ -187,19 +187,29 @@ def main() -> int:
         if not (codex_root / name / "agents/openai.yaml").is_file():
             fail(f"missing Codex UI metadata for {name}", failures)
 
-    relay_checks = {
-        "AGENTS.md": "$codex-tui-relay",
-        "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md": "codex-tui-a2a-hub",
-        "docs/agent_setup/CODEX_TUI_HUB_SETUP.md": "HUB_READY",
-        "docs/workflows/delegation.md": "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
-        "docs/workflows/agent_selection.md": "$codex-tui-relay",
-        ".agents/skills/codex-tui-relay/SKILL.md":
-            "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md",
+    # A list, not a dict: several files carry more than one required marker.
+    relay_checks = (
+        ("AGENTS.md", "$codex-tui-relay"),
+        ("docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md", "codex-tui-a2a-hub"),
+        ("docs/agent_setup/CODEX_TUI_HUB_SETUP.md", "HUB_READY"),
+        ("docs/workflows/delegation.md", "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md"),
+        ("docs/workflows/agent_selection.md", "$codex-tui-relay"),
+        (".agents/skills/codex-tui-relay/SKILL.md",
+         "docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md"),
         # The waker skill is deliberately thin; it must keep deferring to its doc.
-        ".agents/skills/relay-waker/SKILL.md": "docs/agent_setup/RELAY_WAKER.md",
-        "docs/agent_setup/RELAY_WAKER.md": "a2a-hub-waker",
-    }
-    for relative, marker in relay_checks.items():
+        (".agents/skills/relay-waker/SKILL.md", "docs/agent_setup/RELAY_WAKER.md"),
+        ("docs/agent_setup/RELAY_WAKER.md", "a2a-hub-waker"),
+        # codex-tui-relay is the single entry point to the whole relay, so every part
+        # must stay reachable from it. The daemon and its sender agent were once
+        # undiscoverable from the skill, which is how they came to be missed.
+        (".agents/skills/codex-tui-relay/SKILL.md", "docs/agent_setup/RELAY_WAKER.md"),
+        (".agents/skills/codex-tui-relay/SKILL.md", "a2a-hub-waker"),
+        (".agents/skills/codex-tui-relay/SKILL.md", "tools/waker-daemon-start"),
+        ("docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md", "docs/agent_setup/RELAY_WAKER.md"),
+        ("docs/agent_setup/CODEX_TUI_HUB_SETUP.md", "a2a-hub-waker"),
+        ("docs/agent_setup/CROSS_MACHINE_SETUP.md", "RELAY_WAKER.md"),
+    )
+    for relative, marker in relay_checks:
         if marker not in (ROOT / relative).read_text():
             fail(f"{relative} is missing Codex TUI relay marker {marker!r}", failures)
 

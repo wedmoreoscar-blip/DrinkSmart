@@ -183,6 +183,10 @@ retry an ambiguous operation.
 
 ## Automatic hub waking
 
+`docs/agent_setup/RELAY_WAKER.md` is authoritative for the daemon: its design, the sender identity,
+which terminal to start it in, log meanings, and both bring-up paths. This section states only what the
+relay itself depends on.
+
 `tools/relay-hub-waker` removes Oscar from the middle of the loop. It watches the ledger and sends
 the hub `Check the relay ledger.` when — and only when — a pending command appears. It is a
 doorbell: it never claims, interprets, executes, or answers anything, and the hub operating contract
