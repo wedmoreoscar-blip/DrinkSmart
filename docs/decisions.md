@@ -342,9 +342,10 @@ the orchestrator. The bullets below are retained as design history only.
 - **Sender identity, confirmed empirically 2026-08-11.** Traycer's `resolveSenderAgentId` requires a
   real sender agent id from `TRAYCER_AGENT_ID` or a flag, and a detached process outside any agent turn
   sends successfully when it is supplied. The sender is a dedicated agent named `a2a-hub-waker` that
-  never takes a turn and is never prompted; only a message's recipient is woken or charged. It must
-  never be the Codex TUI orchestrator nor the hub itself. Not yet tested: whether an agent that has
-  never run is accepted as sender.
+  takes one throwaway turn (`do nothing`) at creation and is never prompted again; only a message's
+  recipient is woken or charged. That turn is deliberate: whether an agent that has **never** run is
+  accepted as sender is untested, and giving it a real session sidesteps the question rather than
+  relying on the answer. It must never be the Codex TUI orchestrator nor the hub itself.
 - **Agents are addressed by name, never by id.** Traycer ids change whenever an agent is recreated, so
   a stored id is a stale id waiting to happen. The daemon resolves `codex-tui-a2a-hub` and
   `a2a-hub-waker` at launch and re-resolves after a failed send, so recreating either heals itself with

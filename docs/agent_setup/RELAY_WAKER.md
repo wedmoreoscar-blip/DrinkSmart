@@ -28,7 +28,7 @@ cannot cause a future turn.
 | --- | --- | --- | --- |
 | Codex TUI orchestrator | Agent (terminal) | Yes | When prompted |
 | `codex-tui-a2a-hub` | Agent (OpenCode GUI, DeepSeek V4 Flash) | Yes | Only when messaged |
-| `a2a-hub-waker` | Agent, never prompted | No | Never runs at all |
+| `a2a-hub-waker` | Agent, idle after setup | No | Once at creation, then never |
 | Relay ledger | Artifact (one markdown file) | No | It is a file |
 | `tools/relay-hub-waker` | Background OS process | No | Continuously, once started |
 | `tools/waker-daemon-start` | Launcher script | No | When invoked |
@@ -73,8 +73,10 @@ Two of these mislead:
 When the hub already exists and has a clean `HUB_READY` transcript, there are two steps.
 
 1. **Create an agent named exactly `a2a-hub-waker`.** Harness, model, directory and permissions are
-   all irrelevant — only the name is load-bearing, because the agent never takes a turn. Never prompt
-   it. Do not create a second agent with this name: duplicate names break resolution outright.
+   all irrelevant — only the name is load-bearing. Send it `do nothing` if the UI requires a first
+   message, then leave it idle forever; that one real session sidesteps the untested question of
+   whether a never-run agent is accepted as a sender. Do not create a second agent with this name:
+   duplicate names break resolution outright.
 2. **Start the daemon** from a suitable terminal (see below):
 
    ```bash

@@ -68,7 +68,9 @@ Without it, the hub is only ever woken by the user typing `Check the relay ledge
 steps, neither of which Codex may perform. `RELAY_WAKER.md` is authoritative; this is the short form.
 
 1. **Create a second agent named exactly `a2a-hub-waker`.** Harness, model, directory and permissions
-   are all irrelevant — it never takes a turn and is never prompted. It exists solely so the daemon has
+   are all irrelevant. Send it `do nothing` if creation requires a first message, then leave it idle
+   forever — a real session sidesteps the untested question of whether a never-run agent is accepted
+   as a sender. It exists solely so the daemon has
    a real sender id, because Traycer refuses any A2A send without one. Never create two agents with
    this name: duplicates break name resolution and the daemon can no longer send at all.
 2. **Start the daemon** from a terminal whose `TRAYCER_EPIC_ID` is this epic — any Traycer agent
