@@ -28,6 +28,15 @@ SENDER_NAME="${RELAY_WAKER_SENDER_NAME:-a2a-hub-waker}"
 # does not, so requiring the variable made this script unrunnable from exactly
 # the place a user would try first. Fall back to finding the epic that already
 # owns a relay ledger, which is unambiguous whenever one epic runs the relay.
+# Outside an agent session neither id is set, and name resolution needs both. The
+# resolver finds them from Traycer's own window state and a cache it maintains, so
+# this works from an ordinary terminal without anyone typing an id.
+if [[ -z "${TRAYCER_AGENT_ID:-}" ]]; then
+  if identity="$("$ROOT/tools/traycer-identity" 2>/dev/null)"; then
+    eval "$identity"
+  fi
+fi
+
 EPIC_ID="${TRAYCER_EPIC_ID:-${RELAY_WAKER_EPIC_ID:-${2:-}}}"
 
 if [[ -z "$EPIC_ID" ]]; then
@@ -154,13 +163,16 @@ cmd_start() {
     --pidfile "$PIDFILE" \
     >/dev/null 2>>"$LOG" &
 
-  for _ in $(seq 20); do
+  # Generous: `traycer agent list` is 1.7-2s idle and up to 10s under load, and
+  # startup makes two calls. A short wait reports a false failure while the daemon
+  # is starting perfectly well, which happened on 2026-08-11.
+  for _ in $(seq 60); do
     if pid="$(running_pid)"; then
       echo "STARTED  pid $pid"
       echo "log      $LOG"
       return 0
     fi
-    sleep 0.25
+    sleep 0.5
   done
 
   echo "ERROR: daemon did not come up; last log lines:" >&2
