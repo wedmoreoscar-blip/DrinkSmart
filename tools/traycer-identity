@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Resolve TRAYCER_EPIC_ID and TRAYCER_AGENT_ID outside an agent session.
+#
+# `traycer agent list` needs both, and only an agent's own shell inherits them --
+# so any tool depending on it fails from an ordinary terminal, which is where a
+# human actually works. This finds them instead of demanding them.
+#
+#   eval "$(tools/traycer-identity)"     # exports both, or exits nonzero
+#   tools/traycer-identity --check       # print what it found, human-readable
+#
+# Order, for each id: the environment, then a cache this script maintains, then
+# discovery. Running it inside an agent session refreshes the cache, so one agent
+# run makes every later plain-terminal run work.
+#
+# The cache holds ids, not secrets: they are already visible in `traycer agent
+# list` and in the epic paths under ~/.traycer.
+
+set -euo pipefail
+
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/traycer/identity.env"
+WINDOWS="$HOME/.traycer/desktop-windows.json"
+CHAT_REFS="/tmp/traycer-chat-refs"
+
+epic=""
+agent=""
+
+read_cache() {
+  [[ -r "$CACHE" ]] || return 0
+  local key value
+  while IFS='=' read -r key value; do
+    case "$key" in
+      TRAYCER_EPIC_ID)  [[ -z "$epic"  ]] && epic="$value" ;;
+      TRAYCER_AGENT_ID) [[ -z "$agent" ]] && agent="$value" ;;
+    esac
+  done <"$CACHE"
+}
+
+# Traycer reaches an epic only through an open tab, so its window state is the
+# authoritative answer for which epic is live.
+discover_epic_from_windows() {
+  [[ -r "$WINDOWS" ]] || return 1
+  python3 - "$WINDOWS" <<'PY'
+import json, sys
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+ids = {t["epicId"] for w in data.get("windows", {}).values()
+       for t in w.get("epicTabs", []) if t.get("epicId")}
+# Only unambiguous when exactly one epic is open.
+print(ids.pop() if len(ids) == 1 else "", end="")
+PY
+}
+
+# Any agent the user owns works as a caller identity, so validate candidates
+# rather than trying to guess which one is "right".
+valid_agent() {
+  local candidate="$1"
+  [[ -n "$candidate" ]] || return 1
+  TRAYCER_AGENT_ID="$candidate" TRAYCER_EPIC_ID="$epic" \
+    traycer agent list --json --no-progress 2>/dev/null |
+    grep -q '"status":"ok"'
+}
+
+discover_agent() {
+  local dir candidate
+  for dir in "$CHAT_REFS"/*/; do
+    [[ -d "$dir" ]] || continue
+    candidate="$(basename "$dir")"
+    if valid_agent "$candidate"; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+write_cache() {
+  mkdir -p "$(dirname "$CACHE")"
+  printf 'TRAYCER_EPIC_ID=%s\nTRAYCER_AGENT_ID=%s\n' "$epic" "$agent" >"$CACHE"
+}
+
+# 1. Environment wins: inside an agent session these are already correct.
+epic="${TRAYCER_EPIC_ID:-}"
+agent="${TRAYCER_AGENT_ID:-}"
+from_env=0
+[[ -n "$epic" && -n "$agent" ]] && from_env=1
+
+# 2. Then the cache.
+read_cache
+
+# 3. Then discovery.
+if [[ -z "$epic" ]]; then
+  epic="$(discover_epic_from_windows || true)"
+fi
+if [[ -z "$epic" ]]; then
+  echo "traycer-identity: cannot determine the epic." >&2
+  echo "  No TRAYCER_EPIC_ID, no cache, and no single open epic tab in" >&2
+  echo "  $WINDOWS" >&2
+  exit 2
+fi
+
+if [[ -n "$agent" ]] && ! valid_agent "$agent"; then
+  agent=""   # cached id belongs to an agent that no longer exists
+fi
+if [[ -z "$agent" ]]; then
+  agent="$(discover_agent || true)"
+fi
+if [[ -z "$agent" ]]; then
+  echo "traycer-identity: cannot determine a caller agent id." >&2
+  echo "  Run any Traycer agent command once from an agent session to seed" >&2
+  echo "  $CACHE, or export TRAYCER_AGENT_ID yourself." >&2
+  exit 3
+fi
+
+# Refresh the cache whenever we have a good pair, so the next plain terminal
+# skips discovery entirely.
+write_cache
+
+if [[ "${1:-}" == "--check" ]]; then
+  echo "epic   $epic"
+  echo "agent  $agent"
+  echo "source $([[ $from_env == 1 ]] && echo "agent session" || echo "cache/discovery")"
+  echo "cache  $CACHE"
+else
+  printf 'export TRAYCER_EPIC_ID=%s\nexport TRAYCER_AGENT_ID=%s\n' "$epic" "$agent"
+fi
