@@ -15,6 +15,7 @@ type DrinkTimelineEntry = {
   percentageOfTarget: number;
   icon: string;
   unit: string;
+  volumeMl?: number;
 };
 
 type SortableTimelineItemProps = {
@@ -36,6 +37,10 @@ const formatClock = (date: Date) =>
 const getVolumeLabel = (entry: DrinkTimelineEntry) => {
   const match = entry.drinkName.match(/^(\d+(?:\.\d+)?)\s*(ml|oz)\b/i);
   if (match) return `${match[1]} ${match[2].toLowerCase()}`;
+
+  if (typeof entry.volumeMl === "number" && Number.isFinite(entry.volumeMl)) {
+    return `${entry.volumeMl} ml`;
+  }
 
   switch (entry.unit) {
     case "pints":
@@ -127,7 +132,7 @@ export const SortableTimelineItem = ({
         className={
           isCurrent
             ? "mx-[-6px] mb-[10px] grid min-h-[96px] grid-cols-[68px_34px_minmax(0,1fr)] items-start rounded-lg bg-[#1c1e2c] py-3.5 shadow-[0_0_0_1px_#9184d9]"
-            : isFuture
+            : isFuture && !isBreak
               ? "grid min-h-[70px] grid-cols-[62px_34px_minmax(0,1fr)_44px] items-start"
               : isBreak
                 ? "grid min-h-[64px] grid-cols-[62px_34px_minmax(0,1fr)] items-start"
@@ -184,7 +189,7 @@ export const SortableTimelineItem = ({
           )}
         </div>
 
-        {!isCurrent && isFuture && (
+        {!isCurrent && isFuture && !isBreak && (
           <button
             type="button"
             className={
