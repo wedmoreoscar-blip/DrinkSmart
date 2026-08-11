@@ -452,7 +452,7 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
 
   return (
     <div className="h-full px-5 pb-0 animate-in fade-in duration-500">
-      <div className="flex min-h-[calc(100%-12px)] flex-col pt-[22px]">
+      <div className="flex min-h-[calc(100%-14px)] flex-col pt-[22px]">
       {/* Use last night — only when a prior session is persisted */}
       {lastSession && lastSession.drinks.length > 0 && (
         <Card className="p-4 flex items-center justify-between gap-3 bg-muted/30 border-primary/20 mb-[14px]">
@@ -610,7 +610,7 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
 
         <Button
           size="act"
-          className="mt-3 w-full gap-2 text-[#b5abfc]"
+          className="mt-3 w-full gap-2 text-[#b5abfc] text-[22px] leading-[1.3]"
           onClick={handleGenerate}
           disabled={genState === "loading"}
         >
