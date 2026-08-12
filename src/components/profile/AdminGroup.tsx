@@ -10,7 +10,9 @@ export const AdminGroup = ({ isAdmin, onNavigate }: AdminGroupProps) => {
 
   return (
     <>
-      <div className="mt-0.5 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_30px,rgba(233,233,237,.16)_calc(100%-30px),transparent)]" />
+      {/* 4a insets this rule at 48px, not the 30px used by the word-stop rail in
+          PreferencesPicker. The spec pointed at the wrong one; the drawing wins. */}
+      <div className="mt-0.5 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_48px,rgba(233,233,237,.16)_calc(100%-48px),transparent)]" />
       <div className="flex items-center gap-2.5 pt-3">
         <span className="text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
           Admin

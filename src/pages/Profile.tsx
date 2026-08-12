@@ -25,6 +25,7 @@ import { BodyCard } from "@/components/profile/BodyCard";
 import { StatsSheet } from "@/components/profile/StatsSheet";
 import { PreferencesCard } from "@/components/profile/PreferencesCard";
 import { AccountCard } from "@/components/profile/AccountCard";
+import { AdminGroup } from "@/components/profile/AdminGroup";
 import { countMovedDrinks } from "@/components/profile/replan";
 
 type ProfileRow = {
@@ -143,13 +144,17 @@ const Profile = () => {
       {/* Account — a fact, never a nag */}
       <AccountCard
         session={session}
-        isAdmin={isAdmin}
         username={profileRow?.username ?? null}
         avatarUrl={profileRow?.avatar_url ?? null}
         onAddEmail={() => navigate("/auth")}
         onSignOut={handleSignOut}
-        onAdminNavigate={(path) => navigate(path)}
       />
+
+      {/* Admin — below the fold, after the fading rule, and a SIBLING of the
+          Account card rather than inside it. 4a closes both the CTA div and the
+          card (`Add an email</div></div>`) before the rule, so nesting it in the
+          card would put it on the card's ground instead of the page's. */}
+      <AdminGroup isAdmin={isAdmin} onNavigate={(path) => navigate(path)} />
 
       {/* Theme. Hidden while the app is dark-only — a switch that cannot
           change anything is worse than no switch. See LIGHT_THEME_AVAILABLE. */}

@@ -2,26 +2,21 @@ import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Session } from "@supabase/supabase-js";
 import { isAnonymousSession } from "@/lib/anonymousAuth";
-import { AdminGroup } from "@/components/profile/AdminGroup";
 
 type AccountCardProps = {
   session: Session | null;
-  isAdmin: boolean;
   username: string | null;
   avatarUrl: string | null;
   onAddEmail: () => void;
   onSignOut: () => void;
-  onAdminNavigate: (path: string) => void;
 };
 
 export const AccountCard = ({
   session,
-  isAdmin,
   username,
   avatarUrl,
   onAddEmail,
   onSignOut,
-  onAdminNavigate,
 }: AccountCardProps) => {
   const isAnonymous = isAnonymousSession(session);
 
@@ -65,7 +60,6 @@ export const AccountCard = ({
           </Button>
         </>
       )}
-      <AdminGroup isAdmin={isAdmin} onNavigate={onAdminNavigate} />
     </div>
   );
 };
