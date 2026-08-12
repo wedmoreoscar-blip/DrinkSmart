@@ -33,6 +33,30 @@ AGENT_TILE_KINDS="terminal-agent chat"
 epic=""
 agent=""
 
+# Resolve the CLI rather than trusting PATH. A bare `traycer` fails in any shell
+# that does not carry ~/.local/bin -- and npm rewrites PATH outright -- in which
+# case every candidate fails validation and this looks identical to "no agents
+# exist". `watch-repo` has always resolved it this way; this did not.
+TRAYCER_BIN="${TRAYCER_CLI_BIN:-}"
+if [[ -z "$TRAYCER_BIN" || ! -x "$TRAYCER_BIN" ]]; then
+  TRAYCER_BIN="$HOME/.traycer/cli/bin/traycer"
+fi
+if [[ ! -x "$TRAYCER_BIN" ]]; then
+  TRAYCER_BIN="$(command -v traycer 2>/dev/null || true)"
+fi
+if [[ -z "$TRAYCER_BIN" || ! -x "$TRAYCER_BIN" ]]; then
+  echo "traycer-identity: cannot find the traycer CLI." >&2
+  echo "  Looked at TRAYCER_CLI_BIN, $HOME/.traycer/cli/bin/traycer, and PATH." >&2
+  exit 4
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+  # Both discovery routes parse JSON with it, so without python3 neither id can be
+  # found and the failure would otherwise be reported as "no epic".
+  echo "traycer-identity: python3 is required to read Traycer's window state." >&2
+  exit 4
+fi
+
 read_cache() {
   [[ -r "$CACHE" ]] || return 0
   local key value
@@ -71,7 +95,7 @@ valid_agent() {
   local candidate="$1"
   [[ -n "$candidate" ]] || return 1
   TRAYCER_AGENT_ID="$candidate" TRAYCER_EPIC_ID="$epic" \
-    traycer agent list --json --no-progress 2>/dev/null |
+    "$TRAYCER_BIN" agent list --json --no-progress 2>/dev/null |
     grep -q '"status":"ok"'
 }
 
@@ -168,6 +192,7 @@ if [[ "${1:-}" == "--check" ]]; then
   echo "agent  $agent"
   echo "source $([[ $from_env == 1 ]] && echo "agent session" || echo "cache/discovery")"
   echo "cache  $CACHE"
+  echo "cli    $TRAYCER_BIN"
 else
   printf 'export TRAYCER_EPIC_ID=%s\nexport TRAYCER_AGENT_ID=%s\n' "$epic" "$agent"
 fi

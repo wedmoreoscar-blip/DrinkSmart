@@ -33,9 +33,16 @@ SENDER_NAME="${RELAY_WAKER_SENDER_NAME:-a2a-hub-waker}"
 # a caller identity from the agents in its open tiles -- needing no priming, so
 # this works from an ordinary terminal without anyone typing an id.
 if [[ -z "${TRAYCER_AGENT_ID:-}" ]]; then
-  if identity="$("$ROOT/tools/traycer-identity" 2>/dev/null)"; then
+  # Keep stderr. Swallowing it meant a resolver failure surfaced only as the
+  # generic "no Traycer identity" refusal further down, with the actual reason --
+  # no agent tile open, no traycer CLI on PATH, no python3 -- discarded.
+  identity_err="$(mktemp)"
+  if identity="$("$ROOT/tools/traycer-identity" 2>"$identity_err")"; then
     eval "$identity"
+  elif [[ -s "$identity_err" ]]; then
+    sed 's/^/note     /' "$identity_err" >&2
   fi
+  rm -f "$identity_err"
 fi
 
 EPIC_ID="${TRAYCER_EPIC_ID:-${RELAY_WAKER_EPIC_ID:-${2:-}}}"
