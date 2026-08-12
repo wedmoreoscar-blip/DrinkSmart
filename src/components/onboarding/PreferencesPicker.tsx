@@ -1,13 +1,14 @@
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   defaultPreferences,
-  preferenceCategoryKeys,
-  getCategoryLabel,
   type PreferenceData,
 } from "@/lib/preferences";
+import {
+  PREFERENCE_FAMILIES,
+  type PreferenceFamily,
+} from "./preferenceFamilies";
+import { ONBOARD2_COPY, ONBOARD2_STOPS } from "./onboardingCopy";
 import { cn } from "@/lib/utils";
 
 type PreferencesPickerProps = {
@@ -16,23 +17,17 @@ type PreferencesPickerProps = {
   onChange?: (prefs: PreferenceData) => void;
   submitLabel?: string;
   submitting?: boolean;
+  onSkip?: () => void;
 };
 
 const SWEET_STOPS = [0, 0.25, 0.5, 0.75, 1];
 
 const SWEET_LABELS: Record<number, string> = {
-  0: "Dry",
-  0.25: "Slightly dry",
-  0.5: "Balanced",
-  0.75: "Slightly sweet",
-  1: "Sweet",
-};
-const STRONG_LABELS: Record<number, string> = {
-  0: "Light",
-  0.25: "Mild",
-  0.5: "Medium",
-  0.75: "Strong",
-  1: "Very strong",
+  0: ONBOARD2_STOPS[0],
+  0.25: ONBOARD2_STOPS[1],
+  0.5: ONBOARD2_STOPS[2],
+  0.75: ONBOARD2_STOPS[3],
+  1: ONBOARD2_STOPS[4],
 };
 
 const WordStopRail = ({
@@ -83,14 +78,24 @@ const WordStopRail = ({
   </div>
 );
 
+const SectionLabel = ({ children }: { children: string }) => (
+  <div className="mb-3 text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
+    {children}
+  </div>
+);
+
 export const PreferencesPicker = ({
   initial,
   onSubmit,
   onChange,
-  submitLabel = "Finish",
+  submitLabel = "Start",
   submitting = false,
+  onSkip,
 }: PreferencesPickerProps) => {
-  const [prefs, setPrefs] = useState<PreferenceData>(initial ?? defaultPreferences);
+  const [prefs, setPrefs] = useState<PreferenceData>(
+    initial ?? defaultPreferences
+  );
+  const strongBeforeLowNo = useRef<number | null>(null);
 
   const update = (patch: Partial<PreferenceData>) => {
     const next = { ...prefs, ...patch };
@@ -98,123 +103,112 @@ export const PreferencesPicker = ({
     onChange?.(next);
   };
 
-  const toggleLike = (key: string) => {
-    if (prefs.categories_liked.includes(key)) {
-      update({ categories_liked: prefs.categories_liked.filter((k) => k !== key) });
-    } else {
-      update({
-        categories_liked: [...prefs.categories_liked, key],
-        categories_avoided: prefs.categories_avoided.filter((k) => k !== key),
-      });
-    }
+  const isFamilySelected = (family: PreferenceFamily) => {
+    if (family.keys.length === 0) return prefs.strong === 0;
+    return family.keys.some((key) => prefs.categories_liked.includes(key));
   };
 
-  const toggleAvoid = (key: string) => {
-    if (prefs.categories_avoided.includes(key)) {
+  const toggleFamily = (family: PreferenceFamily) => {
+    if (family.keys.length === 0) {
+      if (prefs.strong === 0) {
+        const restored = strongBeforeLowNo.current ?? defaultPreferences.strong;
+        strongBeforeLowNo.current = null;
+        update({ strong: restored });
+      } else {
+        strongBeforeLowNo.current = prefs.strong;
+        update({ strong: 0 });
+      }
+      return;
+    }
+    if (isFamilySelected(family)) {
       update({
-        categories_avoided: prefs.categories_avoided.filter((k) => k !== key),
+        categories_liked: prefs.categories_liked.filter(
+          (key) => !family.keys.includes(key)
+        ),
       });
     } else {
       update({
-        categories_avoided: [...prefs.categories_avoided, key],
-        categories_liked: prefs.categories_liked.filter((k) => k !== key),
+        categories_liked: Array.from(
+          new Set([...prefs.categories_liked, ...family.keys])
+        ),
       });
     }
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="p-4 space-y-4">
-        <div className="space-y-2">
-          <Label>Sweet</Label>
-          <WordStopRail
-            value={prefs.sweet}
-            labels={SWEET_LABELS}
-            startWord="Dry"
-            endWord="Sweet"
-            onSelect={(v) => update({ sweet: v })}
-          />
-        </div>
+    <div>
+      <SectionLabel>{ONBOARD2_COPY.categoriesLabel}</SectionLabel>
+      <div className="grid grid-cols-2 gap-2.5">
+        {PREFERENCE_FAMILIES.map((family) => {
+          const selected = isFamilySelected(family);
+          return (
+            <button
+              key={family.label}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => toggleFamily(family)}
+              className={cn(
+                "flex h-tap items-center justify-center gap-2 rounded-ctl bg-field text-body",
+                selected
+                  ? "text-foreground shadow-[0_0_0_2px_#9184d9]"
+                  : "text-muted-foreground shadow-[0_0_0_1px_#383a46]"
+              )}
+            >
+              {selected && (
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden="true"
+                  className="flex-none text-primary-hover"
+                >
+                  <path
+                    d="M3.5 8.5l3 3L12.5 5"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              )}
+              {family.label}
+            </button>
+          );
+        })}
+      </div>
 
-        <div className="space-y-2">
-          <Label>Strong</Label>
-          <WordStopRail
-            value={prefs.strong}
-            labels={STRONG_LABELS}
-            startWord="Light"
-            endWord="Very strong"
-            onSelect={(v) => update({ strong: v })}
-          />
-        </div>
-      </Card>
-
-      <Card className="p-4 space-y-3">
-        <div>
-          <Label>I like</Label>
-          <p className="text-xs text-muted-foreground">
-            Tap to favourite. We'll lean into these.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {preferenceCategoryKeys.map((key) => {
-            const liked = prefs.categories_liked.includes(key);
-            return (
-              <button
-                key={`like-${key}`}
-                type="button"
-                onClick={() => toggleLike(key)}
-                className={cn(
-                  "rounded-full px-3 py-1 text-sm border transition-colors",
-                  liked
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted border-border"
-                )}
-              >
-                {getCategoryLabel(key)}
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
-      <Card className="p-4 space-y-3">
-        <div>
-          <Label>I avoid</Label>
-          <p className="text-xs text-muted-foreground">
-            Tap to exclude. We'll skip these entirely.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {preferenceCategoryKeys.map((key) => {
-            const avoided = prefs.categories_avoided.includes(key);
-            return (
-              <button
-                key={`avoid-${key}`}
-                type="button"
-                onClick={() => toggleAvoid(key)}
-                className={cn(
-                  "rounded-full px-3 py-1 text-sm border transition-colors",
-                  avoided
-                    ? "bg-destructive text-destructive-foreground border-destructive"
-                    : "bg-background hover:bg-muted border-border"
-                )}
-              >
-                {getCategoryLabel(key)}
-              </button>
-            );
-          })}
-        </div>
-      </Card>
+      <div className="mt-[22px]">
+        <SectionLabel>{ONBOARD2_COPY.sweetnessLabel}</SectionLabel>
+        <WordStopRail
+          value={prefs.sweet}
+          labels={SWEET_LABELS}
+          startWord="dry"
+          endWord="sweet"
+          onSelect={(value) => update({ sweet: value })}
+        />
+      </div>
 
       {onSubmit && (
         <Button
           type="button"
-          className="w-full"
+          size="act"
+          className="mt-[18px] w-full"
           disabled={submitting}
           onClick={() => onSubmit(prefs)}
         >
           {submitting ? "Saving..." : submitLabel}
         </Button>
+      )}
+
+      {onSkip && (
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={onSkip}
+          className="mt-1 h-tap w-full text-body text-muted-foreground"
+        >
+          {ONBOARD2_COPY.skip}
+        </button>
       )}
     </div>
   );
