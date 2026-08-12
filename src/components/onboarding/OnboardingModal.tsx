@@ -7,9 +7,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { StatsForm } from "./StatsForm";
 import { PreferencesPicker } from "./PreferencesPicker";
+import { ONBOARD1_COPY, ONBOARD2_COPY } from "./onboardingCopy";
 import { useUserMetrics, type UserMetricsData } from "@/hooks/useUserMetrics";
 import { defaultPreferences, type PreferenceData } from "@/lib/preferences";
 import { useToast } from "@/hooks/use-toast";
@@ -19,9 +19,31 @@ type OnboardingModalProps = {
   onComplete: () => void;
 };
 
+type StepHeaderProps = {
+  step: string;
+  title: string;
+  body: string;
+};
+
+const StepHeader = ({ step, title, body }: StepHeaderProps) => (
+  <DialogHeader className="items-start gap-0 space-y-0 text-left">
+    <p className="text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
+      {step}
+    </p>
+    <DialogTitle className="mt-2.5 text-title font-medium leading-[1.15] tracking-[-0.015em]">
+      {title}
+    </DialogTitle>
+    <DialogDescription className="mt-2 text-body leading-[1.45] text-muted-foreground">
+      {body}
+    </DialogDescription>
+  </DialogHeader>
+);
+
 export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
+  const [step, setStep] = useState<1 | 2>(1);
   const [stats, setStats] = useState<UserMetricsData | null>(null);
   const [statsValid, setStatsValid] = useState(false);
+  const [statsAttempted, setStatsAttempted] = useState(false);
   const [prefs, setPrefs] = useState<PreferenceData>(defaultPreferences);
   const [submitting, setSubmitting] = useState(false);
   const { completeOnboarding, isLoggedIn } = useUserMetrics();
@@ -35,15 +57,17 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     []
   );
 
-  const handleFinishClick = async () => {
-    if (!stats || !statsValid) {
-      toast({
-        title: "Missing info",
-        description: "Please fill out all required fields above.",
-        variant: "destructive",
-      });
+  const handleContinueClick = () => {
+    if (!statsValid) {
+      setStatsAttempted(true);
       return;
     }
+    setStatsAttempted(false);
+    setStep(2);
+  };
+
+  const handleFinishClick = async (finalPrefs: PreferenceData) => {
+    if (!stats) return;
     if (!isLoggedIn) {
       toast({
         title: "Not signed in",
@@ -55,7 +79,7 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     }
 
     setSubmitting(true);
-    const ok = await completeOnboarding(stats, prefs);
+    const ok = await completeOnboarding(stats, finalPrefs);
     setSubmitting(false);
 
     if (ok) {
@@ -73,55 +97,63 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     }
   };
 
+  const handleSkipClick = () => handleFinishClick(defaultPreferences);
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
-        className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0 [&>button.absolute]:hidden"
+        className="left-4 right-4 top-auto bottom-4 mx-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-sheet bg-popover p-6 shadow-lg [&>button.absolute]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader className="p-6 pb-4">
-          <DialogTitle>Set up your profile</DialogTitle>
-          <DialogDescription>
-            We use your stats to calculate safe intake, and your preferences to
-            pick drinks you'll enjoy.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-6">
-          <div>
-            <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              About you
-            </Label>
-            <div className="mt-2">
+        {step === 1 ? (
+          <>
+            <StepHeader
+              step={ONBOARD1_COPY.step}
+              title={ONBOARD1_COPY.title}
+              body={ONBOARD1_COPY.body}
+            />
+            <div className="mt-5">
               <StatsForm
                 initial={stats}
                 onChange={handleStatsChange}
                 hideSubmit
+                showErrors={statsAttempted}
               />
             </div>
-          </div>
-
-          <div>
-            <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Drink preferences
-            </Label>
-            <div className="mt-2">
-              <PreferencesPicker initial={prefs} onChange={setPrefs} />
+            <div className="mt-5">
+              <Button
+                type="button"
+                size="act"
+                className="w-full"
+                onClick={handleContinueClick}
+              >
+                {ONBOARD1_COPY.cta}
+              </Button>
+              <p className="mt-3 text-center text-micro text-[#75798c]">
+                {ONBOARD1_COPY.footnote}
+              </p>
             </div>
-          </div>
-        </div>
-
-        <div className="p-6 pt-3 border-t bg-background">
-          <Button
-            type="button"
-            className="w-full"
-            disabled={submitting || !statsValid}
-            onClick={handleFinishClick}
-          >
-            {submitting ? "Saving..." : "Done"}
-          </Button>
-        </div>
+          </>
+        ) : (
+          <>
+            <StepHeader
+              step={ONBOARD2_COPY.step}
+              title={ONBOARD2_COPY.title}
+              body={ONBOARD2_COPY.body}
+            />
+            <div className="mt-5">
+              <PreferencesPicker
+                initial={prefs}
+                onChange={setPrefs}
+                onSubmit={handleFinishClick}
+                submitLabel={ONBOARD2_COPY.cta}
+                submitting={submitting}
+                onSkip={handleSkipClick}
+              />
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
