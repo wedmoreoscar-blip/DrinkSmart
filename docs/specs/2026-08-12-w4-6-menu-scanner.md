@@ -4,8 +4,8 @@ You are rebuilding DrinkSmart's menu scanner to match its four Claude Design dra
 waiting, review and failure. The review screen is the hard one, and the whole answer is the sort
 order.
 
-Your worktree: `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_6`
-Your branch: `deepseek_agent_6`
+Your worktree: `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_4`
+Your branch: `deepseek_agent_4`
 
 ## Design authority — read before writing any code
 
@@ -138,22 +138,22 @@ caution about drinking.
 
 ## Verification baseline — the numbers
 
-These are the counts your work must not worsen. They are stated so "no worse" is checkable; the
-block below says which commands are yours to run.
+Derived by running them on `main` at `92dd1d1`, 2026-08-12, after Wave 4's first five legs were
+integrated. These are the counts your work must not worsen; the block below says which commands
+are yours to run.
 
-- `npm test` — 102 tests across 9 files, all passing. Must not fall.
-- `npm run typecheck` — 0 errors. Must stay 0.
+- `npm test` — **119 tests across 11 files**, all passing. Must not fall. (This rose from 102 when
+  the checker added tests for the `4o` keypad and the onboarding preference families — so a spec
+  quoting 102 is out of date, not a target.)
+- `npm run typecheck` — **0 errors.** Must stay 0.
   **Never use bare `tsc --noEmit` in this repository.** The root `tsconfig.json` is `"files": []`
   plus project references, so bare `tsc --noEmit` compiles **zero files** and always appears to
   pass. The npm script is `tsc -b --noEmit`.
-- `npm run lint` — known-failing at exactly `21 problems (10 errors, 11 warnings)`, all in
+- `npm run lint` — known-failing at exactly **`21 problems (10 errors, 11 warnings)`**, all in
   pre-existing application files. That is the accepted baseline and must not get worse. **Do not
   fix pre-existing lint problems** — out of scope, and it enlarges the diff.
-- `npm run build` — passing, with an expected `chunks are larger than 500 kB` notice that is not a
-  failure.
-
-These figures are re-derived at dispatch time; if the orchestrator gave you newer ones in the
-covering message, those win.
+- `npm run build` — passing, about 33s, with an expected `chunks are larger than 500 kB` notice
+  that is not a failure.
 
 ## What you run, and what you do not
 
