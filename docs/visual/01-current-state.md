@@ -102,7 +102,7 @@ separately.
 Confirmed on `main` after Wave 1 integration, 2026-08-08:
 
 - `npm run typecheck` (`tsc -b --noEmit`) — **PASS, 0 errors**
-- `npm run lint` — **FAIL, 9 errors / 11 warnings** (pre-existing; must not get worse)
+- `npm run lint` — **FAIL, 10 errors / 11 warnings** (pre-existing; must not get worse)
 - `npm run build` — **PASS** (~16–26s)
 - `npm audit` — 18 vulnerabilities, 3 moderate / 15 high (up from a recorded 17 / 3 / 14)
 

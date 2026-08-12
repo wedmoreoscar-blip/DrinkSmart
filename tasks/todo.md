@@ -127,7 +127,7 @@ Per `AGENTS.md`, delegate through Traycer: `writespec` before dispatch, `specche
 step is one spec. Every spec states its baseline explicitly:
 
 - `npm run typecheck` — **must stay PASS**.
-- `npm run lint` — **known FAIL**: 9 errors, 11 warnings as of 2026-08-09 (W3-A1 improved warnings
+- `npm run lint` — **known FAIL**: 10 errors, 11 warnings as of 2026-08-12 (derived on 92dd1d1; was 9 errors
   from 12). Must not get worse. **Derive this number by running the command when writing a spec;
   do not quote it from here.**
 - `npm run build` — must stay PASS.

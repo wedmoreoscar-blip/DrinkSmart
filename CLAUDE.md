@@ -26,15 +26,19 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
   were all one root cause: `preferences` and `drinks` cast to `Record<string, unknown>` where the
   generated Supabase client expects `Json`, mistyping every write to `profiles` and `user_sessions`.
   Fixed 2026-08-08.
-- `npm run lint` — **fails with 9 errors and 11 warnings** in pre-existing application files. This
+- `npm run lint` — **fails with 10 errors and 11 warnings** in pre-existing application files. This
   is the known baseline; it must not get worse. Do not report the quick verification profile as
   passing.
 - `npm run build` — **PASSES** (~16–26s).
 - `*.tsbuildinfo` is gitignored; `tsc -b` emits it.
-- `npm test` (Vitest) — **PASSES, 93 tests.** Covers the planner contracts (W3-A1) and the
-  deterministic session engine in `src/lib/sessionEngine.ts` (W3-A2). Note that Vitest transforms
-  with esbuild and does **not** typecheck: a green suite says nothing about types, so `npm run
-  typecheck` is not redundant with it. Demonstrated 2026-08-09.
+- `npm test` (Vitest) — **PASSES, 119 tests across 11 files** (2026-08-12; was 93). Covers the
+  planner contracts (W3-A1), the deterministic session engine in `src/lib/sessionEngine.ts`
+  (W3-A2), and Wave 4's `4o` keypad primitive and onboarding preference families. Note that Vitest
+  transforms with esbuild and does **not** typecheck: a green suite says nothing about types, so
+  `npm run typecheck` is not redundant with it. Demonstrated 2026-08-09.
+- **Every count on this list goes stale.** Derive them by running the command when writing a spec;
+  never quote this file. The lint count sat at 9 here while the real figure was 10, and a spec
+  written from it would have licensed a regression as "baseline held".
 - `npm install` reports 18 dependency vulnerabilities (3 moderate, 15 high) as of 2026-08-08, up
   from a previously recorded 17 (3 moderate, 14 high). Do not apply `npm audit fix`; triage
   separately before production.

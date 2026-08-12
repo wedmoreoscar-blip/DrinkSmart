@@ -116,7 +116,7 @@ codex quota was at 80% for the week on 2026-08-08.
   therefore forbid dependency changes outright, which also keeps `package-lock.json` out of every
   delegated diff.
 - Every spec states the verification baseline explicitly: after install, typecheck **PASS**, lint a
-  known **FAIL at 9 errors / 11 warnings** that must not get worse, build **PASS**, browser
+  known **FAIL at 10 errors / 11 warnings** that must not get worse, build **PASS**, browser
   **BLOCKED**.
 
 ## Wave 3 final visual status
