@@ -97,6 +97,40 @@ role skips to step 6.
    implementer cannot ask. Give the literal lint error and warning counts, the literal test count,
    and any repository-specific command trap. A cross-reference to another document is not a
    baseline. A runtime question route does not weaken this requirement.
+
+   **State the numbers, but ask the implementer to run only `typecheck` and `vitest`** (added
+   2026-08-12). It needs the literal counts to know what "no worse" means; it does not need to
+   produce them all itself.
+
+   | Command | Who runs it | Why |
+   | --- | --- | --- |
+   | `npm run typecheck` | implementer **and** checker | The one check that catches the implementer's own errors before handback. Non-negotiable. |
+   | `npx vitest run` | implementer **and** checker | Cheap (~12s) and confirms nothing existing broke. |
+   | `npm run lint` | **checker only** | Known-failing at a fixed count; an implementer re-deriving it learns nothing. |
+   | `npm run build` | **checker only** | The most expensive command in the repo and the least informative to the implementer. |
+
+   The reason is contention, and it is measured rather than theoretical. This machine gives WSL 2
+   of its 4 cores. Asking five agents for four commands each is ~20 build-weight jobs on two
+   cores; on 2026-08-12 the load average sat at 7.85–11.14 and an implementer's `npm run build`
+   took **2m40s** against the orchestrator's **29s** for the identical command — a 5.5× slowdown
+   from contention alone.
+
+   This matters beyond speed. **A starved agent is indistinguishable from a stalled one.** That
+   ambiguity produced a wrong "the agents are looping" diagnosis, a needless steer sent to five
+   working agents, and an implementer that sat twenty minutes on a `tsc -b` whose result was going
+   to be discarded and re-run on the integration branch anyway.
+
+   Cutting the two expensive commands is the fix. **Do not respond by shrinking the wave** — fan
+   out as wide as the specs allow.
+
+   `tools/agent-lock` does **not** help here: it holds `flock -n`, so a second caller fails
+   immediately with exit 75 rather than queuing. It is a mutual-exclusion guard for things that
+   must never overlap (installs, the dev server), not a scheduler. Wrapping verification in it
+   would turn contention into spurious failures.
+
+   **The orchestrator observes the same rule in reverse: never run a baseline in the root checkout
+   while agents are still working.** It competes with them directly. Hold it until the handbacks
+   are in and run it once on the integration branch, which is what step 13 wants regardless.
 8. **Send with `--expect-reply`.** Without it the peer never reports back. When the orchestrator is
    Codex TUI, activate `$codex-tui-relay` first and append the complete commission to its artifact
    ledger instead of calling Traycer's mutating agent commands. The persistent DeepSeek GUI hub
