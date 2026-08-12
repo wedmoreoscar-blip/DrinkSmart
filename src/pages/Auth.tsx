@@ -10,6 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Mail, Lock, Upload, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 import { isAnonymousSession } from "@/lib/anonymousAuth";
+import { cn } from "@/lib/utils";
+import { WhatComesWithYou } from "@/components/auth/WhatComesWithYou";
+import { StepStrip, type StepMark } from "@/components/auth/StepStrip";
 import type { Session } from "@supabase/supabase-js";
 
 const authSchema = z.object({
@@ -17,6 +20,68 @@ const authSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   username: z.string().min(2, "Username must be at least 2 characters").optional(),
 });
+
+// ── 4m / 4n §G — literal copy from the design handoff. Use verbatim. ────────
+const AUTH_COPY = {
+  title: "Make this a real account",
+  body: "You are already signed in, anonymously. This adds an email to that same account — nothing moves, nothing is copied.",
+  stepsHeader: "It takes two emails",
+  steps: ["You give us an email", "Tap the link that confirms it", "A second link sets a password"],
+  why: "Confirming and setting a password cannot share a step.",
+  cta: "Send the first link",
+  footnote: "Until you finish, the app works exactly as it does now.",
+};
+
+const AUTH_WAIT_COPY = {
+  title: (email: string) => "Check " + email,
+  body: "The link in it confirms the address. The password link is the one after that.",
+  stepsHeader: "Where you are",
+  steps: ["Email given", "Confirm link sent", "Password link"],
+  notPaused: "Nothing is paused. Tonight's plan, your stats and the timeline all work while this sits here.",
+  since: (d: Date) =>
+    "Signed in as this account since " + fmtDate(d) + ". Finishing changes nothing about it except the password.",
+  leave: "Back to tonight",
+  resend: "Send it again",
+  resendCooldown: (s: number) =>
+    "in " + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"),
+  change: "Another email",
+};
+
+function fmtDate(d: Date): string {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return d.getDate() + " " + months[d.getMonth()];
+}
+
+// The waiting state can last days and is reachable from Profile, so it is
+// persisted (versioned key, per the repo's localStorage convention).
+const WAIT_KEY = "drinksmart.auth.upgradeWaiting.v1";
+const RESEND_COOLDOWN_S = 60;
+
+type UpgradeWaiting = { email: string; userId: string | null; sentAt: number };
+
+function loadUpgradeWaiting(): UpgradeWaiting | null {
+  try {
+    const raw = window.localStorage.getItem(WAIT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed.email !== "string" || typeof parsed.sentAt !== "number") return null;
+    return {
+      email: parsed.email,
+      userId: typeof parsed.userId === "string" ? parsed.userId : null,
+      sentAt: parsed.sentAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveUpgradeWaiting(waiting: UpgradeWaiting): void {
+  window.localStorage.setItem(WAIT_KEY, JSON.stringify(waiting));
+}
+
+function clearUpgradeWaiting(): void {
+  window.localStorage.removeItem(WAIT_KEY);
+}
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -31,6 +96,12 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [isUpgrade, setIsUpgrade] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; username?: string }>({});
+  const [session, setSession] = useState<Session | null>(null);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [waiting, setWaiting] = useState<UpgradeWaiting | null>(() => loadUpgradeWaiting());
+  const [now, setNow] = useState(() => Date.now());
+  const [resending, setResending] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -39,6 +110,7 @@ const Auth = () => {
     // Anonymous users stay on this page to upgrade their account.
     const handleSession = (session: Session | null) => {
       if (!session?.user) return;
+      setSession(session);
       if (isAnonymousSession(session)) {
         setIsUpgrade(true);
         setIsSignUp(true);
@@ -57,6 +129,13 @@ const Auth = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  // The 4n cooldown reads a live clock so "in 0:42" ticks down while waiting.
+  useEffect(() => {
+    if (!waiting) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [waiting]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,6 +164,66 @@ const Auth = () => {
 
     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
     return data.publicUrl;
+  };
+
+  // The first-link send: updateUser({ email }) links the identity and sends the
+  // verification email; resetPasswordForEmail sends the password-set link. Both
+  // steps are load-bearing — the password cannot be set before the email is
+  // verified — so they are kept exactly as they were.
+  const sendUpgradeEmails = async (emailAddress: string): Promise<{ ok: boolean; userId: string | null }> => {
+    const { data: updateData, error: updateError } = await supabase.auth.updateUser({
+      email: emailAddress,
+    });
+
+    if (updateError) {
+      const msg = updateError.message.toLowerCase();
+      if (msg.includes("already registered") || msg.includes("already been registered") || msg.includes("already exists")) {
+        toast({
+          title: "Email already in use",
+          description: "That email is already linked to another account. Try signing in instead.",
+          variant: "destructive",
+        });
+      } else if (msg.includes("manual linking") || msg.includes("identity linking")) {
+        toast({
+          title: "Manual linking is disabled",
+          description: "Enable 'Manual identity linking' in your Supabase Auth settings, then try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: updateError.message || "An unexpected error occurred",
+          variant: "destructive",
+        });
+      }
+      return { ok: false, userId: null };
+    }
+
+    await supabase.auth.resetPasswordForEmail(emailAddress, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    return { ok: true, userId: updateData.user?.id ?? null };
+  };
+
+  const handleResend = async () => {
+    if (!waiting) return;
+    setResending(true);
+    try {
+      const result = await sendUpgradeEmails(waiting.email);
+      if (result.ok) {
+        const next = { ...waiting, sentAt: Date.now() };
+        setWaiting(next);
+        saveUpgradeWaiting(next);
+      }
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleAnotherEmail = () => {
+    clearUpgradeWaiting();
+    setWaiting(null);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -147,6 +286,21 @@ const Auth = () => {
             fieldErrors[err.path[0] as keyof typeof errors] = err.message;
           }
         });
+        if (isUpgrade) {
+          // 1l error copy names what is needed, never what the user did wrong.
+          if (fieldErrors.email) {
+            const trimmed = email.trim();
+            fieldErrors.email =
+              trimmed.length === 0
+                ? "Needs an email address"
+                : trimmed.endsWith("@")
+                  ? `Needs a domain — ${trimmed}example.com`
+                  : "Needs a domain — name@example.com";
+          }
+          if (fieldErrors.username) {
+            fieldErrors.username = "Needs at least 2 characters";
+          }
+        }
         setErrors(fieldErrors);
         setLoading(false);
         return;
@@ -154,38 +308,13 @@ const Auth = () => {
 
       if (isSignUp) {
         if (isUpgrade) {
-          // Anonymous → permanent upgrade is a two-step process per Supabase docs:
-          //   1. updateUser({ email }) links the email identity and sends a verification link.
-          //   2. After verification, updateUser({ password }) can set a password.
-          // Trying to set both in one call fails because the password can't be set
-          // before the email is verified. We do step 1 here, then send a password-set
-          // email so the user can complete step 2 from their inbox.
-          const { data: updateData, error: updateError } = await supabase.auth.updateUser({
-            email,
-          });
-
-          if (updateError) {
-            const msg = updateError.message.toLowerCase();
-            if (msg.includes("already registered") || msg.includes("already been registered") || msg.includes("already exists")) {
-              toast({
-                title: "Email already in use",
-                description: "That email is already linked to another account. Try signing in instead.",
-                variant: "destructive",
-              });
-            } else if (msg.includes("manual linking") || msg.includes("identity linking")) {
-              toast({
-                title: "Manual linking is disabled",
-                description: "Enable 'Manual identity linking' in your Supabase Auth settings, then try again.",
-                variant: "destructive",
-              });
-            } else {
-              throw updateError;
-            }
+          const sent = await sendUpgradeEmails(email);
+          if (!sent.ok) {
             setLoading(false);
             return;
           }
 
-          const userId = updateData.user?.id;
+          const userId = sent.userId;
           if (userId) {
             let avatarUrl: string | null = null;
             if (avatarFile) {
@@ -206,17 +335,11 @@ const Auth = () => {
             }
           }
 
-          // Send a password-set email so the user can set a password after
-          // verifying. They click the verification link in email #1, then the
-          // password-reset link in email #2. (No password is captured here.)
-          await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password`,
-          });
-
-          toast({
-            title: "Check your email",
-            description: `We've sent a verification link to ${email}. After verifying, follow the password-set link to finish.`,
-          });
+          // Move to the waiting state — it reads back the user's position in
+          // the flow and can last days, so it is persisted.
+          const next = { email, userId: userId ?? session?.user?.id ?? null, sentAt: Date.now() };
+          setWaiting(next);
+          saveUpgradeWaiting(next);
         } else {
           const redirectUrl = `${window.location.origin}/dashboard`;
 
@@ -305,6 +428,178 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  const cooldownRemaining = waiting
+    ? Math.max(0, RESEND_COOLDOWN_S - Math.floor((now - waiting.sentAt) / 1000))
+    : 0;
+
+  // 4m / 4n — the anonymous-upgrade branch only. Sign-in, sign-up and
+  // forgot-password keep their existing markup below.
+  if (isUpgrade) {
+    const effectiveWaiting =
+      waiting && waiting.userId === session?.user?.id ? waiting : null;
+
+    const topBar = (
+      <div className="flex h-tap flex-none items-center gap-3">
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          aria-label="Back"
+          className="grid h-tap w-tap flex-none place-items-center"
+        >
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <path d="M13 4.5L6.5 11l6.5 6.5" stroke="#e9e9ed" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
+        <div className="flex-1 text-body text-foreground">Account</div>
+      </div>
+    );
+
+    const fieldError = (message: string) => (
+      <div className="mt-2 flex items-start gap-2.5">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="mt-0.5 flex-none">
+          <circle cx="10" cy="10" r="8" stroke="#d29a51" strokeWidth="1.6" />
+          <path d="M10 6v5" stroke="#d29a51" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="10" cy="14" r="1" fill="#d29a51" />
+        </svg>
+        <p className="text-note text-warning">{message}</p>
+      </div>
+    );
+
+    if (effectiveWaiting) {
+      const since = session?.user?.created_at ? new Date(session.user.created_at) : null;
+      return (
+        <div className="flex min-h-screen flex-col bg-background px-5 pt-[22px]">
+          {topBar}
+          <div className="flex flex-1 flex-col overflow-y-auto pb-2">
+            <h1 className="text-title text-foreground">{AUTH_WAIT_COPY.title(effectiveWaiting.email)}</h1>
+            <p className="mt-2 text-note text-muted-foreground">{AUTH_WAIT_COPY.body}</p>
+            <div className="mt-5 text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
+              {AUTH_WAIT_COPY.stepsHeader}
+            </div>
+            <div className="mt-0.5">
+              <StepStrip steps={AUTH_WAIT_COPY.steps} marks={["done", "current", "pending"] as StepMark[]} />
+            </div>
+            <div
+              className="mx-0 my-3 h-px"
+              style={{
+                background:
+                  "linear-gradient(to right,transparent,rgba(233,233,237,.16) 48px,rgba(233,233,237,.16) calc(100% - 48px),transparent)",
+              }}
+            />
+            <div className="rounded-lg bg-card p-[18px]">
+              <p className="text-body text-foreground">{AUTH_WAIT_COPY.notPaused}</p>
+            </div>
+            {since && !Number.isNaN(since.getTime()) && (
+              <p className="mt-4 text-micro text-[#75798c]">{AUTH_WAIT_COPY.since(since)}</p>
+            )}
+          </div>
+          <div className="flex-none pt-3">
+            <Button size="act" className="w-full" onClick={() => navigate("/dashboard")}>
+              {AUTH_WAIT_COPY.leave}
+            </Button>
+            <div className="mt-2.5 flex gap-2.5">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending}
+                className="flex h-tap flex-1 flex-col items-center justify-center gap-0.5 rounded-ctl shadow-[0_0_0_1px_#383a46] disabled:opacity-50"
+              >
+                <span className="text-body text-foreground">{AUTH_WAIT_COPY.resend}</span>
+                {cooldownRemaining > 0 && (
+                  <span className="text-micro tabular-nums text-[#75798c]">
+                    {AUTH_WAIT_COPY.resendCooldown(cooldownRemaining)}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleAnotherEmail}
+                className="flex h-tap flex-1 items-center justify-center rounded-ctl text-body text-foreground shadow-[0_0_0_1px_#383a46]"
+              >
+                {AUTH_WAIT_COPY.change}
+              </button>
+            </div>
+            <div className="h-3" />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <form onSubmit={handleSubmit} className="flex min-h-screen flex-col bg-background px-5 pt-[22px]">
+        {topBar}
+        <div className="flex flex-1 flex-col overflow-y-auto pb-2">
+          <h1 className="text-title text-foreground">{AUTH_COPY.title}</h1>
+          <p className="mt-2 text-note text-muted-foreground">{AUTH_COPY.body}</p>
+          <div className="mt-4">
+            <WhatComesWithYou userId={session?.user?.id ?? null} />
+          </div>
+          <div className="mt-[18px] text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
+            {AUTH_COPY.stepsHeader}
+          </div>
+          <div className="mt-0.5">
+            <StepStrip steps={AUTH_COPY.steps} marks={["pending", "pending", "pending"] as StepMark[]} />
+          </div>
+          <p className="mb-1 mt-1 text-micro text-[#75798c]">{AUTH_COPY.why}</p>
+          <div className="space-y-4">
+            <div>
+              <Label
+                htmlFor="upgrade-username"
+                className={cn(
+                  usernameFocused && !errors.username && "text-primary-hover",
+                  errors.username ? "text-warning" : ""
+                )}
+              >
+                Username
+              </Label>
+              <Input
+                id="upgrade-username"
+                className="placeholder:text-[#75798c]"
+                placeholder="Choose a username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onFocus={() => setUsernameFocused(true)}
+                onBlur={() => setUsernameFocused(false)}
+                aria-invalid={!!errors.username}
+              />
+              {errors.username && fieldError(errors.username)}
+            </div>
+            <div>
+              <Label
+                htmlFor="upgrade-email"
+                className={cn(
+                  emailFocused && !errors.email && "text-primary-hover",
+                  errors.email ? "text-warning" : ""
+                )}
+              >
+                Email
+              </Label>
+              <Input
+                id="upgrade-email"
+                type="email"
+                className="placeholder:text-[#75798c]"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+                aria-invalid={!!errors.email}
+              />
+              {errors.email && fieldError(errors.email)}
+            </div>
+          </div>
+        </div>
+        <div className="flex-none pt-3">
+          <Button type="submit" size="act" className="w-full" disabled={loading}>
+            {loading ? "Sending…" : AUTH_COPY.cta}
+          </Button>
+          <p className="mt-2.5 text-center text-micro text-[#75798c]">{AUTH_COPY.footnote}</p>
+          <div className="h-3" />
+        </div>
+      </form>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
