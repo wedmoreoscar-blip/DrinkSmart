@@ -139,6 +139,38 @@ equally to lint, tests, and any future runner.
   indistinguishable from one still working — which is tolerable under close watch and not when
   several delegations run in parallel.
 
+### Amendment — the spec states the baseline but does not command it (2026-08-12)
+
+- **`blocks/baseline.md` is a third fixed block**, appended verbatim beside `scope.md` and
+  `closing.md`, and `tools/writespec-guard` requires all three. It states the division of labour:
+  **implementers run `npm run typecheck` and `npx vitest run`; `npm run lint` and `npm run build`
+  are the checker's.** A spec still quotes the literal counts — "no worse" has to stay checkable —
+  but **must not instruct the commands**. `HEAVY_COMMAND_PATTERNS` denies a send that does.
+- **The failure this closes was the orchestrator's, not an implementer's.** Every Wave 4 spec
+  appended `closing.md` — which asks only that the code runs and the existing suite passes — and
+  then added a baseline section reading *"Run these from the root of your worktree"* above all
+  four commands. Both blocks were present and verbatim, so all seven sends passed. The guard
+  checked that the blocks were *present*; nothing checked whether the spec around them agreed.
+  **A guard that checks for presence is not checking for coherence.**
+- The agents were obeying, not forgetting. Diagnosing it as "the agents are looping" was wrong and
+  produced a needless steer to five working agents.
+- **Cost, measured rather than assumed:** WSL gets 2 of this machine's 4 cores. Five agents × four
+  commands is ~20 build-weight jobs on two cores; load average hit 7.85–11.14, one implementer's
+  `npm run build` took **2m40s** against the orchestrator's **29s** for the identical command, and
+  one agent spent twenty minutes on a `tsc -b` whose result the checker discarded and re-ran.
+- **A starved agent is indistinguishable from a stalled one.** That ambiguity, not the delay, is
+  the real cost.
+- **`tools/agent-lock` is the wrong instrument here**: it holds `flock -n`, so a second caller
+  fails with exit 75 rather than queuing. It guards things that must never overlap; wrapping
+  verification in it would convert contention into spurious failures.
+- **The answer is not smaller waves** (Oscar, 2026-08-12). Keep fanning out as wide as the specs
+  allow. Exhaustive work on a cheap model is the correct trade against repair by an expensive one;
+  the binding constraint is agent **context**, not tokens.
+- **Provisioning a fresh worktree uses `npm ci`, not `npm install`.** `npm install` can rewrite
+  `package-lock.json`, handing the implementer a tree already dirty in a file its spec forbids it
+  to touch, and that change then rides into the handback diff. A warm worktree whose lockfile moved
+  still uses `npm install`, because the incremental update is the whole point of that path.
+
 ## LOCKED — The final visual check is a separate workflow (2026-08-09)
 
 - **`docs/workflows/visual_check.md` governs it, and it is deliberately not the delegation path.**
@@ -586,6 +618,18 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   one currently sits below the 56px floor.
 - **Primitives land before screens.** Every screen consumes `src/components/ui/*`, so that work is
   the one serialization point; screen work parallelises freely behind it.
+- **`cn()` must be told about the font-size scale, and now is** (2026-08-12). `cn()` is `twMerge`,
+  which classifies a `text-*` class by its suffix: stock t-shirt sizes are font-size, and anything
+  else falls through to the **colour** group. Our scale is named rather than sized, so `text-body`,
+  `text-title`, `text-micro` and the rest were all read as colours and evicted by any colour later
+  in the same call — `twMerge("text-body text-foreground")` returned `"text-foreground"`, while
+  `twMerge("text-sm text-foreground")` kept both. `src/lib/utils.ts` now registers the scale via
+  `extendTailwindMerge`; **keep that list in step with `fontSize` in `tailwind.config.ts`, because a
+  token missing from it can be silently dropped again.** Live damage was small only by luck — a
+  dropped size inherits `body`'s 19px, so `text-body` survived by accident and only
+  `ToastDescription` was wrong. The hazard was forward: the first `cn("text-title", colour)` in new
+  work collapses 28px to 19px with nothing in the component to show why, and a visual check would
+  hunt it in the wrong place. Found by an implementer, not by review.
 - Delegation runs in **waves**. Within a wave, specs must own **disjoint file sets** — file-level
   ownership is what prevents interference, and it removes the need for agent-to-agent chat between
   implementers. Reserve a2a for cases where two implementers must agree on an interface, which
