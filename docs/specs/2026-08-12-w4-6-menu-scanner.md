@@ -136,30 +136,47 @@ screen as a 150px thumbnail with a `your photo` tag and the 13px line `SCAN_FAIL
 the real failure to one of them. **No red — and not amber either:** a failed network call is not a
 caution about drinking.
 
-## Verification baseline — derived live on `main` at `1f25436`, 2026-08-12
+## Verification baseline — the numbers
 
-Run these from the root of **your** worktree. Note the test count is stated as of that commit; if
-`main` has advanced when you start, the rule is that the count must not *fall*.
+These are the counts your work must not worsen. They are stated so "no worse" is checkable; the
+block below says which commands are yours to run.
 
-- `npm test` — **PASS, 102 tests across 9 files.** It must still report at least 102 passing.
-- `npm run typecheck` — **PASS, 0 errors.** It must stay 0.
-  **Never run bare `tsc --noEmit` in this repository.** The root `tsconfig.json` is `"files": []`
+- `npm test` — 102 tests across 9 files, all passing. Must not fall.
+- `npm run typecheck` — 0 errors. Must stay 0.
+  **Never use bare `tsc --noEmit` in this repository.** The root `tsconfig.json` is `"files": []`
   plus project references, so bare `tsc --noEmit` compiles **zero files** and always appears to
-  pass. Use `npm run typecheck`, which is `tsc -b --noEmit`.
-- `npm run lint` — **KNOWN FAILING, and that is expected.** It reports exactly
-  `✖ 21 problems (10 errors, 11 warnings)` in pre-existing application files. That is the accepted
-  baseline; it must not get worse. **Do not fix pre-existing lint problems** — out of scope, and it
-  enlarges the diff.
-- `npm run build` — **PASS, about 29s.** The `chunks are larger than 500 kB` notice is expected and
-  is not a failure.
-- Browser, Supabase, edge-function, notification and native/Capacitor checks are **BLOCKED**: that
-  infrastructure is not available to you. **You cannot invoke the `parse-menu` edge function, cannot
-  take a real photo, and cannot exercise a real timeout.** Build the four states so each can be
-  driven from local state, and say plainly in your report that live parsing is unverified.
+  pass. The npm script is `tsc -b --noEmit`.
+- `npm run lint` — known-failing at exactly `21 problems (10 errors, 11 warnings)`, all in
+  pre-existing application files. That is the accepted baseline and must not get worse. **Do not
+  fix pre-existing lint problems** — out of scope, and it enlarges the diff.
+- `npm run build` — passing, with an expected `chunks are larger than 500 kB` notice that is not a
+  failure.
 
-Do not run `npm install` or `npm ci`. Your worktree is already provisioned with 430 packages.
-Do not run `git commit`, `git push`, or any `supabase` command. Leave your work **uncommitted** in
-the worktree — the orchestrator commits the handback.
+These figures are re-derived at dispatch time; if the orchestrator gave you newer ones in the
+covering message, those win.
+
+## What you run, and what you do not
+
+Run exactly these two, from the root of your worktree:
+
+- `npm run typecheck` — the one check that catches your own errors before handback.
+- `npx vitest run` — cheap, and confirms you broke nothing that already worked.
+
+**Do not run `npm run lint` or `npm run build`.** They belong to the checker, who runs the full
+baseline on the integration branch after review. They are the two most expensive commands in this
+repository and the least informative to you: lint is known-failing at a fixed count you cannot
+improve, and build tells you nothing typecheck did not. Several implementers run in parallel on a
+2-core machine, so an unnecessary build starves every other agent and yourself.
+
+Do not run `npm install` or `npm ci`. Your worktree is already provisioned.
+Do not run `git commit`, `git push`, or any `supabase` command. Leave your work uncommitted; the
+orchestrator commits the handback.
+
+If a command is still running when you have everything you need, stop it and report. A result you
+are waiting on is not worth more than the report.
+
+Browser, Supabase, edge-function, notification and native/Capacitor checks are BLOCKED: that
+infrastructure is not available to you. Do not attempt them, and never claim them.
 
 Change only what is required. Do not refactor, rename, reformat, add error
 handling, or improve anything you were not asked to change, even if it

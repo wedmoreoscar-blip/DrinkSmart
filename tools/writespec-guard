@@ -35,6 +35,22 @@ BLOCKS = os.path.join(REPO, ".claude", "skills", "writespec", "blocks")
 # green suite can report success over a clause that was never built. Matched only
 # after the verbatim scope.md/closing.md blocks are stripped, because closing.md
 # legitimately contains "Do NOT write new tests".
+# Imperatives aimed at the two commands the checker owns. Deliberately keyed on an
+# instruction verb next to the command, so a spec may still QUOTE the baseline
+# ("`npm run lint` -- KNOWN FAILING: 10 errors, 11 warnings") without tripping this.
+HEAVY_COMMAND_PATTERNS = [
+    # "Run these from the root of your worktree." introducing a list that contains one of
+    # them AS AN ITEM. Keyed on shape rather than proximity: in the real 2026-08-12 spec
+    # the imperative sat 451 chars from `npm run lint` and 744 from `npm run build`, so a
+    # tight window missed the one case this rule exists for, while a window wide enough to
+    # reach would match almost anything. Requiring a list marker is what keeps it precise --
+    # a spec that merely QUOTES the counts never renders them as commands to run.
+    r"\brun\s+(?:these|the\s+following|all\s+\w+|them)\b[\s\S]{0,1200}?[-*•]\s*`?npm run (?:lint|build)",
+    r"\b(?:must|should|please|then)\s+run\s+`?npm run (?:lint|build)",
+    r"\brun\s+`?npm run (?:lint|build)`?\s+(?:from|in|and|then|before|after)\b",
+    r"^\s*[-*\d.]*\s*run\s+`?npm run (?:lint|build)",
+]
+
 TEST_COMMISSION_PATTERNS = [
     r"\brequires?\s+(?:new\s+|additional\s+|focused\s+)*(?:deterministic\s+)?tests?\b",
     r"\b(?:must|should|please)\s+(?:also\s+)?(?:write|add|create)\s+"
@@ -123,6 +139,8 @@ def main():
             scope = f.read()
         with open(os.path.join(BLOCKS, "closing.md")) as f:
             closing = f.read()
+        with open(os.path.join(BLOCKS, "baseline.md")) as f:
+            baseline = f.read()
     except OSError as e:
         deny(f"writespec-guard cannot read the fixed blocks ({e}). "
              f"Expected them under {BLOCKS}.")
@@ -141,7 +159,8 @@ def main():
             pass
 
     blob = norm("\n".join(haystack))
-    missing = [name for name, block in (("scope.md", scope), ("closing.md", closing))
+    missing = [name for name, block in (("scope.md", scope), ("closing.md", closing),
+                                        ("baseline.md", baseline))
                if norm(block) not in blob]
 
     if missing:
@@ -157,10 +176,46 @@ def main():
             "Then re-send. If this is a reply rather than a commission, use --response-id."
         )
 
+    # The expensive half of the baseline is the checker's too.
+    #
+    # Same failure class as the test rule below, and it caught the orchestrator rather
+    # than an implementer. On 2026-08-12 every Wave 4 spec appended closing.md -- which
+    # asks only that the code runs and the existing suite passes -- and then added a
+    # baseline section reading "Run these from the root of your worktree" above all four
+    # commands. The blocks were present and verbatim, so the guard passed it; nothing
+    # was checking whether the surrounding spec contradicted them.
+    #
+    # The cost was real: five agents on a 2-core box, load average 7.85-11.14, one
+    # implementer's build at 2m40s against the orchestrator's 29s, and an agent that sat
+    # twenty minutes on a tsc whose result was discarded and re-run on the integration
+    # branch. A starved agent also looks exactly like a stalled one, which produced a
+    # wrong diagnosis and a needless steer to five working agents.
+    #
+    # baseline.md now states the division of labour, so this only fires when a spec
+    # instructs the expensive commands on top of it.
+    body_nb = blob
+    for block in (scope, closing, baseline):
+        body_nb = body_nb.replace(norm(block), " ")
+    heavy = [p for p in HEAVY_COMMAND_PATTERNS if re.search(p, body_nb.lower())]
+    if heavy:
+        deny(
+            "Blocked by writespec-guard: this spec instructs the implementer to run "
+            "`npm run lint` or `npm run build`.\n\n"
+            "Those belong to the checker, which runs the full baseline once on the "
+            "integration branch (docs/workflows/delegation.md step 13). They are the two "
+            "most expensive commands here and the least informative to an implementer: "
+            "lint is known-failing at a fixed count it cannot improve, and build reports "
+            "nothing typecheck did not.\n\n"
+            "State the literal counts so 'no worse' stays checkable, but let the appended "
+            "baseline.md block say what to run. It already does.\n\n"
+            f"    cat {BLOCKS}/baseline.md >> <spec-file>\n\n"
+            "Quote the numbers; do not instruct the commands."
+        )
+
     # Verification is the checker's, not the implementer's.
     if "[implementer-tests]" not in cmd:
         body = blob
-        for block in (scope, closing):
+        for block in (scope, closing, baseline):
             body = body.replace(norm(block), " ")
         body = body.lower()
         hits = [p for p in TEST_COMMISSION_PATTERNS if re.search(p, body)]
