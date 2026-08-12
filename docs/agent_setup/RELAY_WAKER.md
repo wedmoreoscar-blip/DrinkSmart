@@ -147,9 +147,12 @@ and `tools/relay-hub-waker`, which is a real constraint in practice:
   environment and only an agent's own shell inherits. The launcher no longer requires it:
   `tools/traycer-identity` resolves both ids — the epic from Traycer's open-tab state
   (`desktop-windows.json`, authoritative because an epic is reachable only through an open tab), and the
-  identity from `~/.cache/traycer/identity.env`, seeded whenever the resolver runs inside an agent
-  session and validated before being trusted. Any agent the user owns works as a caller, so a cached id
-  for a deleted agent is discarded and rediscovered. `tools/traycer-identity --check` prints what it
+  identity from the agent tiles in that same file (`type` of `terminal-agent` or `chat`), each candidate
+  validated against `traycer agent list` before being trusted. Any agent the user owns works as a
+  caller. This needs no priming, so it works on a cold machine; `~/.cache/traycer/identity.env` is only
+  a fast path, and a cached id for a deleted agent is discarded and rediscovered. A plain terminal has
+  no identity of its own, so what this does is borrow the id of an agent you have open — with no agent
+  tile open there is no candidate, which is the honest answer rather than a failure. `tools/traycer-identity --check` prints what it
   found. Failing that, `RELAY_WAKER_SENDER_ID=<a2a-hub-waker id>` doubles as the identity, since the
   daemon already acts as that agent when sending.
 - **Only an agent's own shell inherits `TRAYCER_EPIC_ID`.** A Traycer **UI terminal tab does not**,

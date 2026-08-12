@@ -9,8 +9,15 @@
 #   tools/traycer-identity --check       # print what it found, human-readable
 #
 # Order, for each id: the environment, then a cache this script maintains, then
-# discovery. Running it inside an agent session refreshes the cache, so one agent
-# run makes every later plain-terminal run work.
+# Traycer's own window state. The window-state route needs no priming, so this
+# works on a cold machine; the cache is kept only because it is one validation
+# call instead of several.
+#
+# It used to look for agent ids under /tmp/traycer-chat-refs, which does not exist
+# on this machine and would be wiped by a reboot even if it did. With no cache and
+# no such directory the only remaining route was seeding the cache from an agent
+# session -- a bootstrap step nobody ever performed, so both `watch-repo` and
+# `waker-daemon-start` refused to launch from an ordinary terminal (2026-08-11).
 #
 # The cache holds ids, not secrets: they are already visible in `traycer agent
 # list` and in the epic paths under ~/.traycer.
@@ -19,7 +26,9 @@ set -euo pipefail
 
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/traycer/identity.env"
 WINDOWS="$HOME/.traycer/desktop-windows.json"
-CHAT_REFS="/tmp/traycer-chat-refs"
+# Tiles that host an agent. A `spec` tile is a document and a bare `terminal` is a
+# shell, neither of which has an agent id worth trying.
+AGENT_TILE_KINDS="terminal-agent chat"
 
 epic=""
 agent=""
@@ -33,6 +42,10 @@ read_cache() {
       TRAYCER_AGENT_ID) [[ -z "$agent" ]] && agent="$value" ;;
     esac
   done <"$CACHE"
+  # An explicit success. The last `[[ -z ... ]] && ...` above returns 1 whenever the
+  # value was already set from the environment, which under `set -e` would kill the
+  # whole script -- latent until a cache file existed to read.
+  return 0
 }
 
 # Traycer reaches an epic only through an open tab, so its window state is the
@@ -62,16 +75,48 @@ valid_agent() {
     grep -q '"status":"ok"'
 }
 
+# The same file that names the open epic also names the agent in every open tile,
+# under canvasByTabId.<tab>.tilesByInstanceId.<instance>.id. Traycer rewrites it as
+# tiles open and close, so a deleted agent stops being offered instead of lingering
+# as a stale id that still looks plausible.
+agent_candidates_from_windows() {
+  [[ -r "$WINDOWS" ]] || return 0
+  python3 - "$WINDOWS" "$AGENT_TILE_KINDS" <<'PY'
+import json, sys
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+kinds = set(sys.argv[2].split())
+seen = []
+for window in (data.get("windows") or {}).values():
+    for canvas in (window.get("canvasByTabId") or {}).values():
+        for tile in (canvas.get("tilesByInstanceId") or {}).values():
+            # `type` is the field Traycer writes; `kind` is accepted only so a
+            # rename does not silently return zero candidates again.
+            if (tile.get("type") or tile.get("kind")) not in kinds:
+                continue
+            tile_id = tile.get("id")
+            # A tile id is only an agent id for agent-hosting kinds; the prefixed
+            # form (`term-<uuid>`) belongs to a plain shell, so never offer it.
+            if tile_id and not tile_id.startswith("term-") and tile_id not in seen:
+                seen.append(tile_id)
+print("\n".join(seen))
+PY
+}
+
+# A plain terminal has no identity of its own, so there is nothing local to read.
+# This borrows the id of an agent the user has open, which is all `agent list`
+# needs. No open agent tile means no candidate, and that is the honest answer.
 discover_agent() {
-  local dir candidate
-  for dir in "$CHAT_REFS"/*/; do
-    [[ -d "$dir" ]] || continue
-    candidate="$(basename "$dir")"
+  local candidate
+  while read -r candidate; do
+    [[ -n "$candidate" ]] || continue
     if valid_agent "$candidate"; then
       echo "$candidate"
       return 0
     fi
-  done
+  done < <(agent_candidates_from_windows)
   return 1
 }
 
@@ -108,8 +153,9 @@ if [[ -z "$agent" ]]; then
 fi
 if [[ -z "$agent" ]]; then
   echo "traycer-identity: cannot determine a caller agent id." >&2
-  echo "  Run any Traycer agent command once from an agent session to seed" >&2
-  echo "  $CACHE, or export TRAYCER_AGENT_ID yourself." >&2
+  echo "  No TRAYCER_AGENT_ID, no usable cached id, and no open agent tile in" >&2
+  echo "  $WINDOWS (looking for tiles of kind: $AGENT_TILE_KINDS)." >&2
+  echo "  Open an agent in Traycer, or export TRAYCER_AGENT_ID yourself." >&2
   exit 3
 fi
 

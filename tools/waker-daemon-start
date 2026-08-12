@@ -29,7 +29,8 @@ SENDER_NAME="${RELAY_WAKER_SENDER_NAME:-a2a-hub-waker}"
 # the place a user would try first. Fall back to finding the epic that already
 # owns a relay ledger, which is unambiguous whenever one epic runs the relay.
 # Outside an agent session neither id is set, and name resolution needs both. The
-# resolver finds them from Traycer's own window state and a cache it maintains, so
+# resolver finds both from Traycer's own window state -- the epic from its open tabs,
+# a caller identity from the agents in its open tiles -- needing no priming, so
 # this works from an ordinary terminal without anyone typing an id.
 if [[ -z "${TRAYCER_AGENT_ID:-}" ]]; then
   if identity="$("$ROOT/tools/traycer-identity" 2>/dev/null)"; then
