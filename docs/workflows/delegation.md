@@ -41,12 +41,27 @@ Four properties, in priority order. Every rule below exists to serve one of them
 2. **Bring the worktree level with `main`.** Merge only. Never reset, rebase, or stash to get
    there. If the worktree is dirty or cannot be synchronized without risking unintegrated work,
    stop and ask rather than forcing it.
-3. **Install only if the dependency set actually moved.** A warm worktree already has
-   `node_modules`; reinstalling into one is slow and buys nothing. Run `npm install` under
-   `tools/agent-lock dependencies` in exactly two cases:
+3. **Install only if the dependency set actually moved,** and pick the command by case. A warm
+   worktree already has `node_modules`; reinstalling into one is slow and buys nothing. Install
+   under `tools/agent-lock dependencies` in exactly two cases, which take *different* commands:
 
-   - the worktree is newly created, or
-   - the merge in step 2 changed `package-lock.json`.
+   | Case | Command | Why that one |
+   | --- | --- | --- |
+   | The worktree is newly created | **`npm ci`** | Deterministic, and it never writes `package-lock.json` |
+   | The merge in step 2 changed `package-lock.json` | **`npm install`** | Incremental — seconds, against a full cold install |
+
+   **The fresh-worktree case is `npm ci` because `npm install` can rewrite the lockfile, and a
+   delegated worktree shares the repository** (added 2026-08-12). If provisioning mutates
+   `package-lock.json`, the implementer is handed a worktree that is already dirty in a file its
+   spec forbids it to touch, and that change then rides into the handback diff — where it looks
+   like the implementer's doing. `npm ci` cannot do this: it installs the lockfile exactly and
+   never writes it back, so the agent starts from a genuinely clean `git status` against the same
+   dependency set `main` was verified with. Being faster on a cold `node_modules` is a bonus, not
+   the reason. It does not disturb the Playwright browser cache, which lives in
+   `~/.cache/ms-playwright` rather than in `node_modules` — see `visual_check.md`.
+
+   **Do not reach for `npm ci` in the second case.** It deletes `node_modules` and reinstalls cold,
+   discarding exactly the incremental update that makes that path cheap.
 
    The second case is not caution, it is staleness: `node_modules` now describes a dependency set
    the tree no longer has. This is a real failure mode, not a theoretical one — a worktree
