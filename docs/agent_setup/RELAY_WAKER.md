@@ -155,6 +155,12 @@ and `tools/relay-hub-waker`, which is a real constraint in practice:
   tile open there is no candidate, which is the honest answer rather than a failure. `tools/traycer-identity --check` prints what it
   found. Failing that, `RELAY_WAKER_SENDER_ID=<a2a-hub-waker id>` doubles as the identity, since the
   daemon already acts as that agent when sending.
+- **`traycer` on `PATH` may not be the CLI.** On this machine `~/.local/bin/traycer` is a shim that
+  launches the *desktop app* detached, discarding output and exiting 0 — so a bare `traycer agent list`
+  returns no result event and no error, which the daemon could only report as
+  `no result event on stdout (exit 0)`. Both the daemon and `tools/traycer-identity` now resolve
+  `TRAYCER_CLI_BIN`, then `~/.traycer/cli/bin/traycer`, then `PATH`. `tools/traycer-identity --check`
+  prints which binary it settled on; if that line is not the packaged CLI, suspect the shim.
 - **Only an agent's own shell inherits `TRAYCER_EPIC_ID`.** A Traycer **UI terminal tab does not**,
   which is the place a user would try first, so the launcher no longer requires the variable. It takes
   the epic from `TRAYCER_EPIC_ID`, else `RELAY_WAKER_EPIC_ID`, else a second argument

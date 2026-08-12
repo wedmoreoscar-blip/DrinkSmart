@@ -33,6 +33,7 @@ import fcntl
 import json
 from pathlib import Path
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -74,6 +75,29 @@ def default_ledger(epic_id: str) -> Path:
     )
 
 
+def traycer_cli() -> str:
+    """Locate the Traycer CLI rather than trusting PATH.
+
+    On this machine `~/.local/bin/traycer` is not the CLI at all -- it is a shim
+    that launches the desktop app detached, discarding output and exiting 0. A
+    bare `traycer` that resolves to it therefore produces no result event and no
+    error, which reads exactly like a broken CLI contract (2026-08-12).
+    """
+    override = os.environ.get("TRAYCER_CLI_BIN")
+    if override and os.access(override, os.X_OK):
+        return override
+    packaged = Path.home() / ".traycer/cli/bin/traycer"
+    if os.access(packaged, os.X_OK):
+        return str(packaged)
+    found = shutil.which("traycer")
+    if found:
+        return found
+    raise WakerError(
+        "cannot find the traycer CLI (looked at TRAYCER_CLI_BIN, "
+        f"{packaged}, and PATH)"
+    )
+
+
 def list_agents(caller_id: str | None) -> list[dict]:
     """Return the epic's agents.
 
@@ -86,7 +110,7 @@ def list_agents(caller_id: str | None) -> list[dict]:
     if caller_id:
         environment["TRAYCER_AGENT_ID"] = caller_id
     result = subprocess.run(
-        ["traycer", "agent", "list", "--json", "--no-progress"],
+        [traycer_cli(), "agent", "list", "--json", "--no-progress"],
         capture_output=True,
         text=True,
         env=environment,
@@ -175,7 +199,7 @@ def wake_message(pending: list[str]) -> str:
 
 def attempt_send(hub_id: str, sender_id: str, message: str) -> tuple[bool, str]:
     result = subprocess.run(
-        ["traycer", "agent", "send", "--to", hub_id, "--message", message],
+        [traycer_cli(), "agent", "send", "--to", hub_id, "--message", message],
         capture_output=True,
         text=True,
         env=dict(os.environ, TRAYCER_AGENT_ID=sender_id),
