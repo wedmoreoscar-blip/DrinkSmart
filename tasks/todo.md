@@ -1,4 +1,28 @@
-# Active Plan — frontend redesign, steps 2 through 8
+# Active Plan — Wave 5 editable generated night
+
+Authoritative implementation contract: Traycer artifact `wave-5-change-inventory`, including Oscar's
+2026-08-13 amendment. That written spec outranks the Claude Design README/HTML/PNG delivery wherever
+they conflict; the drawings govern the many visual details on which the written spec is silent.
+
+## Wave 5 execution
+
+- [ ] W5-1 — Plan generates and regenerates in place, auto-scrolls to curation, and advances only
+  through tray `Done` (`deepseek_imp_0`, `drinksmart_worktree_0`).
+- [ ] W5-2 — Timeline full action suite for current/future drinks, explicit grip/move mode, bounded
+  swap entry point, and unlocked-only in-place re-plan (`deepseek_imp_1`, `drinksmart_worktree_1`).
+- [ ] W5-3 — Plan selected-drink panels plus hard-bounded normal and swap picker flows
+  (`deepseek_imp_2`, `drinksmart_worktree_2`).
+- [ ] W5-4 — Onboarding five-stop Strength rail and five-chip taste grid
+  (`deepseek_imp_3`, `drinksmart_worktree_3`).
+- [ ] W5-5 — Dynamic tray-meter shade bands and the two new colour tokens
+  (`deepseek_imp_4`, `drinksmart_worktree_4`).
+- [ ] Inline after dispatch — BMI/FFMI save correction, Taste-sheet initial/open sync and matching
+  compact rails, onboarding reload-flash fix, Dashboard swap wiring, and lock-is-not-a-time-anchor
+  engine correction with checker-derived tests.
+- [ ] Batch `speccheck`, one repair loop, one full baseline, spend rows, and fast-forward `main`.
+- [ ] HALT for Oscar before the separate Luna final visual check of frames `5a`–`5f`.
+
+## Prior redesign record
 
 Source of truth: `design_handoffs/design_handoff_drinksmart_wave5/README.md` (the spec) and `screens/*.png` (appearance).
 Read `docs/decisions.md` first; the three redesign LOCKED entries constrain every step below.
