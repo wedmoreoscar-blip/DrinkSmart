@@ -89,14 +89,34 @@ work back round with the incorrect part.
 
 ## Assembling the spec
 
-Write the task-specific sections yourself. Then append the two fixed
+Write the task-specific sections yourself. Then append the three fixed
 blocks verbatim from this skill's `blocks/` directory (the skill's base
 directory is shown when it loads):
 
+    cat <skill-base-dir>/blocks/baseline.md >> <spec-file>
     cat <skill-base-dir>/blocks/scope.md >> <spec-file>
     cat <skill-base-dir>/blocks/closing.md >> <spec-file>
 
 Do not retype, summarise or reword these. Append the files.
+
+### State the baseline numbers; let `baseline.md` say what to run
+
+Give the literal counts — the lint error and warning totals, the test count,
+the build time — so "no worse" is checkable. But **do not write an instruction
+to run the commands.** `baseline.md` already says which two the implementer
+runs and which two are the checker's.
+
+This split exists because it was got wrong. On 2026-08-12 every Wave 4 spec
+appended `closing.md`, which asks only that the code runs and the existing
+suite passes, and then added a baseline section reading *"Run these from the
+root of your worktree"* above all four commands. The spec contradicted the
+block inside it, `writespec-guard` had nothing checking for that, and five
+agents on a 2-core machine each ran the two most expensive commands in the
+repository. One implementer's build took 2m40s against the orchestrator's 29s,
+and another spent twenty minutes on a `tsc` whose result was discarded.
+
+`writespec-guard` now denies a send whose spec instructs `npm run lint` or
+`npm run build`. Quote the numbers; never issue the commands.
 
 ### Do not ask the implementer to verify its own work
 
