@@ -11,6 +11,10 @@ type PickerTrayProps = {
   hasPending: boolean;
   onDone: () => void;
   onAdd: () => void;
+  addDisabled?: boolean;
+  actionLabel?: string;
+  traySub?: string;
+  advice?: string | null;
 };
 
 export const PickerTray = ({
@@ -22,6 +26,10 @@ export const PickerTray = ({
   hasPending,
   onDone,
   onAdd,
+  addDisabled = false,
+  actionLabel,
+  traySub,
+  advice = null,
 }: PickerTrayProps) => {
   const target = targetMl ?? 0;
   const reading = hasPending
@@ -31,7 +39,8 @@ export const PickerTray = ({
       : `${fmtMl(committedMl)} ml`;
 
   const sub =
-    hasPending && target > 0 ? `of ${fmtMl(target)} ml tonight` : PICKER_COPY.traySub(committedCount);
+    traySub ??
+    (hasPending && target > 0 ? `of ${fmtMl(target)} ml tonight` : PICKER_COPY.traySub(committedCount));
 
   return (
     <div className="sticky bottom-0 z-10 -mx-5 flex flex-none items-center gap-3.5 border-t border-[#292b31] bg-[#1c1e2c] px-5 py-3">
@@ -45,15 +54,20 @@ export const PickerTray = ({
         <div className="text-lead font-medium leading-[1.1] tabular-nums text-foreground">
           {reading}
         </div>
-        <div className="mt-[3px] text-[15px] leading-[1.3] text-muted-foreground">{sub}</div>
+        {advice ? (
+          <div className="mt-[5px] text-note leading-[1.4] text-[#cfd3e5]">{advice}</div>
+        ) : (
+          <div className="mt-[3px] text-[15px] leading-[1.3] text-muted-foreground">{sub}</div>
+        )}
       </div>
       <Button
         variant="default"
         size="act"
         className="flex-none whitespace-nowrap px-[26px]"
+        disabled={addDisabled}
         onClick={hasPending ? onAdd : onDone}
       >
-        {hasPending ? PICKER_COPY.trayPending(pendingQuantity) : PICKER_COPY.trayIdle}
+        {actionLabel ?? (hasPending ? PICKER_COPY.trayPending(pendingQuantity) : PICKER_COPY.trayIdle)}
       </Button>
     </div>
   );
