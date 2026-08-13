@@ -1,169 +1,226 @@
-# Session Handoff / Kickoff — Wave 4 COMPLETE, visually checked and integrated
+# Session Handoff / Kickoff — Wave 4 complete; WAVE 5 specified and ready to scope
 
-Written 2026-08-13 18:10 BST. Normal-mode handoff. The canonical continuation was replaced.
+Written 2026-08-13 19:15 BST. Normal-mode handoff. The canonical continuation was replaced.
 
-## Outcome of this session
+## State
 
-**Wave 4 is finished.** All seven legs were already implemented and integrated at kickoff; this
-session ran the **final visual check** end to end and integrated it. `main` is at `1c73f78`.
-Nothing was pushed.
+**Wave 4 is finished** — implemented, reviewed, repaired, integrated and visually checked end to
+end. Every drawn frame `4a`–`4o` has been rendered and measured in a browser at 402×874. Both
+visual-check findings were **closed by Oscar's decision**, not deferred: the auth screens keep no
+bottom bar, and the Plan tab stays one scrolling surface.
 
-The wave had never been rendered in a browser. It has now been: every drawn frame `4a`–`4o`
-captured at 402×874 with `getComputedStyle` read-backs, by one recon agent and three fixers in a
-single shared worktree, plus an independent orchestrator pass.
+`main` is at the commit below. All nine worktrees clean and level. Nothing pushed.
 
-## Verification baseline — derived live on the merged tree, 2026-08-13
+**Wave 5 is fully specified and is the next task.** Real UI work against a settled spec.
+
+## Verification baseline — derived live, 2026-08-13
 
 | Command | Result |
 | --- | --- |
-| `npm test` | **PASS — 131 tests across 14 files** (was 128; +3 from the keypad primitive) |
+| `npm test` | **PASS — 131 tests across 14 files** |
 | `npm run typecheck` | **PASS — 0 errors** |
-| `npm run lint` | **KNOWN FAIL — exactly `20 problems (10 errors, 10 warnings)`**, unchanged |
+| `npm run lint` | **KNOWN FAIL — exactly `20 problems (10 errors, 10 warnings)`** |
 | `npm run build` | **PASS — ~36s** |
 | `git diff --check` | clean |
 
 Derive these by running the commands. Do not quote this file, or any other.
 
-Browser checks are no longer blocked and were exercised. Supabase, edge-function, notification and
-native checks remain **BLOCKED** on real infrastructure.
+## Wave 5 — the specification, and where each part lives
 
-## What the visual check actually found
+**Do not work from a summary. Read `docs/decisions.md`**, which carries four LOCKED entries dated
+2026-08-13 that together are the entire spec. Numbers below are the change list as agreed with
+Oscar, each pointing at its record.
 
-Recon produced a measured finding list across `4a`–`4o`. The four authority conflicts it correctly
-**held** rather than guessed were adjudicated against the precedence ladder in `docs/decisions.md`
-(rank 2 `screens/*.html` beats rank 3 `*.png` beats rank 4 prose, outright):
+### Plan tab — composition (LOCKED "Plan tab is one surface, and Build the night opens a curation step")
 
-| Ruling | Outcome |
+1. The Plan tab stays **one scrolling surface**: `1n` on top, picker (`4d`) below.
+2. **`Build the night`** generates, auto-scrolls to the filled tray, reveals the per-category
+   drop-downs — and **no longer navigates to the Timeline**.
+3. **Each category row gains a drop-down** of the drinks selected inside it, shown automatically,
+   collapsible by a small **unoutlined** `hide`/`show` control.
+4. The category row's **chevron keeps its existing job** — opening that category's screen. It is not
+   the drop-down toggle.
+5. **`Regenerate` is `Build the night` again** — same operation, second-press label, no separate logic.
+6. **`Done` in the tray advances to the Timeline.** The Timeline tab stays directly tappable, ungated.
+
+### Timeline (LOCKED "Timeline is where a plan is edited, and swaps are capped")
+
+7. **Quick-add is removed, not hidden.**
+8. Reordering and lock/unlock stay as they are.
+9. Drink-reminders icon unchanged.
+10. **`Re-plan the rest` no longer leaves the Timeline** — it re-rolls only the **unlocked** entries
+    in place; locked entries survive.
+11. **Every entry gains a `swap` control beside its lock.**
+
+### Swapping (same LOCKED entry)
+
+12. Swap opens the Plan tab's *add a drink* menu, filtered to acceptable replacements.
+13. **Cap is +20% of the swapped entry's pure ethanol ml** — ethanol, not ABV.
+14. **Upper bound only.** No lower bound; swapping for water is explicitly allowed.
+15. **The cap is silent.** Within it a swap is simply taken — no warning, no confirmation, no
+    interstitial. Beyond it the drink is **not offered**. The tray meter's shade is the **only**
+    over-budget signal in the system.
+16. **The tray opens with the swapped drink already subtracted**: committed fill = plan total minus
+    that drink's ethanol.
+17. A candidate paints **pending** fill (hollow `.22`, 1px accent top edge) over committed. Never
+    solid until confirmed.
+18. Confirming keeps the user on the Plan tab to swap further unlocked drinks; the engine re-paces.
+
+### Locking — one rule, three buttons (LOCKED "The two meters…")
+
+19. Lock is a **property of the drink**, not of a tab.
+20. A Timeline-locked drink **cannot be moved or swapped on the Plan tab**, and **its lock icon
+    renders there too**.
+21. **The user can also lock on the Plan tab.**
+22. `Regenerate`, a repeated `Build the night`, and `Re-plan the rest` all re-roll **only unlocked**
+    drinks.
+
+### The two meters (same LOCKED entry)
+
+23. **Four-band meter (`1n`) is STATIC — it *is* the target.** Recomputes only from band, duration,
+    user stats. If drink selection moves it, that is a bug.
+24. **Tray meter (`4d`/`4e`) is DYNAMIC.** At target it reads **FULL**.
+25. **Over target only the shade changes.** The meter does not grow; the fill does not rise past full.
+
+| Over target | Tray fill |
 | --- | --- |
-| `4e` drink order | **Dismissed** — the drawing shows the sort chip *unselected*; the app was measured with it on |
-| `4d` category order | **Real** — a curated order, not alphabetical; names and venue header also wrong |
-| `4k` establishment order | **Dismissed** — the `4k` script says seeded-alphabetical, so the `4l` PNG contradicts its own script |
-| `4k` preview line | **Held out** — two rank-2 sources contradict each other inside one file; the ladder cannot resolve that, and picking a winner would be rank-6 invention |
-| `4m` nights | **Real** — the script's own drop-at-zero rule, not a hardcoded omission |
-| `4m` username | **Removed**, with the submit path checked first |
-| Auth bottom chrome | **Real, deferred** — see below |
+| at or under | accent |
+| 0 – 5% | accent — no change |
+| 5 – 10% | yellow |
+| 10 – 15% | orange |
+| 15 – 20% | red |
+| above 20% | **unreachable** |
 
-Fixed: picker geometry and curated order; custom sheet height, `DialogTitle` and initial state;
-scanner skeleton rows on `4g`/`4h`/`4j`; `4i` per-gap keypads removed; profile stat cells, taste
-semantics and admin copy; onboarding scrim opacity; the shared keypad primitive, the 57→58px tab
-items, `ScannerHeader` and `EstablishmentsScreen` header geometry, and Profile's container padding.
+26. **+20% is a hard bound on selection**, matching the per-swap cap exactly.
+27. **In the red band, if a higher band exists** (anything but Heavy), a short line advises raising
+    it. Heavy shows nothing. Guidance, not a block; it must not scold.
+28. **`adjustedTargetMl` is unchanged and still required.** The bound narrows its input range; it
+    does not replace the mechanism. **Do not cap percentages inside it** (CLAUDE.md pitfall 15).
 
-**Five recon claims did not survive checking**, all misattributions of *cause* rather than false
-sightings — the `4e` and `4k` orders above, a double padding blamed on a file containing no such
-padding, "one shared header" that was the same defect written three times, and a "NO TOOLBAR"
-finding that misread a rule about filter chips. Recon has the browser; diagnosis needs the files.
+### Constraint change
 
-## Deferred to the next wave — both compositional, neither a styling defect
+29. **Red is now permitted — in exactly one place**, the tray's 15–20% shade, recorded as an explicit
+    partial supersede of the locked "no red" clause. **"No green" is absolute and unchanged.** One
+    accent, no palette, holds everywhere else.
 
-1. ~~**Auth screens lack the bottom chrome `4m` draws.**~~ **CLOSED, not deferred (Oscar,
-   2026-08-13).** The auth screens keep no bottom bar. Oscar reviewed them in the browser, judged
-   them good and working, and ruled against the drawing. Do not re-file this.
-2. ~~**`1c` and `4d` are drawn as two screens.**~~ **CLOSED (Oscar, 2026-08-13).** The stacked
-   one-tab composition is intended and stays. Oscar settled the whole flow instead — see the LOCKED
-   "Plan tab is one surface" entry in `docs/decisions.md`. It is now scoped work, not a finding.
+### Closed, not to be re-raised
 
-Also observed, not a defect: every `4d` category reads `from £3.60`. The per-category minimum logic
-is correct; the uniformity is live Supabase data. The drawing's varied prices are sample data for a
-fictional venue. **Do not "fix" this in code** — it nearly happened here.
+30. **Auth screens keep no bottom bar**, despite `4m`/`4n` drawing one.
+31. **Plan/picker stacking is intended**, closing the second Wave 4 visual-check finding.
 
-## Workflow changes this session made
+## BLOCKED PREREQUISITE — four drawings do not exist yet
 
-`docs/workflows/visual_check.md` gained three revisions, all earned by this pass:
+`5a`–`5d`, registered in `docs/visual/03-design-requests.md` §H:
 
-- **Recon parallelises above ~8 drawn frames.** The workflow had the shape inverted — repair, which
-  carries the hazards, ran parallel; discovery, which parallelises safely, ran serial. The
-  disjoint-file constraint does not bind recon, which writes no product code. Luna-0 stays sole
-  author of the finding list, headcount and ownership split.
-- **Notes are load-bearing.** Two agents compacted mid-pass. `notes.md` written as each capture is
-  assessed is the only part of an agent's observation that survives its own compaction; after one,
-  treat the agent's memory as inadmissible.
-- **Recon and repair measure to different depths.** Recon measures to prove a defect is real; the
-  fixer measures to know it is gone. And recon is the worst place to diagnose a cause.
-- **A fixer that only edits will compact.** Capture after each finding, not at the end of a cluster.
+- **5a** category drop-down, its unoutlined `hide`/`show` control, **and the per-drink lock + delete**
+- **5b** a Timeline row carrying both lock and swap
+- **5c** the swap-constrained picker, **including the tray showing a subtraction**
+- **5d** the tray's over-target shade states and the band-advice line
 
-Also fixed: `tools/writespec-guard` denied `traycer agent send --help`; a send carrying no
-`--message` now passes through, and the `[visual-check]` marker finally has a regression case.
-`docs/workflows/visual_check.md` now documents that a worktree needs an `.env` symlink and that you
-confirm the app **boots**, not that the port answers.
+**A screen with no drawing cannot be visually checked**, and improvising one is rank 6 on the
+precedence ladder. Wave 5's *behaviour* can be built and unit-tested now; those four surfaces cannot
+be visually accepted until the frames arrive.
+
+**The prompt for Claude Design is written and ready:** `docs/visual/04-wave5-design-prompt.md`,
+mirrored as the Traycer `spec` artifact **`wave-5-design-request`**. Keep the copies identical.
+Sending it is Oscar's to do — ask him whether it has gone.
+
+## The one inline task, and WHEN to do it
+
+**The "Your stats" flash on reload** (change 0 in the discussion, not part of any Wave 5 leg).
+
+On reload, onboarding step 1 paints briefly to an already-onboarded user. `useUserMetrics` holds
+`userId` in `useState` starting `null` and its query is `enabled: !!userId`; a **disabled** React
+Query reports `isLoading: false`, so `Dashboard` computes
+`showOnboarding = !metricsLoading && !isOnboarded && !onboardingClosed` as true until auth resolves.
+Fix by treating "user not yet known" as loading. CLAUDE.md pitfall 11.
+
+**Oscar's instruction: fix it INLINE, and AFTER the implementation agents are dispatched and
+running** — not before, and not folded into a spec.
 
 ## Agent and worktree inventory
 
-All nine worktrees clean and level with `main` at `1c73f78`. All agents warm; none deleted.
+All nine worktrees clean and level with `main`. All agents warm; none deleted.
 
 | Agent | Worktree | State |
 | --- | --- | --- |
-| `visual_luna_0` | `visual_check_worktree` | warm; recon + Cluster C. **Stood down** |
-| `visual_luna_1` | `visual_check_worktree` (shared) | warm; Cluster A. **Stood down** |
-| `visual_luna_2` | `visual_check_worktree` (shared) | warm; Cluster B. **Stood down** |
-| `deepseek_imp_0`–`_6` | `drinksmart_worktree_0`–`_6` | warm, idle |
+| `visual_luna_0` | `visual_check_worktree` | warm, stood down; Wave 4 recon + Cluster C |
+| `visual_luna_1` / `visual_luna_2` | `visual_check_worktree` (shared) | warm, stood down |
+| `deepseek_imp_0`–`_6` | `drinksmart_worktree_0`–`_6` | warm, idle — the Wave 5 implementers |
 | `codex-tui-a2a-hub` + `a2a-hub-waker` | `/home/oscar/DrinkSmart` | idle; inert under a Claude orchestrator |
 
-The dev server was stopped. `visual_check_worktree/.env` is a **symlink** to the root `.env` — keep
-it; a worktree ships with only `.env.example` and Vite reads env from its own root.
+`visual_check_worktree/.env` is a **symlink** to the root `.env` — keep it. A worktree ships with
+only `.env.example`, and Vite reads env from its own root.
 
 ## Read first
 
-1. `AGENTS.md`, then `docs/decisions.md`
-2. `docs/workflows/visual_check.md` — substantially revised this session
+1. `AGENTS.md`, then `docs/decisions.md` — the four 2026-08-13 LOCKED entries
+2. `docs/workflows/delegation.md` and `agent_selection.md`
 3. `ORCHESTRATION.md`
-4. `tasks/todo.md` — the queued parallel-recon entry is now **implemented**; the rest still stands
+4. `docs/workflows/visual_check.md` — substantially revised after Wave 4; recon now parallelises
+5. `docs/visual/03-design-requests.md` §H and `04-wave5-design-prompt.md`
 
 ## Explicit exclusions and boundaries
 
 - Never use `design_handoff_drinksmart_depreciated/` as authority.
 - Do not alter the deterministic BAC/pacing formulas in `AppContext.tsx`.
 - Do not re-enable the light theme, add a dependency, or weaken RLS.
+- Do not instruct an implementer to run `npm run lint` or `npm run build` — the guard denies it.
 - Do not push, deploy functions, apply remote migrations, rotate secrets, or publish a mobile build.
 - **`supabase/migrations/20260813000000_allow_missing_establishment_drink_abv.sql` is committed but
-  applied to no database.** Applying it remotely is Oscar's call and needs his explicit request.
+  applied to no database.** Applying it remotely needs Oscar's explicit request.
 
 ## PROMPT
 
 ```text
-Continue DrinkSmart from /home/oscar/DrinkSmart on main, at 1c73f78.
+Continue DrinkSmart from /home/oscar/DrinkSmart on main.
 
-WAVE 4 IS COMPLETE. All seven legs were implemented, reviewed, repaired and integrated in an
-earlier session; this session ran the final visual check (docs/workflows/visual_check.md) end to
-end and integrated it. Every drawn frame 4a-4o has now been rendered and measured in a browser at
-402x874. There is nothing outstanding on either the delegation path or the visual-check path.
+WAVE 4 IS COMPLETE — implemented, integrated and visually checked. Both visual-check findings were
+closed by Oscar's decision rather than deferred. Nothing is outstanding on it.
 
-Derive the baseline by RUNNING the commands, never by quoting a file. As of 1c73f78 it is: 131
-tests across 14 files, typecheck 0 errors, lint known-failing at exactly 20 problems (10 errors,
-10 warnings), build ~36s, git diff --check clean.
+WAVE 5 IS THE TASK and it is fully specified. Read the four LOCKED entries dated 2026-08-13 in
+docs/decisions.md rather than any summary: the Plan-tab curation flow, the Timeline editing rules
+and the silent +20% pure-ethanol swap cap, the static-vs-dynamic two-meter model with its
+over-target shade bands and hard +20% tray bound, and the no-red override (red in exactly one place,
+the tray's 15-20% shade; no green is absolute). The section above this prompt lists all 31 agreed
+changes with pointers to their records.
 
-THERE IS NO WAVE 5 PLANNED. Ask Oscar what he wants next before starting anything. The two
-candidates already on record are both DEFERRED FINDINGS from the visual check, and both are
-compositional rather than styling work:
+Scope it into disjoint legs and route each against the threshold in docs/workflows/delegation.md.
+The seven deepseek_imp_* agents and their worktrees are warm and idle. Wave 5 is boilerplate-heavy
+UI work against a settled spec, which the delegation path is good at -- but the meter shade bands
+and the swap-eligibility filter are dense, small and easy to get subtly wrong, so weigh those for
+inline work.
 
-BOTH visual-check findings are now CLOSED by Oscar's decisions and neither needs re-litigating.
-The auth screens keep no bottom bar. The Plan tab stays one scrolling surface.
+BLOCKED PREREQUISITE: four drawings do not exist -- 5a the category drop-down with its unoutlined
+hide/show control and per-drink lock and delete, 5b a Timeline row carrying both lock and swap, 5c
+the swap-constrained picker including the tray showing a subtraction, 5d the tray's over-target
+shade states and band-advice line. Registered in docs/visual/03-design-requests.md section H. The
+behaviour can be built and unit-tested without them; those four surfaces cannot be visually accepted
+until the frames arrive. The prompt is written at docs/visual/04-wave5-design-prompt.md and mirrored
+as the Traycer spec artifact wave-5-design-request. Sending it is Oscar's call -- ask whether it has
+gone before planning any visual check.
 
-THE LIKELY NEXT PIECE OF WORK is the flow Oscar settled while closing the second one, recorded as
-the LOCKED "Plan tab is one surface, and Build the night opens a curation step" entry in
-docs/decisions.md. Read it there rather than from a summary. In short: Build the night must stop
-navigating to the Timeline, must auto-scroll to the filled tray, and must reveal a per-category
-drop-down of the selected drinks that the user can edit before committing; Done in the tray is what
-advances to the Timeline. This is real UI work against a settled spec -- scope it and route it
-against the threshold in docs/workflows/delegation.md.
+ONE INLINE TASK, WITH EXPLICIT TIMING FROM OSCAR: the "Your stats" flash on reload. Onboarding step
+1 paints briefly to an already-onboarded user because useUserMetrics starts userId as null with the
+query enabled: !!userId, and a disabled React Query reports isLoading false, so Dashboard's
+showOnboarding is true until auth resolves. Treat "user not yet known" as loading. FIX IT INLINE,
+AFTER the implementation agents are dispatched and running -- not before, and not as part of a spec.
 
-Other standing candidates, unchanged: the follow-ups list at the end of CLAUDE.md, the 18 npm audit
-vulnerabilities, and the 10 lint errors.
+Derive the baseline by RUNNING the commands, never by quoting a file. It is 131 tests across 14
+files, typecheck 0 errors, lint known-failing at exactly 20 problems (10 errors, 10 warnings), build
+~36s, git diff --check clean.
 
-WHAT NOT TO REDO. Five recon claims in this wave did not survive checking, and all five were
-misattributions of cause rather than false sightings. If you find yourself about to "fix" something
-because a report says it is broken, verify it against the files and the drawings first. Two
-specific traps that nearly caught this session:
+WHAT NOT TO REDO. Five recon claims in Wave 4 did not survive checking, all misattributions of
+cause. Verify against the files before "fixing" anything a report calls broken. Two live traps: the
+4d categories all read "from £3.60" and the per-category logic is CORRECT -- that is live Supabase
+data, and the drawings' varied prices are sample data for a fictional venue; and the 4e drink order
+looks wrong only if you compare the app with "Cheapest first" ON against a drawing that shows that
+chip UNSELECTED.
 
-  - Every 4d category reads "from £3.60". The per-category minimum logic is CORRECT; the uniformity
-    is live Supabase data, and the drawing's varied prices are sample data for a fictional venue.
-  - The 4e drink order looks wrong only if you compare the app with "Cheapest first" ON against a
-    drawing that shows that chip UNSELECTED.
-
-When drawings and code disagree, the precedence ladder in docs/decisions.md settles it: tokens,
-then screens/*.html literal values, then screens/*.png appearance, then README prose, then
-tasks/todo.md, then implementer judgement. Higher rank wins outright -- no reconciliation, no
-averaging. It cannot resolve a conflict WITHIN one rank; that is a design clarification, not a
-judgement call for you.
+When drawings and code disagree, the precedence ladder in docs/decisions.md settles it: tokens, then
+screens/*.html literal values, then screens/*.png appearance, then README prose, then tasks/todo.md,
+then implementer judgement. Higher rank wins outright. It cannot resolve a conflict WITHIN one rank
+-- that is a design clarification, not a judgement call for you.
 
 OPERATING INSTRUCTIONS FROM OSCAR, which have carried through several sessions and still apply:
 
