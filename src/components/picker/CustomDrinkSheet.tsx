@@ -22,6 +22,8 @@ type CustomDrinkSheetProps = {
   venueName: string | null;
   targetMl: number | null;
   onAdd: (draft: CustomDrinkDraft) => void;
+  committedMl?: number;
+  ceilingMl?: number | null;
 };
 
 const INITIAL_VALUES: Record<string, number | null> = { abv: 5.6, serve: 330, price: 5.9 };
@@ -32,6 +34,8 @@ export const CustomDrinkSheet = ({
   venueName,
   targetMl,
   onAdd,
+  committedMl = 0,
+  ceilingMl = null,
 }: CustomDrinkSheetProps) => {
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, number | null>>(INITIAL_VALUES);
@@ -52,6 +56,8 @@ export const CustomDrinkSheet = ({
   const price = values.price ?? null;
   const ml = ((serve ?? 0) * (abv ?? 0)) / 100;
   const pct = targetMl && targetMl > 0 ? (ml / targetMl) * 100 : 0;
+
+  const overCeiling = ceilingMl != null && ml > 0 && committedMl + ml > ceilingMl;
 
   const clearError = (key: string) => {
     setErrors((current) => {
@@ -147,7 +153,7 @@ export const CustomDrinkSheet = ({
             </Label>
           </div>
           <div className="-mt-[10px] text-note text-muted-foreground">{CUSTOM_COPY.computed(ml, pct)}</div>
-          <Button variant="default" size="act" className="w-full" onClick={attemptAdd}>
+          <Button variant="default" size="act" className="w-full" disabled={overCeiling} onClick={attemptAdd}>
             {CUSTOM_COPY.cta}
           </Button>
         </div>
