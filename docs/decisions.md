@@ -727,15 +727,9 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   bar with Profile active; Oscar reviewed the built screens in the browser, judged them good and
   working, and ruled against the drawing. A drawing is authoritative over the code, not over Oscar
   — do not re-file this as a finding in a later visual check.
-- **The onboarding strength rail is an open design question (raised 2026-08-13, undecided).**
-  `PreferencesPicker.tsx` exposes only sweetness; `preferences.strong` is settable during onboarding
-  solely as a side-effect of the "Low & no" chip, which slams it to `0`. The value is fully consumed
-  downstream — `generate-plan/index.ts:90–91` (near 1 → higher-ABV, near 0 → lower-ABV) and
-  `greedyPlanFallback.ts:39–42`, where `strongDist` is half the scoring distance — and a full rail
-  already exists in Profile at `TasteSheet.tsx:96–101`. **The `4c` drawing has only Sweetness**, so
-  the build matches its frame and adding a rail is a design change needing a new drawing, not a bug
-  fix. Oscar was offered this as a fourth ask on the Wave 5 prompt and did not take it up before
-  sending; it therefore remains open rather than requested.
+- ~~**The onboarding strength rail is an open design question (raised 2026-08-13, undecided).**~~
+  **Closed 2026-08-13 by Oscar — requested as `5f` and in Wave 5's scope.** See the LOCKED entry
+  below.
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
 - ~~Unit coverage for the extracted AppContext session/pacing engine remains pending in W3-A2.~~
@@ -892,4 +886,32 @@ quick-add.
 **Both were appended to the Wave 5 design prompt and SENT** (Oscar, 2026-08-13 ~20:30 BST), in
 `docs/visual/04-wave5-design-prompt.md` and its mirrored artifact `wave-5-design-request`. The
 appends are **append-only at the bottom of the prompt** by Oscar's instruction — preserve that shape
-if the prompt is ever extended again. Wave 5 expects frames `5a`–`5e`.
+if the prompt is ever extended again.
+
+## LOCKED — Onboarding gains a strength rail, requested as `5f` (2026-08-13, later still)
+
+Settled by Oscar, closing the PENDING entry above. **Wave 5 expects frames `5a`–`5f`.**
+
+`PreferencesPicker.tsx` draws one word-stop rail, sweetness. `preferences.strong` has always existed
+beside it and has never been collectable at onboarding — it moves there only as a side-effect of the
+"Low & no" chip, which slams it to `0`. The value is consumed downstream by
+`generate-plan/index.ts:90–91` (near 1 → higher-ABV, near 0 → lower-ABV) and
+`greedyPlanFallback.ts:39–42`, where `strongDist` is half the scoring distance. The rail already
+exists in Profile at `TasteSheet.tsx:96–101` on the stops `Light · Mild · Medium · Strong · Very
+strong`. Onboarding is the only gap.
+
+**Strength is a TASTE preference, exactly like sweetness, and the obvious reading of it is wrong.**
+It tells the planner the user prefers stronger drinks, so selection leans toward higher-ABV catalogue
+items. **It is not a quantity control and not a second intensity dial** — the amount of alcohol in a
+night is fixed by the four-band buzz picker (`1n`) before this preference is ever read.
+
+- What a user notices — `Very strong` yielding fewer, stronger drinks and `Light` more, weaker ones
+  across the same night — is the **deterministic engine's** doing, falling out of a fixed ethanol
+  budget. **The preference does not shape the drink count.** It says what kind of drink to reach for;
+  the engine's constraint does the rest. Do not describe or implement it as a count control.
+- Because `1n` sits a few hundred pixels away, the design risk is a user reading the rail as a second
+  way to say how drunk to get. `5f` must make it read as *what you like*, not *how much*.
+- Two composition questions were handed to Claude Design rather than settled here: **vertical space**
+  on an already-full `4c` card, and **the `Low & no` chip**, which today *is* the strength control by
+  proxy and would otherwise be a second control fighting the rail over one value.
+- If `5f` changes the Profile taste sheet too, follow it there.

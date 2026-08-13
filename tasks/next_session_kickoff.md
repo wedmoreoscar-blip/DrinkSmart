@@ -1,6 +1,7 @@
-# Session Handoff / Kickoff — Wave 5 design request SENT; awaiting frames `5a`–`5e`
+# Session Handoff / Kickoff — Wave 5 design request SENT; awaiting frames `5a`–`5f`
 
-Written 2026-08-13 20:31 BST. Normal-mode handoff. The canonical continuation was replaced.
+Written 2026-08-13 20:31 BST, amended 20:55. Normal-mode handoff. The canonical continuation was
+replaced.
 
 **The next orchestrator is GPT-5.6 Sol, not Claude.** Read "Orchestrator handover" below *first* —
 Sol's authorization to orchestrate at all is conditional, and the condition is a skill it must
@@ -14,8 +15,12 @@ invoke before doing anything else.
 to Claude Design at roughly 20:30 BST on 2026-08-13 and expects it to consume the full five-hour
 window, so frames should land around 01:30 BST. Wave 5 is unblocked the moment they do.
 
-**Expect five frames, not four: `5a`–`5e`.** `5b` was widened and `5e` was added during this
-session; both amendments were appended to the prompt before it went.
+**Expect six frames, not four: `5a`–`5f`.** `5b` was widened and `5e`/`5f` were added during this
+session; all three amendments were appended to the prompt before it went.
+
+**Assume the frames are present and that WAVE 5 OWNS EVERY OPEN ITEM BELOW** (Oscar, 2026-08-13).
+Nothing in this handoff is deferred to a later wave and nothing is left awaiting a decision — the six
+fixes listed further down are Wave 5 scope alongside the 33 changes.
 
 `main` is at the commit below. All nine worktrees clean and level. Nothing pushed.
 
@@ -57,7 +62,7 @@ nothing (CLAUDE.md).
 
 ## Wave 5 — the specification
 
-**Do not work from a summary. Read `docs/decisions.md`.** Five LOCKED entries dated 2026-08-13 are
+**Do not work from a summary. Read `docs/decisions.md`.** Six LOCKED entries dated 2026-08-13 are
 the whole spec:
 
 1. *Plan tab is one surface, and Build the night opens a curation step*
@@ -65,32 +70,43 @@ the whole spec:
 3. *The two meters, the +20% tray bound, and the no-red override*
 4. *Delegation threshold, spend ledger, and the capped visual pass*
 5. ***`Add a drink` is destroyed, and reordering needs an affordance*** — new this session
+6. ***Onboarding gains a strength rail, requested as `5f`*** — new this session
 
 The previous kickoff enumerated 31 agreed changes with pointers to their records; that list is
-preserved verbatim in `tasks/kickoff_history/2026-08-13_1915.md` and remains accurate. **Two changes
-join it:**
+preserved verbatim in `tasks/kickoff_history/2026-08-13_1915.md` and remains accurate. **Three
+changes join it:**
 
 32. **`Add a drink` in the Timeline footer is REMOVED**, on the same unbounded-alcohol test that
-    killed quick-add. It routes to the Plan picker as an unconstrained add. Needs frame `5e` because
-    `1d` draws the footer as a matched pair.
+    killed quick-add. It routes to the Plan picker as an unconstrained add. Frame `5e`, because `1d`
+    draws the footer as a matched pair.
 33. **Timeline reordering gains a real affordance.** The capability is already built; it has never
     had one. Folded into `5b`, which now settles lock + swap + reorder in one frame.
+34. **Onboarding gains a Strength rail beneath Sweetness.** Frame `5f`.
 
 **The generalisation to carry forward:** *no affordance may add unbounded alcohol to a plan.* Judge
 every new Plan/Timeline affordance by that, not by whether it resembles quick-add.
 
-## Outstanding fixes found this session — all for the next wave
+**And one thing to get right on 34, because the obvious reading is wrong.** Strength is a **taste**
+preference, exactly like sweetness: it leans selection toward higher-ABV catalogue items. **It is not
+a quantity control.** The amount of alcohol in a night is fixed by the four-band buzz picker before
+the preference is read; `Very strong` yielding fewer, stronger drinks is the **deterministic
+engine's** doing, falling out of a fixed ethanol budget. Do not implement or describe it as a count
+control, and do not let it read as a second intensity dial beside `1n`.
 
-Nothing below has been touched. Oscar's instruction: note them down, do them next wave.
+## Six fixes found this session — ALL of them are Wave 5 scope
 
-| # | Fix | Where | Blocked? |
+Nothing below has been touched. **Oscar's instruction: Wave 5 deals with all of it.** Nothing here
+waits on a decision and nothing is deferred; the frames that three of them need are expected to be in
+hand before this kickoff is read.
+
+| # | Fix | Where | Route |
 | --- | --- | --- | --- |
-| 1 | **BMI/FFMI switch is one-way** | `src/hooks/useUserMetrics.ts:60–64` | No — inline, ~5 lines |
-| 2 | **Taste sheet discards saved preferences** | `src/components/profile/TasteSheet.tsx:68` | No — inline |
-| 3 | **Onboarding strength rail missing** | `src/components/onboarding/PreferencesPicker.tsx` | **Yes — undecided design question** |
-| 4 | **Timeline reorder has no affordance** | `src/components/tabs/SortableTimelineItem.tsx:167–172` | **Yes — needs `5b`** |
-| 5 | **`Add a drink` destruction** | `src/components/tabs/TimelineTab.tsx:425–435` | **Yes — needs `5e`** |
-| 6 | **"Your stats" flash on reload** | `src/hooks/useUserMetrics.ts` + `Dashboard` | No — inline, timing below |
+| 1 | **BMI/FFMI switch is one-way** | `src/hooks/useUserMetrics.ts:60–64` | inline, ~5 lines |
+| 2 | **Taste sheet discards saved preferences** | `src/components/profile/TasteSheet.tsx:68` | inline |
+| 3 | **Onboarding strength rail missing** | `src/components/onboarding/PreferencesPicker.tsx` | leg, against `5f` |
+| 4 | **Timeline reorder has no affordance** | `src/components/tabs/SortableTimelineItem.tsx:167–172` | leg, against `5b` |
+| 5 | **`Add a drink` destruction** | `src/components/tabs/TimelineTab.tsx:425–435` | leg, against `5e` |
+| 6 | **"Your stats" flash on reload** | `src/hooks/useUserMetrics.ts` + `Dashboard` | inline, timing below |
 
 **1 — BMI/FFMI is one-way.** `metricsToColumns` computes
 `effectiveMetricType = hasFFMData && hasBMIData ? "ffmi" : metrics.metricType`. Saving FFMI requires
@@ -110,13 +126,17 @@ middling/middling, and the first tap fires `onChange` with the stale local objec
 liked-boost in `greedyPlanFallback` and the edge-function prompt. Fix alongside #1; same area, one
 pass.
 
-**3 — Onboarding strength rail.** Logged as PENDING in `docs/decisions.md`. `preferences.strong` is
-fully consumed downstream (`generate-plan/index.ts:90–91`, `greedyPlanFallback.ts:39–42`) and a full
-rail already exists in Profile at `TasteSheet.tsx:96–101`, but onboarding exposes only sweetness —
-`strong` moves there solely as a side-effect of the "Low & no" chip, which slams it to `0`. **The
-`4c` drawing has only Sweetness**, so the build matches its frame: adding a rail is a design change
-needing a drawing, not a bug fix. Oscar was offered it as a fourth ask on the Wave 5 prompt and did
-not take it up before sending. **Ask him before acting.**
+**3 — Onboarding strength rail.** LOCKED and requested as `5f`; build it against that frame.
+`preferences.strong` is fully consumed downstream (`generate-plan/index.ts:90–91`,
+`greedyPlanFallback.ts:39–42`) and the rail already exists in Profile at `TasteSheet.tsx:96–101` on
+the stops `Light · Mild · Medium · Strong · Very strong`, but onboarding exposes only sweetness —
+`strong` moves there solely as a side-effect of the "Low & no" chip, which slams it to `0`. **Read
+the LOCKED entry for what strength is and is not** before writing the spec: it is a taste preference
+that leans selection toward higher-ABV items, **not** a quantity control, and the fewer-but-stronger
+outcome belongs to the deterministic engine's fixed budget rather than to the setting. Two
+composition questions went to Claude Design rather than being settled in the ledger — vertical space
+on an already-full `4c` card, and whether the `Low & no` chip survives now that an explicit rail
+exists. **`5f` answers both; follow it.** If it moves the Profile taste sheet too, follow it there.
 
 **6 — the "Your stats" flash**, carried from the previous kickoff and still not done. On reload,
 onboarding step 1 paints briefly to an already-onboarded user: `useUserMetrics` holds `userId` in
@@ -130,13 +150,15 @@ implementation agents are dispatched and running** — not before, and not folde
 
 Read-only kickoff, then three documentation edits and no product code:
 
-- `docs/visual/04-wave5-design-prompt.md` — **append-only** block at the bottom of the prompt
-  carrying the `5b` widening and the `5e` request. Mirrored byte-identically into the Traycer `spec`
-  artifact `wave-5-design-request` (verified identical from `## The prompt` onward). **Keep future
-  extensions append-only at the bottom** — Oscar's explicit instruction.
-- `docs/decisions.md` — new LOCKED entry *"`Add a drink` is destroyed, and reordering needs an
-  affordance"*, plus a PENDING entry for the onboarding strength rail.
-- `docs/visual/03-design-requests.md` — §-H widened `5b`, added `5e`, recorded the send.
+- `docs/visual/04-wave5-design-prompt.md` — **two append-only blocks** at the bottom of the prompt:
+  the `5b` widening with the `5e` request, then the `5f` strength-rail request. Mirrored
+  byte-identically into the Traycer `spec` artifact `wave-5-design-request` (verified identical from
+  `## The prompt` onward). **Keep future extensions append-only at the bottom** — Oscar's explicit
+  instruction.
+- `docs/decisions.md` — two new LOCKED entries: *"`Add a drink` is destroyed, and reordering needs an
+  affordance"* and *"Onboarding gains a strength rail, requested as `5f`"*. The strength rail was
+  briefly logged as PENDING and is now closed by that second entry.
+- `docs/visual/03-design-requests.md` — §-H widened `5b`, added `5e` and `5f`, recorded the send.
 
 ## Agent and worktree inventory — verified live this session
 
@@ -192,34 +214,41 @@ WAVE 4 IS COMPLETE. Nothing is outstanding on it.
 
 WAVE 5 IS THE TASK. It is fully specified and the design request HAS BEEN SENT -- Oscar handed the
 amended prompt to Claude Design at ~20:30 BST on 2026-08-13 and expects it to take the full five
-hours, so frames should land around 01:30 BST. EXPECT FIVE FRAMES, 5a THROUGH 5e, not four.
+hours, so frames should land around 01:30 BST. EXPECT SIX FRAMES, 5a THROUGH 5f, not four. Assume
+they are in hand by the time you read this; confirm they are actually on disk in
+design_handoffs/design_handoff_drinksmart/screens/ before scoping the legs that depend on them.
 
-Read the FIVE LOCKED entries dated 2026-08-13 in docs/decisions.md rather than any summary: the
+Read the SIX LOCKED entries dated 2026-08-13 in docs/decisions.md rather than any summary: the
 Plan-tab curation flow; the Timeline editing rules and the silent +20% pure-ethanol swap cap; the
 static-vs-dynamic two-meter model with its over-target shade bands and hard +20% tray bound; the
-delegation threshold and capped visual pass; and the newest one, "Add a drink is destroyed, and
-reordering needs an affordance". The 31 agreed changes are listed in
-tasks/kickoff_history/2026-08-13_1915.md and remain accurate; two more join them, numbered 32 and 33
-in the section above this prompt.
+delegation threshold and capped visual pass; "Add a drink is destroyed, and reordering needs an
+affordance"; and "Onboarding gains a strength rail, requested as 5f". The 31 agreed changes are
+listed in tasks/kickoff_history/2026-08-13_1915.md and remain accurate; three more join them,
+numbered 32, 33 and 34 in the section above this prompt.
 
-THE BEHAVIOUR CAN BE BUILT NOW. Scope Wave 5 into disjoint legs and route each against the threshold
-in docs/workflows/delegation.md. The seven deepseek_imp_* agents and their worktrees are warm and
-idle. Wave 5 is boilerplate-heavy UI work against a settled spec, which the delegation path is good
-at -- but the meter shade bands and the swap-eligibility filter are dense, small and easy to get
-subtly wrong, so weigh those for inline work. What CANNOT be done until the frames arrive is the
-visual acceptance of 5a-5e; docs/workflows/visual_check.md governs that, it is Luna's, it does NOT
-run on the delegation path, and you HALT and wait for Oscar on reaching it.
+WAVE 5 OWNS EVERYTHING IN THIS HANDOFF. Nothing is deferred to a later wave and nothing waits on a
+decision from Oscar. Scope it into disjoint legs and route each against the threshold in
+docs/workflows/delegation.md. The seven deepseek_imp_* agents and their worktrees are warm and idle.
+Wave 5 is boilerplate-heavy UI work against a settled spec, which the delegation path is good at --
+but the meter shade bands and the swap-eligibility filter are dense, small and easy to get subtly
+wrong, so weigh those for inline work. The visual acceptance of 5a-5f is the one thing that is NOT
+yours to run: docs/workflows/visual_check.md governs it, it is Luna's, it does NOT run on the
+delegation path, and you HALT and wait for Oscar on reaching it.
 
-SIX OUTSTANDING FIXES, all recorded in the table above this prompt. Three are inline and unblocked:
+SIX FIXES, all recorded in the table above this prompt, ALL of them Wave 5 scope. Three are inline:
 the BMI/FFMI switch being one-way (useUserMetrics.ts:60-64, and it corrupts the BAC math because
 unitConversions.ts:195 branches TBW on metricType); the Taste sheet discarding its initial prop and
 wiping categories_liked/avoided on first tap (TasteSheet.tsx:68); and the "Your stats" flash on
 reload. That last one has explicit timing from Oscar: FIX IT INLINE, AFTER the implementation agents
-are dispatched and running -- not before, and not as part of a spec. Two more are Wave 5 legs
-blocked on frames (the reorder affordance needs 5b, destroying Add a drink needs 5e). The sixth, the
-missing onboarding strength rail, is an UNDECIDED design question logged as PENDING -- the 4c
-drawing has only Sweetness, so the build matches its frame and adding a rail needs a drawing. ASK
-OSCAR before acting on that one.
+are dispatched and running -- not before, and not as part of a spec. Three are legs against their
+frames: the reorder affordance against 5b, destroying Add a drink against 5e, and the onboarding
+strength rail against 5f.
+
+ON THE STRENGTH RAIL, GET THE MODEL RIGHT. Strength is a TASTE preference like sweetness -- it leans
+drink selection toward higher-ABV catalogue items. It is NOT a quantity control and NOT a second
+intensity dial. The alcohol total is fixed by the four-band buzz picker before the preference is
+ever read; "Very strong" producing fewer, stronger drinks is the DETERMINISTIC ENGINE's doing,
+falling out of a fixed ethanol budget. Do not implement or describe it as shaping the drink count.
 
 Derive the baseline by RUNNING the commands, never by quoting a file. Last observed: 131 tests
 across 14 files, typecheck 0 errors, lint known-failing at exactly 20 problems (10 errors, 10

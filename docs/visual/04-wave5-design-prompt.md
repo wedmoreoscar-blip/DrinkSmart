@@ -138,3 +138,49 @@ Mirrored as a Traycer `spec` artifact under this epic. If one copy is edited, ed
 > The rule underneath both this and the quick-add removal, in case it helps you judge anything else
 > in the wave: **no affordance may add unbounded alcohol to a plan.** Anything that can is the same
 > defect wearing a different label.
+>
+> ---
+>
+> **Appended later still — one more, on onboarding.**
+>
+> **5f — `4c` gains a Strength rail beneath Sweetness.**
+>
+> `4c` draws one word-stop rail, Sweetness, `dry → sweet` over five stops. There has always been a
+> second preference behind it — **strength** — and it has never been drawn, so the onboarding screen
+> has no way to collect it. The Profile taste sheet already carries the rail on the same form, with
+> the stops `Light · Mild · Medium · Strong · Very strong`. Onboarding is the gap.
+>
+> **What strength is, precisely, because the obvious reading is wrong.** It is a *taste* preference,
+> exactly like sweetness. It tells the planner the user prefers stronger drinks, so the picker leans
+> toward higher-ABV items in the catalogue. It is **not** a quantity control and **not** a second way
+> of saying how drunk to get — that is entirely the four-band buzz picker's job (`1n`), and the
+> amount of alcohol in the night is fixed by it before this preference is ever read.
+>
+> What a user notices is a downstream consequence rather than the setting's doing: with the total
+> fixed, someone at `Very strong` gets fewer, stronger drinks and someone at `Light` gets more,
+> weaker ones, across the same night. The deterministic engine produces that from its budget. The
+> preference only says what kind of drink to reach for.
+>
+> **That distinction is the whole design problem here.** Two rails stacked on one card invite the
+> reading that the lower one is a second intensity dial, sitting a few hundred pixels from the actual
+> intensity dial. Please make Strength read unmistakably as *what you like*, not *how much* — through
+> the stop words, the section label, or a short line if one is genuinely needed. It must not
+> contradict or appear to compete with the band chosen on `1n`.
+>
+> **Two things to settle beyond the wording:**
+>
+> **Vertical space.** The `4c` card is close to full at 874: step label, 28px title, three lines of
+> body, six 56px chips in two columns, the Sweetness rail, a 64px `Start` and a 56px ghost action.
+> Our rough addition leaves something like 120px of headroom against a rail that costs roughly 150px
+> with its label and end words. Assume something has to give and tell us what — trimming the body
+> copy, tightening the chip grid, a more compact rail form for both, or splitting the step. We would
+> rather you moved something deliberately than have two rails drawn tight.
+>
+> **The `Low & no` chip now overlaps the rail.** That chip currently *is* the strength control by
+> proxy — selecting it drives strength to its minimum. With an explicit rail on screen, a chip that
+> silently moves it is two controls fighting over one value. Options we can see: the chip becomes the
+> rail's far-left stop and stops being a chip; it stays and visibly drives the rail; or it keeps a
+> separate meaning about category rather than strength. Your call — it is a composition question
+> about that card, and we would rather it were drawn than argued.
+>
+> If the answer changes the Profile taste sheet too, say so and we will follow it there.
