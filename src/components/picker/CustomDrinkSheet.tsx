@@ -91,7 +91,7 @@ export const CustomDrinkSheet = ({
         </SheetTitle>
         <div className="mt-4 flex flex-col gap-3.5">
           <div>
-            <Label className={cn("leading-[1.2]", errors.name && "text-warning")}>{CUSTOM_COPY.fields.name}</Label>
+            <Label className={cn("block leading-[1.2]", errors.name && "text-warning")}>{CUSTOM_COPY.fields.name}</Label>
             <Input
               type="text"
               value={name}
@@ -146,7 +146,7 @@ export const CustomDrinkSheet = ({
               {CUSTOM_COPY.keepIt(venueName ?? "this venue")}
             </Label>
           </div>
-          <div className="text-note text-muted-foreground">{CUSTOM_COPY.computed(ml, pct)}</div>
+          <div className="-mt-[10px] text-note text-muted-foreground">{CUSTOM_COPY.computed(ml, pct)}</div>
           <Button variant="default" size="act" className="w-full" onClick={attemptAdd}>
             {CUSTOM_COPY.cta}
           </Button>

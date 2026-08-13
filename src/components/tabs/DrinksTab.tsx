@@ -49,7 +49,7 @@ const DrinksTab = ({ onNext, onOpenVenues, selectedVenueId }: DrinksTabProps) =>
 
   const [category, setCategory] = useState<string | null>(null);
   const [filters, setFilters] = useState<DrinkFilters>({
-    abvRange: { min: 0, max: 100 },
+    abvRange: { min: 4, max: 6 },
     selectedCategories: [],
   });
   const [sort, setSort] = useState<string>(CATEGORY_COPY.sort[0]);
