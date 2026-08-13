@@ -16,3 +16,21 @@ A merge that genuinely integrates no delegation bypasses the guard with the lite
 
 | date | delegation | orchestrator tokens | where they went |
 | --- | --- | --- | --- |
+| 2026-08-13 | W4-5 drink picker | ~260k | spec 12k, commission + handback 30k, clause map 40k, independent tests 60k, repairs 90k, baseline 28k |
+| 2026-08-13 | W4-6 menu scanner | ~250k | spec 12k, commission + handback 28k, clause map 38k, independent tests 58k, repairs 86k, baseline 28k |
+
+Both rows are estimates split from one batch. The Codex TUI orchestrator (session `019ff81c`) ran
+both legs in a single context and recorded ~471k uncached input + ~39k output tokens over the whole
+session, which spans exactly this batch — kickoff at `48b994b` through the repair pass. The ~510k
+total is halved slightly in W4-5's favour because the picker leg carried the larger spec, the larger
+diff, and the extra `W4-INT-C1` navigation clause.
+
+Two caveats worth keeping with the numbers, because they bear on the threshold these rows exist to
+correct:
+
+- **The batch was checked twice.** The Codex orchestrator died mid-repair; Opus 5 took over at
+  delegation.md step 12, re-derived the state from the transcript and the acceptance record, and
+  finished the repair pass, baseline, and integration. The rows count the Codex spend only, so the
+  true cost of this batch is higher than recorded. A clean run would not pay the handover.
+- **The single largest line is repairs, not the spec.** That is the shape delegation.md predicts for
+  work at this size, and it is the half the checker pays regardless of who implements.
