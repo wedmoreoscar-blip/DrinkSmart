@@ -95,3 +95,20 @@ resolved rather than reusing it.
 A drawing with no stated numbers is checkable by eye only, which catches layout breakage and
 misses "that is 13px, not 14px" — so a drawing without criteria is a partial delivery, not a
 closed request.
+
+---
+
+## SS-H -- Wave 5 plan editing (OUTSTANDING, requested 2026-08-13)
+
+Three elements settled in `docs/decisions.md` have no drawing, so they are **blocked for visual
+checking** until Claude Design supplies frames. Per this file's own rule the remedy is to obtain the
+drawing, never to improvise one -- inventing values is rank 6 on the precedence ladder.
+
+| Id | Needed | Why the existing frames do not cover it |
+| --- | --- | --- |
+| 5a | Plan tab after `Build the night`: each category row showing its selected drinks as a drop-down, with the small unoutlined `hide`/`show` control | `4d` draws category rows in their resting state only. The drop-down, its rows, and an unoutlined text control are all new; the token set has no precedent for the last one |
+| 5b | A Timeline entry carrying BOTH `lock` and `swap` | `1d` draws a single trailing lock on a 362x64 row of `[62px time][34px marker][flex content]`. Where a second control goes, and what gives at 64px, is a spatial decision a drawing should settle |
+| 5c | The `add a drink` picker entered via swap, constrained to +20% pure ethanol | `4d`/`4e` draw the unconstrained picker. Nothing states how a filtered catalogue reads, or how an unavailable drink is shown -- greyed, absent, or labelled |
+
+The behaviour is fully settled; only the appearance is missing. A drawing that contradicts the
+locked behaviour above is a regression to raise, not a spec to follow.

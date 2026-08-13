@@ -760,3 +760,30 @@ step between generating a plan and committing to it.
 - **Rationale.** An AI plan becomes a starting point rather than a verdict: the user can delete
   individual picks, keep the rest, add their own from any category to fill the meter by hand, or
   re-roll the whole list. The old flow offered take-it-or-leave-it and then left the surface.
+
+## LOCKED — Timeline is where a plan is edited, and swaps are capped (2026-08-13)
+
+Settled by Oscar. The companion to the Plan-tab curation entry above: together they make the plan
+editable at both ends without reopening the door the four-band cap closed.
+
+- **Quick-add is REMOVED, not hidden.** It let a user append drinks without bound, which defeats
+  the four-band scale and the deletion of levels 8-10. Any feature that can add unbounded ethanol
+  is the same bug wearing a different label -- judge new Timeline affordances by that test.
+- **Reordering, and locking/unlocking entries, stay as they are.**
+- **`Re-plan the rest` no longer leaves the Timeline.** It replaces only the UNLOCKED entries with
+  fresh AI picks, in place, and locked entries survive untouched. Navigating to the Plan tab was
+  the old behaviour and it threw the user out of the thing they were editing.
+- **Every Timeline entry gains a `swap` control beside its lock**, opening the Plan tab's
+  "add a drink" menu filtered to acceptable replacements.
+- **The swap cap is +20% of the swapped entry's PURE ETHANOL ML, and only the upper bound is
+  enforced** (Oscar, 2026-08-13). Ethanol, not ABV: a 5% pint and a 40% single are comparable by
+  what they contribute to the budget, not by their strength. There is NO lower bound -- swapping a
+  drink for water is explicitly allowed, because trading down can never breach the target.
+- **The cap is enforced, not advisory.** An over-budget swap is refused rather than warned about;
+  a warned swap is quick-add through a side door.
+- After a swap the deterministic engine re-paces the timeline as usual.
+
+**Undrawn as of this entry**, and therefore blocked for a visual check until Claude Design supplies
+frames -- see `docs/visual/03-design-requests.md` SS-H: the per-category drop-down of selected drinks
+on the Plan tab and its `hide`/`show` control; the two-control Timeline row carrying both lock and
+swap; and the swap-constrained picker state.
