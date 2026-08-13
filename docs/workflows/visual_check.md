@@ -153,6 +153,38 @@ The brief itself:
 Luna-0 drives the running app, captures each screen, compares, and comes back with a finding list
 and a recommendation for how many agents the fixes warrant.
 
+### Recon parallelises too, above about eight drawn frames
+
+**Added 2026-08-13, from the Wave 4 pass.** Recon was single-agent for three waves because one agent
+was enough for eight frames. At fifteen it is the bottleneck, and the workflow had the shape exactly
+inverted: repair — the stage with the hazards — ran parallel, while discovery — the stage that
+parallelises safely — ran serial.
+
+**The disjoint-file constraint that forces the repair shape does not bind recon at all.** Fixers must
+own disjoint files because a shared worktree has no isolation and last-write-wins silently. Recon
+writes no product code; its only writes are per-screen `notes.md`, already disjoint by screen. There
+is nothing to collide.
+
+So above roughly **eight drawn frames, split recon across n agents on disjoint screen sets.** Below
+that, one agent is still simpler and cheaper.
+
+**Luna-0 remains the sole author of the finding list, the headcount and the ownership split.** That
+synthesis needs whole-wave context — it is the real reason recon was ever single-agent, and it
+survives the change: the other reconners hand Luna-0 their findings and notes, and Luna-0 composes.
+Splitting the *looking* is safe; splitting the *judgement* is not.
+
+**The strongest argument is accuracy, not speed.** Luna-0's context compacted partway through the
+Wave 4 recon. A scout that compacts has lost the measured detail behind its earlier findings, so the
+back half of its list is derived from a summary of its own observations rather than the observations
+— and three of its claims did not survive checking at repair time. n agents over disjoint screen
+sets each stay inside their window; one agent over fifteen frames cannot.
+
+That also promotes the per-screen notes from bookkeeping to load-bearing. **`notes.md`, written as
+each capture is assessed, is the only part of a scout's observation that survives its own
+compaction.** Wave 4 nearly lost this: Luna-0 shot fifteen captures against empty notes files and
+backfilled only when told to, which happened to land before the compaction. After a compaction,
+treat the agent's memory as inadmissible and its notes as the record.
+
 Recon is report-only for product code, **not history-free**. Luna-0 writes exploratory captures to
 the gitignored per-screen `work/` directories and appends each measured conclusion to that screen's
 tracked `notes.md` while it works. It does not promote a milestone capture or edit the shared
@@ -165,6 +197,25 @@ the numeric acceptance criteria in `design_handoffs/design_handoff_drinksmart/RE
 establish correctness. Where the spec states a number, read it back out of the browser with
 `getComputedStyle` or a bounding box rather than judging it by eye — Playwright is there precisely
 so a pixel claim can be evidence instead of an impression.
+
+**But recon and repair measure to different depths, and conflating them costs a whole pass.**
+
+| | Recon measures to… | The fixer measures to… |
+| --- | --- | --- |
+| Question | Is this defect real? | Is this defect gone? |
+| Enough | One number that contradicts a stated one | Full characterisation of the fixed state |
+| Not required | Where the defect lives, or what the fix is | — |
+
+A recon finding still may **not** be "looks off to me" — it must carry a number that contradicts the
+drawing, or it is taste. But it does not have to characterise the whole screen, and it does not have
+to locate the cause: today every number gets measured three times, by recon, by the fixer, and again
+by the orchestrator's §9 pass.
+
+**Recon is also the worst place to diagnose a cause.** Three Wave 4 findings named the wrong source —
+a sort order that was correct once the drawing's own filter state was read, a double padding
+attributed to two files when one of them contained no such padding, and "one shared header" that was
+the same defect written out three times in three files. Diagnosis needs the files; recon has the
+browser. Let recon say *what is wrong on screen*, and let the fixer, who is in the code, say *why*.
 
 **Standing constraints, which a free-running agent will drift away from:** dark-only, the light
 theme is deliberately unreachable; one accent and no palette; no red and no green; completion
