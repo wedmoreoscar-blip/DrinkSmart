@@ -787,3 +787,49 @@ editable at both ends without reopening the door the four-band cap closed.
 frames -- see `docs/visual/03-design-requests.md` SS-H: the per-category drop-down of selected drinks
 on the Plan tab and its `hide`/`show` control; the two-control Timeline row carrying both lock and
 swap; and the swap-constrained picker state.
+
+## LOCKED — The two meters, the +20% tray bound, and the no-red override (2026-08-13)
+
+Settled by Oscar, completing the Wave 5 spec. **This entry partially supersedes the "no red" clause
+of the LOCKED redesign constraints:** red is now permitted, in one place and for one purpose only —
+the tray meter's 15-20% over-target shade. **"No green" is unchanged and absolute.** Everywhere
+else the one-accent-no-palette rule stands; do not read this as licence for a palette.
+
+**Two meters, and they are not the same object.**
+
+- **The four-band meter (`1n`) is STATIC. It IS the target.** It recomputes only from inputs — band,
+  duration, user stats — and never responds to drink selection. If it moves when a drink is picked,
+  that is a bug.
+- **The tray meter (`4d`/`4e`) is DYNAMIC**, showing selected ethanol against that target. At target
+  it reads FULL.
+
+**Over target, only the SHADE changes.** The tray meter does not grow, and the fill does not rise
+past full. Bands, measured as percentage over target:
+
+| Over target | Tray fill |
+| --- | --- |
+| at or under | accent, as now |
+| 0 – 7.5% | yellow |
+| 7.5 – 15% | orange |
+| 15 – 20% | red |
+| above 20% | **unreachable — hard bound** |
+
+- **+20% is a hard bound on selection**, matching the per-swap cap exactly, so a user who swaps every
+  drink at +20% lands on the ceiling rather than through it.
+- **In the red band, if a HIGHER BAND EXISTS** (that is, any selection other than Heavy), a short
+  sentence beneath advises raising the band. Heavy has nothing above it and therefore shows no
+  advice. This is guidance, not a block, and it must not congratulate or scold.
+- **`adjustedTargetMl` is UNCHANGED and still required.** It still scales the target upward past
+  100% so the timeline keeps pacing. What changes is only its input range: the tray can no longer
+  hand it a figure above +20%, so the rescaling is bounded in practice while the mechanism is
+  untouched. Do not remove it, and do not cap percentages inside it — see CLAUDE.md pitfall 15.
+
+**Locking is a property of the drink, and it works on BOTH tabs.**
+
+- A drink locked on the Timeline cannot be moved or swapped on the Plan tab, and **its lock icon
+  renders on the Plan tab too**, so the user can see why it will not move.
+- **The user can also lock drinks ON the Plan tab.** `Regenerate` and a repeated `Build the night`
+  then regenerate **only the UNLOCKED drinks**, keeping locked ones — identical in behaviour to
+  `Re-plan the rest` on the Timeline. One rule, three buttons.
+- Confirming a swap keeps the user on the Plan tab so they can swap further unlocked drinks. `Done`
+  advances to the Timeline; the Timeline tab stays directly tappable regardless.
