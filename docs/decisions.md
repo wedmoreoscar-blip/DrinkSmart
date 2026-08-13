@@ -779,8 +779,11 @@ editable at both ends without reopening the door the four-band cap closed.
   enforced** (Oscar, 2026-08-13). Ethanol, not ABV: a 5% pint and a 40% single are comparable by
   what they contribute to the budget, not by their strength. There is NO lower bound -- swapping a
   drink for water is explicitly allowed, because trading down can never breach the target.
-- **The cap is enforced, not advisory.** An over-budget swap is refused rather than warned about;
-  a warned swap is quick-add through a side door.
+- **The cap is enforced silently, and nothing in the swap path warns.** A swap within the cap is
+  simply allowed — no warning, no confirmation, no interstitial. A swap beyond it is not offered at
+  all. **The tray meter's shade is the ONLY signal the user ever gets about running over budget**,
+  and it is the only one wanted: the filter governs the individual drink, the meter tells the story
+  of the night, and neither needs a dialogue to explain itself.
 - After a swap the deterministic engine re-paces the timeline as usual.
 
 **Undrawn as of this entry**, and therefore blocked for a visual check until Claude Design supplies
