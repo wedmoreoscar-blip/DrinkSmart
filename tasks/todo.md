@@ -195,6 +195,19 @@ enough to **prove a defect is real**; the fixer measures enough to **know it is 
 number is measured three times — recon, fixer, then the orchestrator's §9 pass. A recon finding still
 may not be "looks off to me": it must still carry a number that contradicts a stated one.
 
+**Third and strongest argument — a long serial recon compacts its own context.** Luna-0 hit context
+compaction partway through the Wave 4 recon (Oscar, 2026-08-13). A scout that compacts has silently
+lost the measured detail behind its earlier findings, and the later half of its finding list is
+therefore derived from a summary of its own observations rather than the observations. That is a
+**quality** failure, not a speed one, and it is the real case for splitting recon: n agents over
+disjoint screen sets each stay inside their window, where one agent over fifteen frames cannot.
+
+It also raises the value of the notes discipline from bookkeeping to load-bearing. Per-screen
+`notes.md` written *as each capture is assessed* is the only part of a scout's observation that
+survives its own compaction. Wave 4 nearly lost this: Luna-0 was shooting with empty notes files
+until it was told to backfill, which happened to be before the compaction. Make the revision say
+plainly that notes are the durable record and a compaction makes memory inadmissible.
+
 Evidence to fold in when writing: Wave 3 ran 8 frames / 3 agents / ~87 min recon-to-milestone; Wave 4
-ran 15 frames / 1 recon agent. Ask Luna-0 in its handback where recon actually lost time — driving
-into hard states, measuring, or writing — since it is the only one that knows.
+ran 15 frames / 1 recon agent and compacted. Ask Luna-0 in its handback where recon actually lost
+time — driving into hard states, measuring, or writing — since it is the only one that knows.
