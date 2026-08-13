@@ -1,6 +1,6 @@
-# Session Handoff / Kickoff — Wave 5 design request SENT; awaiting frames `5a`–`5f`
+# Session Handoff / Kickoff — Wave 5 frames DELIVERED; every open question settled
 
-Written 2026-08-13 20:31 BST, amended 20:55. Normal-mode handoff. The canonical continuation was
+Written 2026-08-13 20:31 BST, amended 21:30. Normal-mode handoff. The canonical continuation was
 replaced.
 
 **The next orchestrator is GPT-5.6 Sol, not Claude.** Read "Orchestrator handover" below *first* —
@@ -11,16 +11,21 @@ invoke before doing anything else.
 
 **Wave 4 is finished** and nothing is outstanding on it.
 
-**Wave 5 is fully specified and the design request has been SENT.** Oscar handed the amended prompt
-to Claude Design at roughly 20:30 BST on 2026-08-13 and expects it to consume the full five-hour
-window, so frames should land around 01:30 BST. Wave 5 is unblocked the moment they do.
+**Wave 5 is fully specified, the frames have ARRIVED, and every open question is settled.** All six
+(`5a`–`5f`) were delivered and live in **`design_handoffs/design_handoff_drinksmart_wave5/`**. The
+old `design_handoff_drinksmart/` path is gone — the Wave 4 delivery moved to
+`design_handoff_drinksmart_depreciated_wave4/`. Live docs have been repointed; historical specs under
+`docs/specs/` still carry the old path and are left as history.
 
-**Expect six frames, not four: `5a`–`5f`.** `5b` was widened and `5e`/`5f` were added during this
-session; all three amendments were appended to the prompt before it went.
+**`wave-5-change-inventory` (Traycer artifact) is the single Wave 5 reference.** It carries all 34
+changes plus the three distinct fixes, the literal frame geometry, and a head block recording the six
+rulings below. The companion `wave-5-change-list` artifact was folded into it and deleted.
 
-**Assume the frames are present and that WAVE 5 OWNS EVERY OPEN ITEM BELOW** (Oscar, 2026-08-13).
-Nothing in this handoff is deferred to a later wave and nothing is left awaiting a decision — the six
-fixes listed further down are Wave 5 scope alongside the 33 changes.
+**WAVE 5 OWNS EVERY OPEN ITEM BELOW** (Oscar, 2026-08-13). Nothing is deferred and nothing awaits a
+decision.
+
+**Count: 37, not 40.** Fixes 3, 4 and 5 below *are* changes 34, 33 and 32 reached from the bug list
+rather than the spec list.
 
 `main` is at the commit below. All nine worktrees clean and level. Nothing pushed.
 
@@ -62,15 +67,62 @@ nothing (CLAUDE.md).
 
 ## Wave 5 — the specification
 
-**Do not work from a summary. Read `docs/decisions.md`.** Six LOCKED entries dated 2026-08-13 are
+**Do not work from a summary. Read `docs/decisions.md`.** Nine LOCKED entries dated 2026-08-13 are
 the whole spec:
 
 1. *Plan tab is one surface, and Build the night opens a curation step*
 2. *Timeline is where a plan is edited, and swaps are capped*
 3. *The two meters, the +20% tray bound, and the no-red override*
 4. *Delegation threshold, spend ledger, and the capped visual pass*
-5. ***`Add a drink` is destroyed, and reordering needs an affordance*** — new this session
-6. ***Onboarding gains a strength rail, requested as `5f`*** — new this session
+5. *`Add a drink` is destroyed, and reordering needs an affordance*
+6. *Onboarding gains a strength rail, requested as `5f`*
+7. ***The written spec outranks the drawings*** — a new rank 0 on the precedence ladder
+8. ***A lock only stops regeneration, and nothing else*** — with the full row-eligibility table
+9. ***`5f` resolved: five strength stops, five chips***
+
+**READ 7, 8 AND 9 FIRST.** They were settled after the frames landed and they override earlier
+entries, the frames themselves, and parts of the Codex inventory.
+
+### The precedence inversion, because it changes how every conflict is read
+
+Oscar: *"claude design is good but it isnt perfect and makes mistakes. its screenshots are
+inspiration but the SPEC we write now TAKES PRECEDENCE."* Rank 0 is `docs/decisions.md` and the specs
+written from it. The rest of the ladder is unchanged and still governs everything the spec is silent
+on — geometry, hexes, type, spacing, motion, uncommitted copy — which is most of the UI. **A frame
+that contradicts a locked decision is a regression to raise, not a spec to follow.**
+
+### A lock only stops regeneration
+
+That is its entire meaning. Movement, reordering and swapping are all **free** on a locked drink, on
+either tab. Locked entries do not hold their times and do not refuse a crossing drop.
+
+| Row | Grip / move | Re-plan / regenerate | Swap | Lock |
+| --- | --- | --- | --- | --- |
+| Future, unlocked | yes | yes | yes | yes |
+| **Drink currently up** | **yes** | **yes, when unlocked** | yes | **yes** |
+| Locked | **yes** | no — that is the lock | **yes** | unlock |
+| Past | **no** | no | no | no |
+
+**Grips are omitted on PAST rows only.** The drink currently up is a full participant and can itself
+be locked. The old rule excluding it — in the ledger, in change 8, and in the `5b` text sent to
+Claude Design — is withdrawn.
+
+### Four frame conflicts, all ruled
+
+| Frame | Drawn | Implement |
+| --- | --- | --- |
+| `5a` | tray action `Start` | **`Done`** — there is no `Start`. Keep the drawn 64px geometry |
+| `5c` | Timeline tab active during a swap | **Plan stays active** until the user tabs to Timeline or presses `Done` |
+| `5d` | `This is a Loose night, on Social's target.` | **Advises raising the band**, per the locked wording |
+| `5e` | README prose: locked rows dim to `.30`, lose their grip, hold their times | **Withdrawn.** `5e`'s own HTML was right: locked drinks move like any other |
+
+### `5f` — take the frame's form, not its counts
+
+Five strength stops with the existing labels (`Light · Mild · Medium · Strong · Very strong`), not
+the six lowercase ones `5f` draws. **The `Low & no` chip is KEPT** — with five stops there is no
+`alcohol-free` stop to absorb it. `Cider` merges into `Beer & cider` as drawn, so chips go six to
+**five**: `Beer & cider`, `Wine`, `Spirits`, `Cocktails`, `Low & no`. Everything else in `5f` stands,
+including the shared form in Profile's Taste sheet.
 
 The previous kickoff enumerated 31 agreed changes with pointers to their records; that list is
 preserved verbatim in `tasks/kickoff_history/2026-08-13_1915.md` and remains accurate. **Three
@@ -186,7 +238,7 @@ only `.env.example`, and Vite reads env from its own root.
 ## Explicit exclusions and boundaries
 
 - **Oscar's uncommitted rename is in the tree and is NOT yours.**
-  `design_handoffs/design_handoff_drinksmart/DrinkSmart-design-reference.html` shows deleted and
+  `design_handoffs/design_handoff_drinksmart_wave5/DrinkSmart-design-reference.html` shows deleted and
   `…-reference-wave4.html` untracked. Preserve it; do not stage, revert or complete it.
 - Never use `design_handoff_drinksmart_depreciated/` as authority.
 - Do not alter the deterministic BAC/pacing formulas in `AppContext.tsx`.
@@ -212,22 +264,48 @@ invoke skills with $<skill>, not /<skill>.
 
 WAVE 4 IS COMPLETE. Nothing is outstanding on it.
 
-WAVE 5 IS THE TASK. It is fully specified and the design request HAS BEEN SENT -- Oscar handed the
-amended prompt to Claude Design at ~20:30 BST on 2026-08-13 and expects it to take the full five
-hours, so frames should land around 01:30 BST. EXPECT SIX FRAMES, 5a THROUGH 5f, not four. Assume
-they are in hand by the time you read this; confirm they are actually on disk in
-design_handoffs/design_handoff_drinksmart/screens/ before scoping the legs that depend on them.
+WAVE 5 IS THE TASK. It is fully specified, ALL SIX FRAMES 5a-5f HAVE BEEN DELIVERED, and every open
+question is settled. The frames live in design_handoffs/design_handoff_drinksmart_wave5/ -- note the
+path: the old design_handoff_drinksmart/ is gone and the Wave 4 delivery moved to
+design_handoff_drinksmart_depreciated_wave4/. Live docs are repointed; historical docs/specs/ files
+still carry the old path and are left as history.
 
-Read the SIX LOCKED entries dated 2026-08-13 in docs/decisions.md rather than any summary: the
-Plan-tab curation flow; the Timeline editing rules and the silent +20% pure-ethanol swap cap; the
-static-vs-dynamic two-meter model with its over-target shade bands and hard +20% tray bound; the
-delegation threshold and capped visual pass; "Add a drink is destroyed, and reordering needs an
-affordance"; and "Onboarding gains a strength rail, requested as 5f". The 31 agreed changes are
-listed in tasks/kickoff_history/2026-08-13_1915.md and remain accurate; three more join them,
-numbered 32, 33 and 34 in the section above this prompt.
+THE TRAYCER ARTIFACT wave-5-change-inventory IS THE SINGLE WAVE 5 REFERENCE. It carries all 34
+changes plus the three distinct fixes, the literal frame geometry, hexes and copy, and a head block
+recording the rulings. Read it alongside the ledger, not instead of it. Total is 37, not 40 -- fixes
+3, 4 and 5 ARE changes 34, 33 and 32.
 
-WAVE 5 OWNS EVERYTHING IN THIS HANDOFF. Nothing is deferred to a later wave and nothing waits on a
-decision from Oscar. Scope it into disjoint legs and route each against the threshold in
+Read the NINE LOCKED entries dated 2026-08-13 in docs/decisions.md rather than any summary. READ
+NUMBERS 7, 8 AND 9 FIRST -- they were settled after the frames landed and they override earlier
+entries, the frames, and parts of the Codex inventory.
+
+7. THE WRITTEN SPEC OUTRANKS THE DRAWINGS. A new rank 0 sits above tokens on the precedence ladder:
+docs/decisions.md and the specs written from it. Oscar: "claude design is good but it isnt perfect
+and makes mistakes. its screenshots are inspiration but the SPEC we write now TAKES PRECEDENCE."
+The rest of the ladder is unchanged and still governs everything the spec is silent on, which is
+most of the UI. A frame that contradicts a locked decision is a REGRESSION TO RAISE, not a spec to
+follow. This is the opposite of how Waves 1-4 were run; do not apply the old habit.
+
+8. A LOCK ONLY STOPS REGENERATION. That is all it does. Movement, reordering and swapping are free
+on a locked drink, on either tab. Locked entries do NOT hold their times and do NOT refuse a
+crossing drop. GRIPS ARE OMITTED ON PAST ROWS ONLY -- current-up and locked rows keep them, and the
+drink currently up can itself be locked and re-planned. The full eligibility table is in the entry
+and in the section above this prompt.
+
+9. 5f RESOLVED: five strength stops with the existing labels (Light, Mild, Medium, Strong, Very
+strong), NOT the six lowercase stops the frame draws. The Low & no chip is KEPT. Cider merges into
+Beer & cider, so chips go six to FIVE, not the four the frame draws.
+
+FOUR FRAME CONFLICTS ARE ALREADY RULED: 5a draws the tray action as "Start" -- use Done. 5c draws
+the Timeline tab active during a swap -- Plan stays active until the user tabs away or presses Done.
+5d draws a statement of fact -- the line advises raising the band. 5e's README prose dims locked
+rows and strips their grips -- withdrawn, its own HTML was right.
+
+The 31 agreed changes are listed in tasks/kickoff_history/2026-08-13_1915.md and remain accurate
+except where entries 7-9 override them; three more join them, numbered 32, 33 and 34 in the section
+above this prompt.
+
+WAVE 5 OWNS EVERYTHING IN THIS HANDOFF. Nothing is deferred and nothing waits on a decision. Scope it into disjoint legs and route each against the threshold in
 docs/workflows/delegation.md. The seven deepseek_imp_* agents and their worktrees are warm and idle.
 Wave 5 is boilerplate-heavy UI work against a settled spec, which the delegation path is good at --
 but the meter shade bands and the swap-eligibility filter are dense, small and easy to get subtly
@@ -241,8 +319,8 @@ unitConversions.ts:195 branches TBW on metricType); the Taste sheet discarding i
 wiping categories_liked/avoided on first tap (TasteSheet.tsx:68); and the "Your stats" flash on
 reload. That last one has explicit timing from Oscar: FIX IT INLINE, AFTER the implementation agents
 are dispatched and running -- not before, and not as part of a spec. Three are legs against their
-frames: the reorder affordance against 5b, destroying Add a drink against 5e, and the onboarding
-strength rail against 5f.
+frames, which are now in hand: the reorder affordance against 5b, destroying Add a drink against 5e,
+and the onboarding strength rail against 5f -- subject to entries 8 and 9 above.
 
 ON THE STRENGTH RAIL, GET THE MODEL RIGHT. Strength is a TASTE preference like sweetness -- it leans
 drink selection toward higher-ABV catalogue items. It is NOT a quantity control and NOT a second

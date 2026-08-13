@@ -192,8 +192,8 @@ tracked `notes.md` while it works. It does not promote a milestone capture or ed
 resolved and independently accepted below.
 
 **Measure, do not only look.** Eyeballing a screenshot catches layout breakage and misses "that is
-13px, not 14px". The drawings in `design_handoffs/design_handoff_drinksmart/screens/*.png` establish appearance;
-the numeric acceptance criteria in `design_handoffs/design_handoff_drinksmart/README.md` and `tasks/todo.md`
+13px, not 14px". The drawings in `design_handoffs/design_handoff_drinksmart_wave5/screens/*.png` establish appearance;
+the numeric acceptance criteria in `design_handoffs/design_handoff_drinksmart_wave5/README.md` and `tasks/todo.md`
 establish correctness. Where the spec states a number, read it back out of the browser with
 `getComputedStyle` or a bounding box rather than judging it by eye — Playwright is there precisely
 so a pixel claim can be evidence instead of an impression.
@@ -405,7 +405,7 @@ At the very end, once every fixer has reported:
 1. **The orchestrator does its own visual pass — by looking, not by reading Luna's summary.**
    Playwright is a committed devDependency, so drive the app directly: capture each drawn screen at
    402×874 into `docs/visual/screenshots/<screen>/`, then open the PNGs and compare them against
-   `design_handoffs/design_handoff_drinksmart/screens/`. Read back any stated number with `getComputedStyle` rather
+   `design_handoffs/design_handoff_drinksmart_wave5/screens/`. Read back any stated number with `getComputedStyle` rather
    than trusting a report that it was fixed.
 
    This step is the independent check, and accepting a summary in place of looking would remove the

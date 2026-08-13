@@ -19,7 +19,7 @@ improvise one. Inventing values is rank 6 on the precedence ladder for exactly t
 
 ## Available — drawn, and therefore checkable
 
-In `design_handoffs/design_handoff_drinksmart/screens/`, with numeric acceptance criteria in that directory's
+In `design_handoffs/design_handoff_drinksmart_wave5/screens/`, with numeric acceptance criteria in that directory's
 `README.md` and in `tasks/todo.md`.
 
 | Id | Drawing | Covers |
@@ -88,7 +88,7 @@ notification-permission prompt remain undrawn because they have not been request
 
 ## Keeping this current
 
-Move an item to Available when its drawing lands in `design_handoffs/design_handoff_drinksmart/screens/`, and say
+Move an item to Available when its drawing lands in `design_handoffs/design_handoff_drinksmart_wave5/screens/`, and say
 in the same edit which numeric acceptance criteria came with it. Leave the letter behind as
 resolved rather than reusing it.
 

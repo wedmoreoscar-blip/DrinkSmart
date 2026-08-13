@@ -499,7 +499,7 @@ Verified empirically; each point cost attempts to discover.
 
 ## LOCKED — Frontend redesign source of truth (2026-08-07)
 
-- `design_handoffs/design_handoff_drinksmart/` is the authority for the frontend redesign. `README.md` is the spec
+- `design_handoffs/design_handoff_drinksmart_wave5/` is the authority for the frontend redesign. `README.md` is the spec
   and is self-sufficient; `screens/*.png` are the ground truth for appearance; `screens/*.html` are
   inline-styled prototypes to port into React, never to paste in; `tokens/` alone is production code.
 - Do not read or parse `DrinkSmart-design-reference.html` (1.3 MB compiled output, for a human).
@@ -518,12 +518,12 @@ Verified empirically; each point cost attempts to discover.
   When an export regresses an amendment, restore the amendment and consider sending it upstream.
 - **Canonical archive path (amended 2026-08-11).** `design_handoffs/` contains Claude Design
   handoffs in chronological order. The newest unsuffixed bundle,
-  `design_handoffs/design_handoff_drinksmart/{README.md,screens/,tokens/}`, is authoritative; older
+  `design_handoffs/design_handoff_drinksmart_wave5/{README.md,screens/,tokens/}`, is authoritative; older
   exports remain alongside it with `depreciated` in the directory name and are historical only.
   This supersedes the former repository-root `design_handoff_drinksmart/` path. Exports may nest
   the active bundle deeper; lift it back to the path above because current docs and specs reference
   it directly. The wider project export (`DrinkSmart.dc.html`, `_ds/`, `ios-frame.jsx`,
-  `support.js`, `uploads/`) sits under `design_handoffs/design_handoff_drinksmart/project/`. Strip
+  `support.js`, `uploads/`) sits under `design_handoffs/design_handoff_drinksmart_wave5/project/`. Strip
   `:Zone.Identifier` files when unzipping on Windows into WSL; they are never tracked.
 - ~~Two in-repo amendments to the bundled README (2026-08-06) are part of the spec.~~
   **Superseded 2026-08-08 by designs `1n`/`1o`.** The amendments held the four-band scale as prose;
@@ -532,11 +532,19 @@ Verified empirically; each point cost attempts to discover.
   general rule from the earlier export still stands: an export that *deletes* an amendment without
   drawing its content is a regression and must be restored.
 
+> **AMENDED 2026-08-13 — a written spec now outranks every rung below.** See "The written spec
+> outranks the drawings" near the end of this file. Oscar: *"claude design is good but it isnt
+> perfect and makes mistakes. its screenshots are inspiration but the SPEC we write now TAKES
+> PRECEDENCE."* Rank 0 is `docs/decisions.md` and the specs written from it. The ladder below still
+> governs everything the spec does not speak to, which is most of the UI. Read the two together.
+
 **Precedence ladder (amended 2026-08-08).** Claude Design entities are ground truth for UI, and for
 backend design concerning those entities. Where sources disagree, the higher rank wins outright and
 the lower is treated as stale — no reconciliation, no averaging:
 
-1. `design_handoffs/design_handoff_drinksmart/tokens/` — production code; already applied.
+0. **`docs/decisions.md` and the specs written from it** (added 2026-08-13). Where a locked decision
+   speaks, it wins over any drawing.
+1. `design_handoffs/design_handoff_drinksmart_wave5/tokens/` — production code; already applied.
 2. `screens/*.html` — literal inline values (sizes, radii, colours, weights, copy). Authoritative
    for **values**.
 3. `screens/*.png` — authoritative for **appearance**; the visual check on 2.
@@ -857,7 +865,7 @@ label.* Quick-add was named and killed; this one was not named and survived. It 
   Substituting one happens **only** through `swap`, under the per-entry cap. Neither can pass the
   ceiling; that button could.
 - **This requires a design edit, not just a delete.** `1d-timeline.html` lines 95–96 draw the footer
-  as a matched pair and `design_handoffs/design_handoff_drinksmart/README.md` line 733 codifies it —
+  as a matched pair and `design_handoffs/design_handoff_drinksmart_wave5/README.md` line 733 codifies it —
   two flex-1 buttons, 56px, 1px `#383a46`, radius 14, 19px. Deleting one leaves `Re-plan the rest`
   alone in a row composed for two. Registered as **`5e`**; improvising the single-button footer is
   rank 6 on the precedence ladder.
@@ -913,5 +921,93 @@ night is fixed by the four-band buzz picker (`1n`) before this preference is eve
   way to say how drunk to get. `5f` must make it read as *what you like*, not *how much*.
 - Two composition questions were handed to Claude Design rather than settled here: **vertical space**
   on an already-full `4c` card, and **the `Low & no` chip**, which today *is* the strength control by
-  proxy and would otherwise be a second control fighting the rail over one value.
+  proxy and would otherwise be a second control fighting the rail over one value. **Both are now
+  settled — see the entry below.**
 - If `5f` changes the Profile taste sheet too, follow it there.
+
+## LOCKED — The written spec outranks the drawings (2026-08-13, after the Wave 5 delivery)
+
+Settled by Oscar on reading the delivered `5a`–`5f` frames against the ledger.
+
+> *"claude design is good but it isnt perfect and makes mistakes. its screenshots are inspiration but
+> the SPEC we write now TAKES PRECEDENCE."*
+
+**This inverts the top of the precedence ladder** and is recorded as an amendment to it, not a
+replacement. A new **rank 0** sits above tokens: `docs/decisions.md` and the specs written from it.
+The rest of the ladder is unchanged and still governs everything a locked decision does not speak to
+— which is most of the UI, and is why the ladder is not being torn up.
+
+**Why the change.** The 2026-08-08 ladder was written when the drawings were the only settled
+description of the UI and the code was the thing drifting. That is no longer the situation: Wave 5's
+behaviour was locked *before* the frames were requested, and the delivery contradicted it in four
+places. Under the old ladder an implementer would have followed the frame every time. The
+prior rule that *"a fresh export is expected to contradict the current code, and is still ground
+truth"* still holds **against the code**; it no longer holds against a locked decision.
+
+**Working rule:** the frames are authoritative for everything visual the spec is silent on —
+geometry, hexes, type, spacing, motion, and copy we have not fixed. Where a locked decision speaks,
+it wins. A frame that contradicts one is a **regression to raise**, exactly as the design prompt said
+we would treat it.
+
+### The four conflicts in the Wave 5 delivery, resolved
+
+| # | Conflict | Ruling |
+| --- | --- | --- |
+| 1 | `5a` HTML draws the tray action as `Start` | **`Done`.** There is no tray action called `Start`. Keep the drawn 64px geometry |
+| 2 | `5c` draws the **Timeline** tab active during a swap | **Plan stays active.** Swap opens the Plan picker and the user *stays on Plan* until they tab to Timeline or press `Done` |
+| 3 | `5d` draws the band line as a statement of fact — `This is a Loose night, on Social's target.` | **It advises raising the band**, per the locked entry. Not the statement of fact |
+| 4 | `5e` README prose says locked rows lose their grip, dim to `.30`, hold their times, and refuse crossing drops | **Withdrawn entirely.** See the lock semantics below. `5e`'s own HTML already said the opposite |
+
+## LOCKED — A lock only stops regeneration, and nothing else (2026-08-13)
+
+Settled by Oscar. **This supersedes the "cannot be moved or swapped" clause** of the earlier locking
+entry, and it is the single rule to carry:
+
+> *"all lock does is free a drink from being regenerated. that is all. all other actions like
+> movement, swapping, etc are free."*
+
+- **A lock is not a pin and not a freeze.** Locked means the drink **survives regeneration** —
+  `Regenerate`, a repeated `Build the night` and `Re-plan the rest` leave it alone. That is its
+  entire meaning.
+- **A locked drink can still be moved, reordered and swapped**, on either tab. Change 20's "a
+  Timeline-locked drink cannot be moved or swapped on the Plan tab" is **wrong and withdrawn**, as is
+  Codex's inventory item 27.
+- Locked entries do **not** hold their times, and a drop that crosses one is **not** refused.
+
+### Row eligibility — the whole table
+
+**Grips are omitted on PAST rows only.** Everything else keeps one.
+
+| Row | Grip / move | Re-plan / regenerate | Swap | Lock |
+| --- | --- | --- | --- | --- |
+| Future, unlocked | yes | yes | yes | yes |
+| **Drink currently up** | **yes** | **yes, when unlocked** | yes | **yes — it can be locked** |
+| Locked | **yes** | no — that is what the lock does | **yes** | unlock |
+| Past | **no** | no | no | no |
+
+**The drink currently up is a full participant** (Oscar, 2026-08-13): it can be moved, re-planned and
+locked. The earlier rule excluding it — carried in the ledger, in change 8, and in the `5b` text sent
+to Claude Design — is withdrawn. The frames drew it as movable before this was said; `5b` puts the
+grip inside the hero card (88 → 98px) and re-times the hero, its countdown and its notification on
+drop. Follow the frames here.
+
+**Codex's `wave-5-change-inventory` authority table is wrong** where it says to omit grips on
+current, past and locked rows. Past only.
+
+## LOCKED — `5f` resolved: five strength stops, five chips (2026-08-13)
+
+Settled by Oscar, overriding the delivered frame on both counts.
+
+- **Five strength stops, the labels already in the code**: `Light · Mild · Medium · Strong · Very
+  strong` (`src/components/profile/tasteWords.ts`). `5f` draws six lowercase stops with
+  `alcohol-free` at the far left; **that is not taken.** Same count as the Sweetness rail.
+- **The `Low & no` chip is KEPT.** `5f` deletes it on the grounds that an `alcohol-free` stop
+  replaces it — but with five stops there is no such stop, and dropping the chip would leave low/no
+  alcohol with no expression anywhere in onboarding.
+- **`Cider` merges into `Beer & cider`**, as drawn. So the chip grid goes **six to five**: `Beer &
+  cider`, `Wine`, `Spirits`, `Cocktails`, `Low & no` — not the four `5f` draws.
+- Everything else in `5f` stands: one `Taste` heading over both rails, `Strength` as a 15px row label
+  of the same weight as `Sweetness`, the compact two-rail form, the single 13px explanatory line, and
+  the same form reused in Profile's Taste sheet.
+- `PREFERENCE_FAMILIES` must keep every catalogue key in exactly one family — see the existing
+  `alcopops` comment in `src/components/onboarding/preferenceFamilies.ts`.

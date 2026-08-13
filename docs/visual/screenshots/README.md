@@ -1,7 +1,7 @@
 # Screenshot archive
 
 Captures of the app **as actually rendered**, taken during visual checks
-(`docs/workflows/visual_check.md`). The drawings in `design_handoffs/design_handoff_drinksmart/screens/` are what
+(`docs/workflows/visual_check.md`). The drawings in `design_handoffs/design_handoff_drinksmart_wave5/screens/` are what
 the app should look like; these are what it does look like.
 
 ## Two kinds of capture, and only one is committed
