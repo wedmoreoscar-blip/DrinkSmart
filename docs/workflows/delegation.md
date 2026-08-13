@@ -30,6 +30,32 @@ Four properties, in priority order. Every rule below exists to serve one of them
 4. **Fast-forwards only.** `main` advances by fast-forward from a verified integration branch. It
    never receives untested work that then has to be re-tested in place.
 
+## When to delegate at all
+
+Delegation removes from the orchestrator's window the *iteration churn* — exploration, failed
+attempts, re-edits, command output — not the code itself. The spec, the handback diff, the
+independent tests, and the repairs all still land in the orchestrator's context. The saving is the
+churn, typically several times the size of the finished diff; the cost is a fixed per-delegation
+floor (provision, spec, commission round-trip, clause map, tests, repairs, baseline) that does not
+shrink with the task. Below a certain task size the floor exceeds the churn and delegation loses
+to inline work on every axis at once — tokens, latency, and quality.
+
+So the gate is a size-and-kind rule, decided when the work is scoped rather than felt out at
+dispatch time:
+
+- **Delegate** work whose expected diff is roughly 150 production lines or more of mechanical,
+  fully specifiable change — or any wave that splits into two or more disjoint specs, where
+  batched fan-in amortizes the floor across the legs.
+- **Keep inline** anything smaller; anything requiring design judgment mid-implementation (a spec
+  that must settle the design *is* the solution, serialized as prose, so nothing was saved by not
+  writing the code); dense single-file logic; and work whose independent test suite would rival
+  the implementation in size — there the checker performs the expensive half regardless.
+
+"Keep tiny context-cached changes inline" (`AGENTS.md`) is this rule's summary; the lines above
+are its operating definition. The line-count figure is a working estimate, not a measured one —
+the per-delegation context-spend note that `speccheck` records in each acceptance record is what
+will eventually correct it.
+
 ## The path
 
 ### Provision

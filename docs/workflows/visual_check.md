@@ -9,8 +9,12 @@ built for rigour and speed on deterministic work, is almost always DeepSeek, and
 ceremony. The two differ on purpose; the reasons are in "Why this is not the delegation path"
 below.
 
-Luna is the only agent that can do this work at all: ingesting images is a hard capability gap, not
-a quality preference (`agent_selection.md`).
+Luna is the only *implementer* that can do this work: DeepSeek cannot ingest images at all
+(`agent_selection.md`). The orchestrator is multimodal too — §9's independent pass depends on
+exactly that — so Luna's role here is subscription economics rather than absolute capability: it
+looks at screenshots at a small fraction of the orchestrator's cost and bills the ChatGPT
+subscription rather than the Claude one. Route the looking to Luna, and reserve the orchestrator's
+own image ingestion for the single capped pass in §9.
 
 ## Shape
 
@@ -308,6 +312,15 @@ At the very end, once every fixer has reported:
    only independence the phase has — every other observation in it was made by the agents that
    wrote the fixes. Capture these as the wave's **milestone** images: the pass and the archive
    entry are the same act.
+
+   **It is also the priciest step in the phase for the Claude subscription — every ingested image
+   bills at frontier weight — so it is capped, not open-ended.** Numeric-first: verify every
+   criterion that states a number by `getComputedStyle` or bounding-box read-back before opening
+   any image — that is text, and nearly free. Then ingest exactly **one** capture per drawn
+   screen, the milestone candidate, once. No re-shoot loop: anything this pass turns up is fixed
+   inline (below) and confirmed by the numeric read-backs, not by another round of images. The
+   independence of the check comes from the orchestrator making its own observations, not from how
+   many of them are pictures.
 2. Full baseline, once: `npm test`, `npm run typecheck`, `npm run lint` against its recorded count,
    `npm run build`, `git diff --check`.
 3. Fast-forward `main`. Commit locally. Never push.
@@ -326,7 +339,7 @@ whether the app looks good can continue indefinitely.
 
 | | Implementation (`delegation.md`) | Final visual check |
 | --- | --- | --- |
-| Agent | DeepSeek, almost always | Luna, necessarily — images |
+| Agent | DeepSeek, almost always | Luna — the only implementer that ingests images, at Luna prices |
 | Commissioned by | A `writespec` spec, hook-enforced | A rough brief, blind by necessity |
 | Bounded by | The spec's file allowlist | Luna-0's finding list |
 | Isolation | One worktree per agent | One shared worktree, disjoint file ownership |

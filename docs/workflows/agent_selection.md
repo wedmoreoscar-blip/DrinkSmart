@@ -27,6 +27,12 @@ the same epic ledger by a later Codex TUI orchestrator.
 
 ## Implementers
 
+Selection presupposes that delegating is worth it at all, and that gate lives in
+`docs/workflows/delegation.md` ("When to delegate at all"): expected diffs under roughly 150
+mechanical production lines, design-heavy work, dense single-file logic, and work whose
+independent tests would rival the implementation stay inline with the orchestrator. This file
+decides *who* runs the work only once that gate says delegate.
+
 Two options. Default to the first.
 
 ### Reuse warm agents before creating anything

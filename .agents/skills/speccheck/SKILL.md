@@ -176,3 +176,12 @@ whose records say a clause was completed inline is telling you the specs are
 under-specified or the implementer is underperforming, and without the notes
 that pattern is invisible: inline repair silently absorbs the signal it should
 be raising.
+
+**Add one line to the same acceptance record estimating the checker's context
+spend for the delegation** — the orchestrator-context tokens consumed from
+spec-start to integration done, read from the session transcript or usage
+display. One number, not a breakdown; an estimate is fine, a missing line is
+not. It exists to answer, over accumulated records, whether tasks of a given
+size are cheaper delegated than done inline — the evidence that will correct
+the working threshold in `docs/workflows/delegation.md` ("When to delegate at
+all"), which is currently a reasoned guess.
