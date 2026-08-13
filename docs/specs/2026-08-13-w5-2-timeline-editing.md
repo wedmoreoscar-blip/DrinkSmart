@@ -88,3 +88,16 @@ Before reporting back:
   new behaviour is not your job.
 - Report what you changed, which clause each change maps to, and anything
   you were unsure about.
+
+## Communication route — transport only
+
+Your assigning agent is the DeepSeek A2A hub
+`940a15e0-682c-4a16-807d-82f4a6bfc090`, acting for Codex TUI on ticket `W5-2`. Send every
+substantive question, blocker, status update and final handback with
+`traycer agent send --to 940a15e0-682c-4a16-807d-82f4a6bfc090`. Include the ticket ID, your full
+Traycer agent ID, a unique monotonic message ID, the kind
+(`QUESTION | BLOCKER | STATUS | HANDBACK`), whether a reply is needed, and the complete message body.
+
+The hub records messages but does not answer or make decisions; the Codex orchestrator will send
+any necessary response back through it. Continue safe independent work while waiting. Do not
+weaken or reinterpret the specification because this route exists.
