@@ -271,6 +271,24 @@ wastes the best-informed agent. The orchestrator dispatches each fixer with the 
 ownership split; the fixers coordinate among themselves by A2A from there, so the app reads as one
 coherent thing rather than n locally-correct patches.
 
+### Shoot early and often — a fixer that only edits will compact
+
+**Added 2026-08-13.** Both Wave 4 agents that ran long compacted their context, and the second case
+shows the mechanism. `visual_luna_2` spent roughly an hour editing its cluster without taking a
+single capture, and compacted before it had verified anything — so the work it had to summarise was
+an hour of code changes it could no longer check against an observation.
+
+Screenshotting is not the write-up at the end of a repair. It is a **feedback loop that keeps the
+agent's window small**: shoot, read back, append one line to `notes.md`, and the conclusion is
+externalised on disk instead of accumulating in context. An agent that edits for an hour and
+verifies at the end carries the whole hour in its window and then loses it.
+
+The rule that follows: **capture after each finding is addressed, not at the end of the cluster.**
+Fixers who do this stay inside their window, and their notes survive a compaction if it happens
+anyway. This is the repair-side twin of the recon rule above, and the same sentence covers both —
+notes written as you go are the only part of an agent's observation that survives its own
+compaction.
+
 ## 5. The finding list is the allowlist
 
 This is what bounds "casual". There is no spec and no file allowlist, and visual judgment invites
