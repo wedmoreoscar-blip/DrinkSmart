@@ -721,8 +721,8 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   check ran and is complete (`main` at `286a877`). One recon agent and three fixers in one shared
   worktree; every drawn frame `4a`–`4o` captured at 402x874 with `getComputedStyle` read-backs, and
   the orchestrator's capped section 9 pass verified the cross-cutting locked rules independently.
-  One finding deferred, compositional rather than a styling defect: `1c`/`4d` are drawn as two
-  screens where the app stacks them on one scrolling surface. **The auth bottom chrome is CLOSED,
+  Both findings are now closed by Oscar's decisions (below); nothing from the visual check
+  remains deferred. **The auth bottom chrome is CLOSED,
   not deferred (Oscar, 2026-08-13): the auth screens keep no bottom bar.** `4m`/`4n` draw the 58px
   bar with Profile active; Oscar reviewed the built screens in the browser, judged them good and
   working, and ruled against the drawing. A drawing is authoritative over the code, not over Oscar
@@ -734,3 +734,29 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   accepted Wave 3 suite contains 93 tests across planner and session behavior.
 - ~~A test runner so `speccheck`'s spec-derived tests are runnable.~~ **Closed 2026-08-09** — Oscar
   approved Vitest `^3.2.7`; W3-A1 installed it and added `npm test` to the verification profiles.
+
+## LOCKED — Plan tab is one surface, and Build the night opens a curation step (2026-08-13)
+
+Settled by Oscar after reviewing the built screens, closing the second Wave 4 visual-check finding.
+The finding claimed a defect because `1n` and `4d` are drawn as separate 402x874 frames while the
+app stacks them; the stacked composition is **intended** and stays. What was missing is a curation
+step between generating a plan and committing to it.
+
+- **The Plan tab is ONE scrolling surface.** `1n` occupies the top — four buzz bands, duration,
+  target ethanol, meter — and the picker (`4d`) sits below it. Separate drawings do not imply
+  separate screens; here they are two regions of one tab.
+- **`Build the night` does three things and deliberately does not do a fourth.** It generates the
+  AI drink list, auto-scrolls to the bottom so the now-filled tray is in view, and reveals the
+  per-category breakdown. **It no longer navigates to the Timeline tab** — that was the old
+  behaviour and it ejected the user from their own plan before they could touch it.
+- **Each category row gains a drop-down of the drinks selected inside it**, AI-picked or
+  user-added, as rounded rectangles beneath the row. Shown automatically with no tap required, and
+  collapsible by a small unoutlined `hide`/`show` control. The row's chevron keeps its existing job
+  of opening that category's selection screen (`4e`); it does not toggle the drop-down.
+- **`Regenerate` is `Build the night` invoked again** — the same operation under the label that
+  fits the second and later press. Do not give it separate logic.
+- **Only `Done` in the tray advances to the Timeline**, and the Timeline tab itself stays directly
+  tappable at any time. Nothing gates it.
+- **Rationale.** An AI plan becomes a starting point rather than a verdict: the user can delete
+  individual picks, keep the rest, add their own from any category to fill the meter by hand, or
+  re-roll the whole list. The old flow offered take-it-or-leave-it and then left the surface.

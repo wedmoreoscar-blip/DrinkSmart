@@ -58,9 +58,9 @@ finding that misread a rule about filter chips. Recon has the browser; diagnosis
 1. ~~**Auth screens lack the bottom chrome `4m` draws.**~~ **CLOSED, not deferred (Oscar,
    2026-08-13).** The auth screens keep no bottom bar. Oscar reviewed them in the browser, judged
    them good and working, and ruled against the drawing. Do not re-file this.
-2. **`1c` and `4d` are drawn as two screens; the app stacks them on one scrolling surface.** The
-   Regenerate control that surfaced this belongs to an undrawn state of `1c`, so it is out of scope
-   per §0.
+2. ~~**`1c` and `4d` are drawn as two screens.**~~ **CLOSED (Oscar, 2026-08-13).** The stacked
+   one-tab composition is intended and stays. Oscar settled the whole flow instead — see the LOCKED
+   "Plan tab is one surface" entry in `docs/decisions.md`. It is now scoped work, not a finding.
 
 Also observed, not a defect: every `4d` category reads `from £3.60`. The per-category minimum logic
 is correct; the uniformity is live Supabase data. The drawing's varied prices are sample data for a
@@ -135,12 +135,16 @@ THERE IS NO WAVE 5 PLANNED. Ask Oscar what he wants next before starting anythin
 candidates already on record are both DEFERRED FINDINGS from the visual check, and both are
 compositional rather than styling work:
 
-  1. 1c (Plan) and 4d (picker root) are drawn as two full screens, but the app stacks the buzz
-     picker, the generate controls and the embedded DrinksTab on one scrolling surface.
+BOTH visual-check findings are now CLOSED by Oscar's decisions and neither needs re-litigating.
+The auth screens keep no bottom bar. The Plan tab stays one scrolling surface.
 
-Neither belongs in a visual check -- section 5 exists to keep composition refactors out of one --
-so if Oscar wants them, they are ordinary work: scope them, and delegate or do them inline against
-the threshold in docs/workflows/delegation.md.
+THE LIKELY NEXT PIECE OF WORK is the flow Oscar settled while closing the second one, recorded as
+the LOCKED "Plan tab is one surface, and Build the night opens a curation step" entry in
+docs/decisions.md. Read it there rather than from a summary. In short: Build the night must stop
+navigating to the Timeline, must auto-scroll to the filled tray, and must reveal a per-category
+drop-down of the selected drinks that the user can edit before committing; Done in the tray is what
+advances to the Timeline. This is real UI work against a settled spec -- scope it and route it
+against the threshold in docs/workflows/delegation.md.
 
 Other standing candidates, unchanged: the follow-ups list at the end of CLAUDE.md, the 18 npm audit
 vulnerabilities, and the 10 lint errors.
