@@ -673,6 +673,31 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   ledger will settle. It records assessments rather than contracts; the workflow documents remain
   authoritative where they differ.
 
+## LOCKED — Amendments from the W4-B integration (2026-08-13, later)
+
+- **A checker's own tests are part of the diff under review.** `speccheck` step 11 already says to
+  read the bodies of tests the *implementer* supplied, because a test named for a clause can contain
+  nothing that exercises it. W4-B produced the same failure one level up: the checker extracted
+  `nextGapTarget`, wrote a passing W4-6-C4 case against it, and left `ScannerReview.advanceFrom`
+  reimplementing a narrower scan — so the helper was dead, the shipped cross-drink path had no
+  coverage, and the suite was green. **A clause-derived test must exercise the code that ships;
+  assert against the helper the component actually calls, or the coverage is theatre.** Extracting
+  logic to make it testable is right in this repo (there is no jsdom or testing-library, so pure
+  helpers plus `renderToStaticMarkup` is the only route) — but the extraction is only finished when
+  the caller is switched over.
+- **`tools/spend-guard` resolves its repository root from the merge target**, not from its own script
+  path (fixed `081b209`). A checkout and its worktrees share a repository but not a HEAD, so running
+  the step-14 fast-forward from a worktree whose HEAD was already the integration branch made both of
+  the guard's checks — new rows versus HEAD, and rows carried by the merged ref — compare that branch
+  against itself, and it denied a merge whose rows were present and committed. Resolution order is
+  now `git -C`'s directory, then the PreToolUse payload's `cwd`, then the script's checkout;
+  `SPEND_GUARD_REPO` still overrides all three, so the hermetic cases in `tools/check-agent-setup`
+  are unaffected. This refines, not reverses, the entry above.
+- **A spend-ledger row states whose spend it is.** W4-B was checked twice — the Codex orchestrator
+  died mid-repair and Opus 5 finished the pass — so its two rows record the Codex half only and
+  understate the batch. The undercount is noted beside the rows. Rows exist to correct the delegation
+  threshold, so a silent handover cost would bias exactly the number they are meant to fix.
+
 ## PENDING
 
 - ~~**Still undrawn after the 2026-08-08 export:** Profile / onboarding (`StatsForm`,
@@ -689,8 +714,10 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
 - Meter form: 1h continuous is recommended for the Plan target card, 1j mid-session for the Timeline.
   Pick one object and use it everywhere.
 - ~~Nothing in the redesign has been rendered in a browser.~~ **Closed 2026-08-11:** Waves 2 and 3
-  completed independent browser/screenshot acceptance. Wave 4 is designed but has not yet been
-  implemented or rendered.
+  completed independent browser/screenshot acceptance. ~~Wave 4 is designed but has not yet been
+  implemented or rendered.~~ **Updated 2026-08-13:** all seven Wave 4 legs are implemented, reviewed,
+  repaired and integrated (`main` at `081b209`). **No part of Wave 4 has been rendered in a browser**
+  — that is the visual check's job and it has not run.
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
 - ~~Unit coverage for the extracted AppContext session/pacing engine remains pending in W3-A2.~~
