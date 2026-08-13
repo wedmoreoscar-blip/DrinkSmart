@@ -81,7 +81,11 @@ export const CustomDrinkSheet = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="mx-auto max-w-2xl overflow-y-auto">
+      <SheetContent
+        side="bottom"
+        className="mx-auto max-w-2xl overflow-y-auto"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
         <SheetTitle className="text-[24px] font-medium leading-[1.15] tracking-[-0.015em]">
           {CUSTOM_COPY.title}
         </SheetTitle>
@@ -100,7 +104,7 @@ export const CustomDrinkSheet = ({
             {errors.name && <div className="mt-2 text-note text-warning">{errors.name}</div>}
           </div>
           <div className="relative">
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 text-label leading-[1.2] text-muted-foreground">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 text-label leading-[1.2] uppercase text-muted-foreground">
               <div className="absolute left-0 top-0">{CUSTOM_COPY.fields.abv}</div>
               <div className="absolute left-[calc(50%+5px)] top-0">{CUSTOM_COPY.fields.serve}</div>
               <div className="absolute left-0 top-24">{CUSTOM_COPY.fields.price}</div>
@@ -120,7 +124,7 @@ export const CustomDrinkSheet = ({
               onAdvance={attemptAdd}
               emptyIsAllowed={false}
               fieldLayout="custom-drink"
-              className="bg-transparent px-0 pb-0 pt-[26px] [&>div:first-of-type]:mt-0 [&>div:first-of-type]:gap-x-2.5 [&>div:first-of-type]:gap-y-10 [&>div:nth-of-type(2)]:hidden"
+              className="bg-transparent px-0 pb-0 pt-[26px] [&>div:first-of-type]:mt-0 [&>div:first-of-type]:gap-x-2.5 [&>div:first-of-type]:gap-y-10 [&>div:first-of-type>button]:justify-between [&>div:first-of-type>button]:px-4 [&>div:first-of-type>button]:text-[22px] [&>div:nth-of-type(2)]:hidden"
             />
           </div>
           {(errors.abv || errors.serve) && (

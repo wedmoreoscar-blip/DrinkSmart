@@ -72,7 +72,7 @@ export const EstablishmentsScreen = ({
           type="button"
           aria-label="Back"
           onClick={onBack}
-          className="flex h-tap w-tap flex-none items-center justify-center text-foreground"
+          className="relative flex h-[22px] w-[22px] flex-none items-center justify-center text-foreground before:absolute before:-inset-[17px] before:content-['']"
         >
           <ChevronLeft className="h-[22px] w-[22px]" strokeWidth={1.8} />
         </button>
