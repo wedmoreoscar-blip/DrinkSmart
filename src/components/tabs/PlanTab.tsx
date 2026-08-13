@@ -6,10 +6,9 @@ import { useAppContext } from "@/contexts/AppContext";
 import { useUserMetrics } from "@/hooks/useUserMetrics";
 import { useLastSession } from "@/hooks/useLastSession";
 import { useToast } from "@/hooks/use-toast";
-import { History, Loader2, Minus, Plus, RefreshCw } from "lucide-react";
+import { History, Loader2, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBACForLevel } from "@/data/buzzLevels";
-import { OZ_ML, PINT_ML, SHOT_ML } from "@/lib/drinkConstants";
 import {
   computeRemainingBudget,
   lockedDrinkEntries,
@@ -79,6 +78,8 @@ const BUZZ_BANDS: BuzzBand[] = [
 type PlanTabProps = {
   onPlanReady: () => void;
   onFullScreenChange?: (fullScreen: boolean) => void;
+  swapDrinkId?: string | null;
+  onSwapComplete?: () => void;
 };
 
 function deriveDurationMinutes(start: Date | null, target: Date | null): number {
@@ -115,7 +116,12 @@ function bandRangeLabel(band: BuzzBand): string {
   return `${min.toFixed(2)}–${max.toFixed(2)}%`;
 }
 
-const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
+const PlanTab = ({
+  onPlanReady,
+  onFullScreenChange,
+  swapDrinkId,
+  onSwapComplete,
+}: PlanTabProps) => {
   const {
     state,
     updateInebriationLevel,
@@ -147,6 +153,10 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
   const requestFingerprintRef = useRef<string | null>(null);
   const [genState, setGenState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [lastPlanIds, setLastPlanIds] = useState<string[]>([]);
+  const [planBuilt, setPlanBuilt] = useState<boolean>(() =>
+    state.drinks.some((d) => d.drink || (d.isCustom && d.customName))
+  );
+  const pickerRegionRef = useRef<HTMLDivElement | null>(null);
 
   const catalog = useMemo(() => buildCatalog(), []);
 
@@ -240,53 +250,9 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
     return () => clearTimeout(timer);
   }, [preloadRequest, state.timeDelta]);
 
-  const planEthanolMl = useMemo(() => {
-    return state.drinks.reduce((total, drink) => {
-      if (!drink.quantity) return total;
-      if (!drink.isCustom && !drink.drink) return total;
-      if (drink.isCustom && (!drink.customName || !drink.customABV)) return total;
-
-      const quantity = parseFloat(drink.quantity);
-      if (!Number.isFinite(quantity)) return total;
-
-      let volumeMl = 0;
-      switch (drink.unit) {
-        case "pints":
-          volumeMl = quantity * PINT_ML;
-          break;
-        case "oz":
-          volumeMl = quantity * OZ_ML;
-          break;
-        case "shots":
-          volumeMl = quantity * SHOT_ML;
-          break;
-        case "glass":
-          volumeMl = quantity * 175;
-          break;
-        case "ml":
-          volumeMl = quantity;
-          break;
-      }
-
-      let abv = 0;
-      if (drink.isCustom) {
-        abv = parseFloat(drink.customABV || "0");
-      } else {
-        abv = catalog.find((c) => c.name === drink.drink)?.abv ?? 0;
-      }
-      if (!Number.isFinite(abv)) return total;
-
-      return total + volumeMl * (abv / 100);
-    }, 0);
-  }, [state.drinks, catalog]);
-
-  const vesselFillPct = useMemo(() => {
-    if (!targetEthanolMl || targetEthanolMl <= 0) return 0;
-    return Math.min(
-      100,
-      (planEthanolMl / targetEthanolMl) * VESSEL_TARGET_LINE_PCT
-    );
-  }, [targetEthanolMl, planEthanolMl]);
+  // Static target meter — the vessel shows the target level only. It must not
+  // respond to the selected drinks.
+  const vesselFillPct = VESSEL_TARGET_LINE_PCT;
 
   const targetNote = useMemo(() => {
     if (targetEthanolMl === null) return null;
@@ -294,8 +260,6 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
     const word = NUMBER_WORDS[pints - 1] ?? String(pints);
     return `about ${word} ${pints === 1 ? "pint" : "pints"}, spread out`;
   }, [targetEthanolMl]);
-
-  const overTarget = targetEthanolMl !== null && planEthanolMl > targetEthanolMl;
 
   const applyPlan = (plan: GeneratedPlan) => {
     const lockedEntries = state.drinks.filter((d) => state.lockedDrinkIds.includes(d.id));
@@ -318,6 +282,13 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
         drinks: finalDrinks,
       });
     }
+
+    // Stay on Plan: mark the curation region built and bring it into view
+    // once React has rendered the applied list.
+    setPlanBuilt(true);
+    window.setTimeout(() => {
+      pickerRegionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
   };
 
   const handleUseLastNight = () => {
@@ -353,6 +324,9 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
     }
   };
 
+  // One generation operation: `Build the night` before the first applied plan,
+  // `Regenerate` afterwards. First generation may reuse the cached preload;
+  // later generation excludes the last plan's drink ids.
   const handleGenerate = async () => {
     const now = new Date();
     const resolved = resolvePlanningWindow(
@@ -374,20 +348,20 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
     }
 
     const budget = computeRemainingBudget(targetEthanolMl, lockedEthanolMl);
+    const exclude = planBuilt ? lastPlanIds : [];
     const request: GeneratePlanInput = {
       target_ethanol_ml: budget,
       duration_minutes: duration,
       preferences,
       catalog,
       locked_drinks: lockedEntries,
-      exclude: [],
+      exclude,
     };
     const fingerprint = requestFingerprint(request);
 
-    if (cachedPlan && cachedRequestFingerprint === fingerprint && budget > 0) {
+    if (!planBuilt && cachedPlan && cachedRequestFingerprint === fingerprint && budget > 0) {
       applyPlan(cachedPlan);
       notifyIfFallback(cachedPlan.usedFallback);
-      onPlanReady();
       return;
     }
 
@@ -396,7 +370,6 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
       setCachedRequestFingerprint(null);
       setGenState("idle");
       applyPlan({ drinks: [], notes: "" });
-      onPlanReady();
       return;
     }
 
@@ -407,46 +380,7 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
     applyPlan(plan);
     setGenState("ready");
     notifyIfFallback(plan.usedFallback);
-    onPlanReady();
-  };
-
-  const handleRegenerate = async () => {
-    if (!targetEthanolMl || !preferences) return;
-    const now = new Date();
-    const resolved = resolvePlanningWindow(
-      state.drinkingStartTime,
-      state.drinkingTargetTime,
-      duration,
-      now
-    );
-    updateDrinkingStartTime(resolved.start);
-    updateDrinkingTargetTime(resolved.target);
-
-    const budget = computeRemainingBudget(targetEthanolMl, lockedEthanolMl);
-    if (budget <= 0) {
-      setCachedPlan(null);
-      setCachedRequestFingerprint(null);
-      setGenState("idle");
-      applyPlan({ drinks: [], notes: "" });
-      return;
-    }
-    const request: GeneratePlanInput = {
-      target_ethanol_ml: budget,
-      duration_minutes: duration,
-      preferences,
-      catalog,
-      locked_drinks: lockedEntries,
-      exclude: lastPlanIds,
-    };
-    const fingerprint = requestFingerprint(request);
-    setGenState("loading");
-    const plan = await generatePlan(request);
-    setCachedPlan(plan);
-    setCachedRequestFingerprint(fingerprint);
-    applyPlan(plan);
-    setGenState("ready");
-    notifyIfFallback(plan.usedFallback);
-    if (!plan.usedFallback) {
+    if (planBuilt && !plan.usedFallback) {
       toast({ title: "Fresh plan ready" });
     }
   };
@@ -457,9 +391,19 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
         <Loader2 className="w-4 h-4 animate-spin" />
         Generating...
       </>
+    ) : planBuilt ? (
+      "Regenerate"
     ) : (
       "Build the night"
     );
+
+  // W5-3/Dashboard integration boundary — forwarded to DrinksTab; no swap
+  // logic lives here.
+  const pickerBoundaryProps = {
+    planBuilt,
+    swapDrinkId,
+    onSwapComplete,
+  };
 
   return (
     <>
@@ -608,12 +552,7 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
             <span className="text-[19px] leading-none text-muted-foreground">ml</span>
           </div>
           {targetNote && (
-            <div
-              className={cn(
-                "mt-[4px] text-[15px] leading-[1.3]",
-                overTarget ? "text-warning" : "text-muted-foreground"
-              )}
-            >
+            <div className="mt-[4px] text-[15px] leading-[1.3] text-muted-foreground">
               {targetNote}
             </div>
           )}
@@ -631,21 +570,6 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
 
       </div>
 
-      <div className="mt-2 flex gap-2 flex-wrap">
-        {(genState === "ready" || lastPlanIds.length > 0) && (
-          <Button
-            size="lg"
-            variant="outline"
-            className="gap-2"
-            onClick={handleRegenerate}
-            disabled={genState === "loading"}
-          >
-            <RefreshCw className={`w-4 h-4 ${genState === "loading" ? "animate-spin" : ""}`} />
-            Regenerate
-          </Button>
-        )}
-      </div>
-
       {genState === "error" && (
         <Alert className="mt-3">
           <AlertDescription>
@@ -655,11 +579,12 @@ const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
       )}
 
       {/* Drink picker — keep existing DrinksTab embedded */}
-      <div className="mt-6">
+      <div ref={pickerRegionRef} className="mt-6">
         <DrinksTab
           onNext={onPlanReady}
           onOpenVenues={() => dispatchFlow({ type: "open-venues" })}
           selectedVenueId={flow.selectedVenueId}
+          {...pickerBoundaryProps}
         />
       </div>
     </div>
