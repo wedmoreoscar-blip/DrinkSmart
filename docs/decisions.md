@@ -721,9 +721,12 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   check ran and is complete (`main` at `286a877`). One recon agent and three fixers in one shared
   worktree; every drawn frame `4a`–`4o` captured at 402x874 with `getComputedStyle` read-backs, and
   the orchestrator's capped section 9 pass verified the cross-cutting locked rules independently.
-  Deferred to the next wave, both compositional rather than styling defects: the auth screens lack
-  the bottom chrome `4m` draws, and `1c`/`4d` are drawn as two screens where the app stacks them on
-  one scrolling surface.
+  One finding deferred, compositional rather than a styling defect: `1c`/`4d` are drawn as two
+  screens where the app stacks them on one scrolling surface. **The auth bottom chrome is CLOSED,
+  not deferred (Oscar, 2026-08-13): the auth screens keep no bottom bar.** `4m`/`4n` draw the 58px
+  bar with Profile active; Oscar reviewed the built screens in the browser, judged them good and
+  working, and ruled against the drawing. A drawing is authoritative over the code, not over Oscar
+  — do not re-file this as a finding in a later visual check.
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
 - ~~Unit coverage for the extracted AppContext session/pacing engine remains pending in W3-A2.~~

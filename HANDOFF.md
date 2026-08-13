@@ -55,9 +55,9 @@ finding that misread a rule about filter chips. Recon has the browser; diagnosis
 
 ## Deferred to the next wave — both compositional, neither a styling defect
 
-1. **Auth screens lack the bottom chrome `4m` draws.** Fixing it means extracting the nav out of
-   Dashboard's Radix `Tabs` into a shared component. That is a composition refactor, and §5 exists
-   to keep exactly that out of a visual pass.
+1. ~~**Auth screens lack the bottom chrome `4m` draws.**~~ **CLOSED, not deferred (Oscar,
+   2026-08-13).** The auth screens keep no bottom bar. Oscar reviewed them in the browser, judged
+   them good and working, and ruled against the drawing. Do not re-file this.
 2. **`1c` and `4d` are drawn as two screens; the app stacks them on one scrolling surface.** The
    Regenerate control that surfaced this belongs to an undrawn state of `1c`, so it is out of scope
    per §0.
@@ -135,9 +135,7 @@ THERE IS NO WAVE 5 PLANNED. Ask Oscar what he wants next before starting anythin
 candidates already on record are both DEFERRED FINDINGS from the visual check, and both are
 compositional rather than styling work:
 
-  1. The auth screens lack the 58px bottom chrome that 4m draws. Fixing it means extracting the
-     nav out of Dashboard's Radix Tabs into a shared component used by both Dashboard and Auth.
-  2. 1c (Plan) and 4d (picker root) are drawn as two full screens, but the app stacks the buzz
+  1. 1c (Plan) and 4d (picker root) are drawn as two full screens, but the app stacks the buzz
      picker, the generate controls and the embedded DrinksTab on one scrolling surface.
 
 Neither belongs in a visual check -- section 5 exists to keep composition refactors out of one --
