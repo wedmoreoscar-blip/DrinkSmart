@@ -14,6 +14,32 @@ const TARGET_LABEL_BOTTOM = 240;
 
 const formatMl = (value: number) => value.toFixed(1).replace(/\.0$/, "");
 
+/* Tray shade bands by % over target, in written interval order. Each exact
+   boundary belongs to the interval that lists it first, so every value has
+   one deterministic shade. The last band holds anything above 20% over. */
+const TRAY_SHADES: { maxOverPct: number; fill: string; pending: string }[] = [
+  {
+    maxOverPct: 5,
+    fill: "bg-primary",
+    pending: "border-primary bg-[rgba(145,132,217,.22)]",
+  },
+  {
+    maxOverPct: 10,
+    fill: "bg-[hsl(var(--over-1))]",
+    pending: "border-[hsl(var(--over-1))] bg-[rgba(211,189,114,.22)]",
+  },
+  {
+    maxOverPct: 15,
+    fill: "bg-warning",
+    pending: "border-warning bg-[rgba(210,154,81,.22)]",
+  },
+  {
+    maxOverPct: Number.POSITIVE_INFINITY,
+    fill: "bg-[hsl(var(--over-3))]",
+    pending: "border-[hsl(var(--over-3))] bg-[rgba(200,96,94,.22)]",
+  },
+];
+
 type MeterLabel = {
   key: string;
   text: string;
@@ -33,6 +59,9 @@ export const VesselMeter = ({
     const committedPct = targetMl > 0 ? Math.min(100, (plannedMl / targetMl) * 100) : 0;
     const pendingPct =
       targetMl > 0 ? Math.min(100 - committedPct, (Math.max(0, pendingMl) / targetMl) * 100) : 0;
+    const totalMl = plannedMl + Math.max(0, pendingMl);
+    const overPct = targetMl > 0 ? ((totalMl - targetMl) / targetMl) * 100 : 0;
+    const shade = TRAY_SHADES.find((band) => overPct <= band.maxOverPct) ?? TRAY_SHADES[TRAY_SHADES.length - 1];
 
     return (
       <div
@@ -43,12 +72,12 @@ export const VesselMeter = ({
         )}
       >
         <div
-          className="absolute inset-x-0 bottom-0 bg-primary"
+          className={cn("absolute inset-x-0 bottom-0", shade.fill)}
           style={{ height: `${committedPct}%`, transition: "var(--transition-liquid)" }}
         />
         {pendingPct > 0 && (
           <div
-            className="absolute inset-x-0 border-t border-primary bg-[rgba(145,132,217,.22)]"
+            className={cn("absolute inset-x-0 border-t", shade.pending)}
             style={{
               bottom: `${committedPct}%`,
               height: `${pendingPct}%`,
