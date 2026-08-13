@@ -3,7 +3,14 @@ import {
   type LockedDrinkSource,
 } from "@/lib/planGenerationContracts";
 import type { GeneratePlanInput, UserMetricsForCalc } from "@/lib/generatePlan";
+import {
+  buildCatalog,
+  computeTargetEthanolMl,
+  generatePlan,
+  generatedDrinkToEntry,
+} from "@/lib/generatePlan";
 import { parsePreferences, type PreferenceData } from "@/lib/preferences";
+import { supabase } from "@/integrations/supabase/client";
 import {
   deriveRegenerationContext,
   type ConsumedSnapshot,
@@ -95,9 +102,8 @@ export function remainingReplanBudget(input: {
  * locked ethanol is subtracted from the budget via the shared contract
  * helpers; the caller decides how to merge the result.
  *
- * The planner and Supabase client are loaded lazily: importing this module
- * must be side-effect free, because it is imported from components that are
- * also exercised in non-browser test environments.
+ * The Supabase client uses an environment-safe storage fallback, so this
+ * module remains importable in the non-browser checker environment.
  */
 export async function replanRemaining(input: ReplanInput): Promise<ReplanResult> {
   const {
@@ -112,12 +118,6 @@ export async function replanRemaining(input: ReplanInput): Promise<ReplanResult>
     consumedSnapshots,
     now,
   } = input;
-
-  const [{ supabase }, { computeTargetEthanolMl, buildCatalog, generatePlan, generatedDrinkToEntry }] =
-    await Promise.all([
-      import("@/integrations/supabase/client"),
-      import("@/lib/generatePlan"),
-    ]);
 
   const targetEthanolMl = computeTargetEthanolMl(userMetrics, targetBAC, timeDeltaHours);
   if (targetEthanolMl === null) return { entries: null, usedFallback: false };
