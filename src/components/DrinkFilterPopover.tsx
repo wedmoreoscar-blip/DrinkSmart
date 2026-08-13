@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ type DrinkFilterPopoverProps = {
   filters: DrinkFilters;
   onFiltersChange: (filters: DrinkFilters) => void;
   availableCategories: string[];
+  trigger?: ReactNode;
 };
 
 const DEFAULT_ABV_MIN = 0;
@@ -25,6 +26,7 @@ export const DrinkFilterPopover = ({
   filters,
   onFiltersChange,
   availableCategories,
+  trigger,
 }: DrinkFilterPopoverProps) => {
   const [open, setOpen] = useState(false);
 
@@ -77,19 +79,21 @@ export const DrinkFilterPopover = ({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          className={cn(
-            "shrink-0 relative",
-            hasActiveFilters && "border-primary text-primary"
-          )}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          {hasActiveFilters && (
-            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
-          )}
-        </Button>
+        {trigger ?? (
+          <Button
+            variant="outline"
+            size="icon"
+            className={cn(
+              "shrink-0 relative",
+              hasActiveFilters && "border-primary text-primary"
+            )}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {hasActiveFilters && (
+              <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
+            )}
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-80 bg-background z-50" align="end">
         <div className="space-y-4">
