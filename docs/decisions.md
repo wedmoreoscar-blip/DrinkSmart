@@ -727,6 +727,15 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   bar with Profile active; Oscar reviewed the built screens in the browser, judged them good and
   working, and ruled against the drawing. A drawing is authoritative over the code, not over Oscar
   — do not re-file this as a finding in a later visual check.
+- **The onboarding strength rail is an open design question (raised 2026-08-13, undecided).**
+  `PreferencesPicker.tsx` exposes only sweetness; `preferences.strong` is settable during onboarding
+  solely as a side-effect of the "Low & no" chip, which slams it to `0`. The value is fully consumed
+  downstream — `generate-plan/index.ts:90–91` (near 1 → higher-ABV, near 0 → lower-ABV) and
+  `greedyPlanFallback.ts:39–42`, where `strongDist` is half the scoring distance — and a full rail
+  already exists in Profile at `TasteSheet.tsx:96–101`. **The `4c` drawing has only Sweetness**, so
+  the build matches its frame and adding a rail is a design change needing a new drawing, not a bug
+  fix. Oscar was offered this as a fourth ask on the Wave 5 prompt and did not take it up before
+  sending; it therefore remains open rather than requested.
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
 - ~~Unit coverage for the extracted AppContext session/pacing engine remains pending in W3-A2.~~
@@ -837,3 +846,50 @@ past full. Bands, measured as percentage over target:
   `Re-plan the rest` on the Timeline. One rule, three buttons.
 - Confirming a swap keeps the user on the Plan tab so they can swap further unlocked drinks. `Done`
   advances to the Timeline; the Timeline tab stays directly tappable regardless.
+
+## LOCKED — `Add a drink` is destroyed, and reordering needs an affordance (2026-08-13, later)
+
+Settled by Oscar after reading the built Timeline. This **amends the Wave 5 Timeline entry above**
+rather than superseding it: that entry named quick-add and stopped there, and two things on the same
+screen escaped it.
+
+**`Add a drink` in the Timeline footer is REMOVED, on the same test that killed quick-add.**
+`TimelineTab.tsx` renders it beside `Re-plan the rest`, both calling `onNext?.()`, routing to the
+Plan-tab picker as an **unconstrained** add — no tray bound, no swap cap, nothing. The locked test is
+already written: *any feature that can add unbounded ethanol is the same bug wearing a different
+label.* Quick-add was named and killed; this one was not named and survived. It is named now.
+
+- Adding a drink happens **only** on the Plan tab, where the tray meter and the +20% bound apply.
+  Substituting one happens **only** through `swap`, under the per-entry cap. Neither can pass the
+  ceiling; that button could.
+- **This requires a design edit, not just a delete.** `1d-timeline.html` lines 95–96 draw the footer
+  as a matched pair and `design_handoffs/design_handoff_drinksmart/README.md` line 733 codifies it —
+  two flex-1 buttons, 56px, 1px `#383a46`, radius 14, 19px. Deleting one leaves `Re-plan the rest`
+  alone in a row composed for two. Registered as **`5e`**; improvising the single-button footer is
+  rank 6 on the precedence ladder.
+
+**Timeline reordering is built but has no drawn affordance, and `5b` therefore carries THREE
+controls, not two.** The capability is real — `DndContext` + `SortableContext` +
+`verticalListSortingStrategy`, with `handleDragEnd` calling `reorderTimelineEntries`. What it has
+never had is a way to know it exists: `SortableTimelineItem.tsx` spreads `attributes`/`listeners`
+onto the row's **text block**, so the gesture is press-the-name-and-drag, and `1d` draws only the
+trailing lock. Nothing in any frame or in the README depicts a reorder handle.
+
+- **`5b` must settle lock, swap and reorder together in one frame.** Drawn apart they settle nothing,
+  because the whole question is what fits on a 362×64 `[62px time][34px marker][flex content]` row.
+  Claude Design was explicitly invited to answer "three will not fit, change the row".
+- Reordering stays limited to **future, unlocked** entries; past drinks and the drink currently up do
+  not move. The affordance should be **absent** on rows that cannot be dragged, not present and inert.
+- Two aggravating details for whoever implements it: that same text block carries
+  `touchAction: "none"`, so on every draggable row the natural scroll region swallows the gesture;
+  and `handleDragEnd` silently no-ops unless both indices sit past `currentEntryIndex`, so a
+  mis-aimed drag snaps back teaching the user nothing.
+
+**The generalisation, which is the part to carry forward:** *no affordance may add unbounded alcohol
+to a plan.* Judge every new Timeline and Plan affordance by it, not by whether it resembles
+quick-add.
+
+**Both were appended to the Wave 5 design prompt and SENT** (Oscar, 2026-08-13 ~20:30 BST), in
+`docs/visual/04-wave5-design-prompt.md` and its mirrored artifact `wave-5-design-request`. The
+appends are **append-only at the bottom of the prompt** by Oscar's instruction — preserve that shape
+if the prompt is ever extended again. Wave 5 expects frames `5a`–`5e`.

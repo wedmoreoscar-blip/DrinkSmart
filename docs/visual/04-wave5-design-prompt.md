@@ -96,3 +96,45 @@ Mirrored as a Traycer `spec` artifact under this epic. If one copy is edited, ed
 > it. If a drawing contradicts it, we will treat that as a regression to raise with you rather than
 > a specification to implement — so if any of it looks wrong to you as a designer, please say so in
 > the response rather than encoding the disagreement in a frame.
+>
+> ---
+>
+> **Appended after the above was written.** Two further findings from reading the built Timeline.
+> Both land on the same row `5b` is about, so they are here rather than in a separate request. The
+> authority note above still governs everything below it.
+>
+> **Amendment to 5b — the row also has to carry reordering.**
+>
+> Reordering a night is already built: a future, unlocked entry can be dragged into a different
+> position. What it has never had is a drawn affordance. The drag listeners sit on the row's own
+> text block, so the way to move a drink is to press its name and drag it — with nothing on screen
+> saying so, and `1d` drawing only the trailing lock. In practice the capability is undiscoverable,
+> and the region that answers the drag is the same region that would otherwise scroll the list.
+>
+> So `5b` is a **three**-control problem rather than two: **lock, swap, and reorder**, competing for
+> the same 362×64 row of `[62px time][34px marker][flex content]`. Please settle all three in that
+> one frame — drawn apart they would settle nothing, because the whole question is what fits. Whether
+> reorder becomes an explicit grab handle, a long-press on the row, or something else is the decision
+> we need. If the honest answer is that three trailing controls do not fit at 64px, we would much
+> rather hear that and change the row than have it drawn tight.
+>
+> Reordering stays limited to entries still in the future and not locked; past drinks and the drink
+> currently up do not move. Whatever the affordance is, it should be absent on rows that cannot be
+> dragged rather than present and inert.
+>
+> **5e — the Timeline footer loses `Add a drink`.**
+>
+> `1d` draws that footer as a pair — `Add a drink` and `Re-plan the rest`, two flex-1 buttons at
+> 56px, 1px `#383a46`, radius 14, 19px — and the README states it the same way. **`Add a drink` is
+> being removed**, for exactly the reason quick-add is: it appends alcohol to a night with no bound,
+> which is the thing the four-band cap and the +20% ceiling exist to prevent. Adding a drink now
+> happens on the Plan tab, where the tray meter is watching, and substituting one happens through
+> `swap`. Neither can run past the ceiling; that button could.
+>
+> That leaves `Re-plan the rest` alone in a row composed as a pair. What we need is what the footer
+> becomes: one full-width button, a narrower single button, or something else entirely. It is a small
+> thing and it may well belong inside `5b`'s frame — draw it wherever it reads best.
+>
+> The rule underneath both this and the quick-add removal, in case it helps you judge anything else
+> in the wave: **no affordance may add unbounded alcohol to a plan.** Anything that can is the same
+> defect wearing a different label.

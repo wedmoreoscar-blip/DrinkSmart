@@ -1,167 +1,171 @@
-# Session Handoff / Kickoff — Wave 4 complete; WAVE 5 specified and ready to scope
+# Session Handoff / Kickoff — Wave 5 design request SENT; awaiting frames `5a`–`5e`
 
-Written 2026-08-13 19:15 BST. Normal-mode handoff. The canonical continuation was replaced.
+Written 2026-08-13 20:31 BST. Normal-mode handoff. The canonical continuation was replaced.
+
+**The next orchestrator is GPT-5.6 Sol, not Claude.** Read "Orchestrator handover" below *first* —
+Sol's authorization to orchestrate at all is conditional, and the condition is a skill it must
+invoke before doing anything else.
 
 ## State
 
-**Wave 4 is finished** — implemented, reviewed, repaired, integrated and visually checked end to
-end. Every drawn frame `4a`–`4o` has been rendered and measured in a browser at 402×874. Both
-visual-check findings were **closed by Oscar's decision**, not deferred: the auth screens keep no
-bottom bar, and the Plan tab stays one scrolling surface.
+**Wave 4 is finished** and nothing is outstanding on it.
+
+**Wave 5 is fully specified and the design request has been SENT.** Oscar handed the amended prompt
+to Claude Design at roughly 20:30 BST on 2026-08-13 and expects it to consume the full five-hour
+window, so frames should land around 01:30 BST. Wave 5 is unblocked the moment they do.
+
+**Expect five frames, not four: `5a`–`5e`.** `5b` was widened and `5e` was added during this
+session; both amendments were appended to the prompt before it went.
 
 `main` is at the commit below. All nine worktrees clean and level. Nothing pushed.
 
-**Wave 5 is fully specified and is the next task.** Real UI work against a settled spec.
+## Orchestrator handover — Sol, and the condition attached to it
 
-## Verification baseline — derived live, 2026-08-13
+`docs/workflows/agent_selection.md` makes Claude Code (Opus 5 / Fable 5) the default orchestrator
+and authorizes **Codex TUI only while `$codex-tui-relay` is active.** That is not a formality:
 
-| Command | Result |
+- **Codex TUI cannot create, send to, or receive A2A agents itself.** Without the relay it can plan
+  and write specs but cannot dispatch a single implementer, which is most of Wave 5.
+- **Invoke `$codex-tui-relay` BEFORE kickoff or commissioning any GUI agent.** `AGENTS.md` states
+  this explicitly. The persistent OpenCode/DeepSeek GUI hub `codex-tui-a2a-hub` already exists for
+  this epic and is idle; do not create another. Its transport contract is
+  `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md`.
+- **`$relay-waker` keeps the hub-waking daemon alive** (`docs/agent_setup/RELAY_WAKER.md`). The
+  agent `a2a-hub-waker` exists. Check it at the end of a hub turn; a dead waker means commissions
+  sit in the ledger unanswered and every agent looks stalled.
+- **Codex invokes skills with `$<skill>`, Claude with `/<skill>`.** The skill trees are mirrored, so
+  `$writespec`, `$speccheck`, `$kickoff`, `$handoff` all exist.
+- `.codex/config.toml` pins `gpt-5.6-sol` at `high`. That governs Oscar's own direct codex sessions.
+  **Traycer-launched agents still need their flags passed explicitly** — never assume the repo
+  config supplies them.
+
+Everything else in the workflow contracts is unchanged and applies to Sol exactly as written.
+
+## Verification baseline — derive it by RUNNING the commands
+
+| Command | Last observed 2026-08-13 |
 | --- | --- |
-| `npm test` | **PASS — 131 tests across 14 files** |
-| `npm run typecheck` | **PASS — 0 errors** |
-| `npm run lint` | **KNOWN FAIL — exactly `20 problems (10 errors, 10 warnings)`** |
-| `npm run build` | **PASS — ~36s** |
+| `npm test` | PASS — 131 tests across 14 files |
+| `npm run typecheck` | PASS — 0 errors |
+| `npm run lint` | KNOWN FAIL — exactly `20 problems (10 errors, 10 warnings)` |
+| `npm run build` | PASS — ~36s |
 | `git diff --check` | clean |
 
-Derive these by running the commands. Do not quote this file, or any other.
+**These are stale by construction.** Re-derive them; do not quote this file or any other. `npm run
+typecheck` must be `tsc -b --noEmit` — bare `tsc --noEmit` compiles zero files here and reports
+nothing (CLAUDE.md).
 
-## Wave 5 — the specification, and where each part lives
+## Wave 5 — the specification
 
-**Do not work from a summary. Read `docs/decisions.md`**, which carries four LOCKED entries dated
-2026-08-13 that together are the entire spec. Numbers below are the change list as agreed with
-Oscar, each pointing at its record.
+**Do not work from a summary. Read `docs/decisions.md`.** Five LOCKED entries dated 2026-08-13 are
+the whole spec:
 
-### Plan tab — composition (LOCKED "Plan tab is one surface, and Build the night opens a curation step")
+1. *Plan tab is one surface, and Build the night opens a curation step*
+2. *Timeline is where a plan is edited, and swaps are capped*
+3. *The two meters, the +20% tray bound, and the no-red override*
+4. *Delegation threshold, spend ledger, and the capped visual pass*
+5. ***`Add a drink` is destroyed, and reordering needs an affordance*** — new this session
 
-1. The Plan tab stays **one scrolling surface**: `1n` on top, picker (`4d`) below.
-2. **`Build the night`** generates, auto-scrolls to the filled tray, reveals the per-category
-   drop-downs — and **no longer navigates to the Timeline**.
-3. **Each category row gains a drop-down** of the drinks selected inside it, shown automatically,
-   collapsible by a small **unoutlined** `hide`/`show` control.
-4. The category row's **chevron keeps its existing job** — opening that category's screen. It is not
-   the drop-down toggle.
-5. **`Regenerate` is `Build the night` again** — same operation, second-press label, no separate logic.
-6. **`Done` in the tray advances to the Timeline.** The Timeline tab stays directly tappable, ungated.
+The previous kickoff enumerated 31 agreed changes with pointers to their records; that list is
+preserved verbatim in `tasks/kickoff_history/2026-08-13_1915.md` and remains accurate. **Two changes
+join it:**
 
-### Timeline (LOCKED "Timeline is where a plan is edited, and swaps are capped")
+32. **`Add a drink` in the Timeline footer is REMOVED**, on the same unbounded-alcohol test that
+    killed quick-add. It routes to the Plan picker as an unconstrained add. Needs frame `5e` because
+    `1d` draws the footer as a matched pair.
+33. **Timeline reordering gains a real affordance.** The capability is already built; it has never
+    had one. Folded into `5b`, which now settles lock + swap + reorder in one frame.
 
-7. **Quick-add is removed, not hidden.**
-8. Reordering and lock/unlock stay as they are.
-9. Drink-reminders icon unchanged.
-10. **`Re-plan the rest` no longer leaves the Timeline** — it re-rolls only the **unlocked** entries
-    in place; locked entries survive.
-11. **Every entry gains a `swap` control beside its lock.**
+**The generalisation to carry forward:** *no affordance may add unbounded alcohol to a plan.* Judge
+every new Plan/Timeline affordance by that, not by whether it resembles quick-add.
 
-### Swapping (same LOCKED entry)
+## Outstanding fixes found this session — all for the next wave
 
-12. Swap opens the Plan tab's *add a drink* menu, filtered to acceptable replacements.
-13. **Cap is +20% of the swapped entry's pure ethanol ml** — ethanol, not ABV.
-14. **Upper bound only.** No lower bound; swapping for water is explicitly allowed.
-15. **The cap is silent.** Within it a swap is simply taken — no warning, no confirmation, no
-    interstitial. Beyond it the drink is **not offered**. The tray meter's shade is the **only**
-    over-budget signal in the system.
-16. **The tray opens with the swapped drink already subtracted**: committed fill = plan total minus
-    that drink's ethanol.
-17. A candidate paints **pending** fill (hollow `.22`, 1px accent top edge) over committed. Never
-    solid until confirmed.
-18. Confirming keeps the user on the Plan tab to swap further unlocked drinks; the engine re-paces.
+Nothing below has been touched. Oscar's instruction: note them down, do them next wave.
 
-### Locking — one rule, three buttons (LOCKED "The two meters…")
+| # | Fix | Where | Blocked? |
+| --- | --- | --- | --- |
+| 1 | **BMI/FFMI switch is one-way** | `src/hooks/useUserMetrics.ts:60–64` | No — inline, ~5 lines |
+| 2 | **Taste sheet discards saved preferences** | `src/components/profile/TasteSheet.tsx:68` | No — inline |
+| 3 | **Onboarding strength rail missing** | `src/components/onboarding/PreferencesPicker.tsx` | **Yes — undecided design question** |
+| 4 | **Timeline reorder has no affordance** | `src/components/tabs/SortableTimelineItem.tsx:167–172` | **Yes — needs `5b`** |
+| 5 | **`Add a drink` destruction** | `src/components/tabs/TimelineTab.tsx:425–435` | **Yes — needs `5e`** |
+| 6 | **"Your stats" flash on reload** | `src/hooks/useUserMetrics.ts` + `Dashboard` | No — inline, timing below |
 
-19. Lock is a **property of the drink**, not of a tab.
-20. A Timeline-locked drink **cannot be moved or swapped on the Plan tab**, and **its lock icon
-    renders there too**.
-21. **The user can also lock on the Plan tab.**
-22. `Regenerate`, a repeated `Build the night`, and `Re-plan the rest` all re-roll **only unlocked**
-    drinks.
+**1 — BMI/FFMI is one-way.** `metricsToColumns` computes
+`effectiveMetricType = hasFFMData && hasBMIData ? "ffmi" : metrics.metricType`. Saving FFMI requires
+a body-fat figure (`StatsSheet.tsx:41–45`) and that figure is never cleared, so switching the Method
+select back to BMI and saving is silently overridden back to `"ffmi"`, written to
+`profiles.metric_type`, and read back on the invalidated refetch. **Not cosmetic** —
+`unitConversions.ts:195` branches the total-body-water formula on `metricType`, so a user who chose
+BMI keeps getting FFMI-derived TBW and every BAC figure downstream with it. Fix: honour the explicit
+`metrics.metricType`, and null `body_fat` when it is `"bmi"`. The heuristic looks like a legacy
+auto-upgrade predating the explicit selector.
 
-### The two meters (same LOCKED entry)
+**2 — Taste sheet wipes categories.** `TasteSheet` takes an `initial` prop and never reads it —
+`useState({ ...defaultPreferences })` with no open-sync effect, where the sibling `StatsSheet` has
+one at line 26. `PreferencesCard.tsx:70` does pass real preferences in. So the sheet always opens at
+middling/middling, and the first tap fires `onChange` with the stale local object, writing
+`categories_liked: []` and `categories_avoided: []` over the onboarding selection. Those feed the
+liked-boost in `greedyPlanFallback` and the edge-function prompt. Fix alongside #1; same area, one
+pass.
 
-23. **Four-band meter (`1n`) is STATIC — it *is* the target.** Recomputes only from band, duration,
-    user stats. If drink selection moves it, that is a bug.
-24. **Tray meter (`4d`/`4e`) is DYNAMIC.** At target it reads **FULL**.
-25. **Over target only the shade changes.** The meter does not grow; the fill does not rise past full.
+**3 — Onboarding strength rail.** Logged as PENDING in `docs/decisions.md`. `preferences.strong` is
+fully consumed downstream (`generate-plan/index.ts:90–91`, `greedyPlanFallback.ts:39–42`) and a full
+rail already exists in Profile at `TasteSheet.tsx:96–101`, but onboarding exposes only sweetness —
+`strong` moves there solely as a side-effect of the "Low & no" chip, which slams it to `0`. **The
+`4c` drawing has only Sweetness**, so the build matches its frame: adding a rail is a design change
+needing a drawing, not a bug fix. Oscar was offered it as a fourth ask on the Wave 5 prompt and did
+not take it up before sending. **Ask him before acting.**
 
-| Over target | Tray fill |
-| --- | --- |
-| at or under | accent |
-| 0 – 5% | accent — no change |
-| 5 – 10% | yellow |
-| 10 – 15% | orange |
-| 15 – 20% | red |
-| above 20% | **unreachable** |
+**6 — the "Your stats" flash**, carried from the previous kickoff and still not done. On reload,
+onboarding step 1 paints briefly to an already-onboarded user: `useUserMetrics` holds `userId` in
+`useState` starting `null` with its query `enabled: !!userId`, and a **disabled** React Query
+reports `isLoading: false`, so `Dashboard` computes `showOnboarding = !metricsLoading &&
+!isOnboarded && !onboardingClosed` as true until auth resolves. Treat "user not yet known" as
+loading. CLAUDE.md pitfall 11. **Oscar's standing instruction: fix it INLINE, and AFTER the
+implementation agents are dispatched and running** — not before, and not folded into a spec.
 
-26. **+20% is a hard bound on selection**, matching the per-swap cap exactly.
-27. **In the red band, if a higher band exists** (anything but Heavy), a short line advises raising
-    it. Heavy shows nothing. Guidance, not a block; it must not scold.
-28. **`adjustedTargetMl` is unchanged and still required.** The bound narrows its input range; it
-    does not replace the mechanism. **Do not cap percentages inside it** (CLAUDE.md pitfall 15).
+## What changed this session
 
-### Constraint change
+Read-only kickoff, then three documentation edits and no product code:
 
-29. **Red is now permitted — in exactly one place**, the tray's 15–20% shade, recorded as an explicit
-    partial supersede of the locked "no red" clause. **"No green" is absolute and unchanged.** One
-    accent, no palette, holds everywhere else.
+- `docs/visual/04-wave5-design-prompt.md` — **append-only** block at the bottom of the prompt
+  carrying the `5b` widening and the `5e` request. Mirrored byte-identically into the Traycer `spec`
+  artifact `wave-5-design-request` (verified identical from `## The prompt` onward). **Keep future
+  extensions append-only at the bottom** — Oscar's explicit instruction.
+- `docs/decisions.md` — new LOCKED entry *"`Add a drink` is destroyed, and reordering needs an
+  affordance"*, plus a PENDING entry for the onboarding strength rail.
+- `docs/visual/03-design-requests.md` — §-H widened `5b`, added `5e`, recorded the send.
 
-### Closed, not to be re-raised
-
-30. **Auth screens keep no bottom bar**, despite `4m`/`4n` drawing one.
-31. **Plan/picker stacking is intended**, closing the second Wave 4 visual-check finding.
-
-## BLOCKED PREREQUISITE — four drawings do not exist yet
-
-`5a`–`5d`, registered in `docs/visual/03-design-requests.md` §H:
-
-- **5a** category drop-down, its unoutlined `hide`/`show` control, **and the per-drink lock + delete**
-- **5b** a Timeline row carrying both lock and swap
-- **5c** the swap-constrained picker, **including the tray showing a subtraction**
-- **5d** the tray's over-target shade states and the band-advice line
-
-**A screen with no drawing cannot be visually checked**, and improvising one is rank 6 on the
-precedence ladder. Wave 5's *behaviour* can be built and unit-tested now; those four surfaces cannot
-be visually accepted until the frames arrive.
-
-**The prompt for Claude Design is written and ready:** `docs/visual/04-wave5-design-prompt.md`,
-mirrored as the Traycer `spec` artifact **`wave-5-design-request`**. Keep the copies identical.
-Sending it is Oscar's to do — ask him whether it has gone.
-
-## The one inline task, and WHEN to do it
-
-**The "Your stats" flash on reload** (change 0 in the discussion, not part of any Wave 5 leg).
-
-On reload, onboarding step 1 paints briefly to an already-onboarded user. `useUserMetrics` holds
-`userId` in `useState` starting `null` and its query is `enabled: !!userId`; a **disabled** React
-Query reports `isLoading: false`, so `Dashboard` computes
-`showOnboarding = !metricsLoading && !isOnboarded && !onboardingClosed` as true until auth resolves.
-Fix by treating "user not yet known" as loading. CLAUDE.md pitfall 11.
-
-**Oscar's instruction: fix it INLINE, and AFTER the implementation agents are dispatched and
-running** — not before, and not folded into a spec.
-
-## Agent and worktree inventory
+## Agent and worktree inventory — verified live this session
 
 All nine worktrees clean and level with `main`. All agents warm; none deleted.
 
 | Agent | Worktree | State |
 | --- | --- | --- |
+| `deepseek_imp_0`–`_6` | `drinksmart_worktree_0`–`_6` | warm, idle — the Wave 5 implementers |
 | `visual_luna_0` | `visual_check_worktree` | warm, stood down; Wave 4 recon + Cluster C |
 | `visual_luna_1` / `visual_luna_2` | `visual_check_worktree` (shared) | warm, stood down |
-| `deepseek_imp_0`–`_6` | `drinksmart_worktree_0`–`_6` | warm, idle — the Wave 5 implementers |
-| `codex-tui-a2a-hub` + `a2a-hub-waker` | `/home/oscar/DrinkSmart` | idle; inert under a Claude orchestrator |
+| `codex-tui-a2a-hub` + `a2a-hub-waker` | `/home/oscar/DrinkSmart` | idle — **and required under Sol** |
 
 `visual_check_worktree/.env` is a **symlink** to the root `.env` — keep it. A worktree ships with
 only `.env.example`, and Vite reads env from its own root.
 
 ## Read first
 
-1. `AGENTS.md`, then `docs/decisions.md` — the four 2026-08-13 LOCKED entries
-2. `docs/workflows/delegation.md` and `agent_selection.md`
-3. `ORCHESTRATION.md`
-4. `docs/workflows/visual_check.md` — substantially revised after Wave 4; recon now parallelises
-5. `docs/visual/03-design-requests.md` §H and `04-wave5-design-prompt.md`
+1. `AGENTS.md`, then `docs/decisions.md` — the five 2026-08-13 LOCKED entries
+2. `docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md` — **before anything else, under Sol**
+3. `docs/workflows/delegation.md` and `agent_selection.md`
+4. `ORCHESTRATION.md`
+5. `docs/workflows/visual_check.md` — substantially revised after Wave 4; recon now parallelises
+6. `docs/visual/03-design-requests.md` §-H and `04-wave5-design-prompt.md`
 
 ## Explicit exclusions and boundaries
 
+- **Oscar's uncommitted rename is in the tree and is NOT yours.**
+  `design_handoffs/design_handoff_drinksmart/DrinkSmart-design-reference.html` shows deleted and
+  `…-reference-wave4.html` untracked. Preserve it; do not stage, revert or complete it.
 - Never use `design_handoff_drinksmart_depreciated/` as authority.
 - Do not alter the deterministic BAC/pacing formulas in `AppContext.tsx`.
 - Do not re-enable the light theme, add a dependency, or weaken RLS.
@@ -173,42 +177,58 @@ only `.env.example`, and Vite reads env from its own root.
 ## PROMPT
 
 ```text
-Continue DrinkSmart from /home/oscar/DrinkSmart on main.
+Continue DrinkSmart from /home/oscar/DrinkSmart on main. You are GPT-5.6 Sol and you are the
+orchestrator for this session, taking over from Claude.
 
-WAVE 4 IS COMPLETE — implemented, integrated and visually checked. Both visual-check findings were
-closed by Oscar's decision rather than deferred. Nothing is outstanding on it.
+FIRST, BEFORE ANYTHING ELSE: invoke $codex-tui-relay. Codex TUI is authorized to orchestrate this
+repo ONLY while that relay is active -- it cannot create, send to, or receive A2A agents itself, so
+without it you can plan but cannot dispatch a single implementer. The persistent OpenCode/DeepSeek
+GUI hub codex-tui-a2a-hub already exists for this epic and is idle; reuse it, do not create another.
+Then check $relay-waker: a dead waker means commissions sit unanswered in the ledger and every agent
+looks stalled. Contracts are docs/agent_setup/CODEX_TUI_MESSAGE_RELAY.md and RELAY_WAKER.md. You
+invoke skills with $<skill>, not /<skill>.
 
-WAVE 5 IS THE TASK and it is fully specified. Read the four LOCKED entries dated 2026-08-13 in
-docs/decisions.md rather than any summary: the Plan-tab curation flow, the Timeline editing rules
-and the silent +20% pure-ethanol swap cap, the static-vs-dynamic two-meter model with its
-over-target shade bands and hard +20% tray bound, and the no-red override (red in exactly one place,
-the tray's 15-20% shade; no green is absolute). The section above this prompt lists all 31 agreed
-changes with pointers to their records.
+WAVE 4 IS COMPLETE. Nothing is outstanding on it.
 
-Scope it into disjoint legs and route each against the threshold in docs/workflows/delegation.md.
-The seven deepseek_imp_* agents and their worktrees are warm and idle. Wave 5 is boilerplate-heavy
-UI work against a settled spec, which the delegation path is good at -- but the meter shade bands
-and the swap-eligibility filter are dense, small and easy to get subtly wrong, so weigh those for
-inline work.
+WAVE 5 IS THE TASK. It is fully specified and the design request HAS BEEN SENT -- Oscar handed the
+amended prompt to Claude Design at ~20:30 BST on 2026-08-13 and expects it to take the full five
+hours, so frames should land around 01:30 BST. EXPECT FIVE FRAMES, 5a THROUGH 5e, not four.
 
-BLOCKED PREREQUISITE: four drawings do not exist -- 5a the category drop-down with its unoutlined
-hide/show control and per-drink lock and delete, 5b a Timeline row carrying both lock and swap, 5c
-the swap-constrained picker including the tray showing a subtraction, 5d the tray's over-target
-shade states and band-advice line. Registered in docs/visual/03-design-requests.md section H. The
-behaviour can be built and unit-tested without them; those four surfaces cannot be visually accepted
-until the frames arrive. The prompt is written at docs/visual/04-wave5-design-prompt.md and mirrored
-as the Traycer spec artifact wave-5-design-request. Sending it is Oscar's call -- ask whether it has
-gone before planning any visual check.
+Read the FIVE LOCKED entries dated 2026-08-13 in docs/decisions.md rather than any summary: the
+Plan-tab curation flow; the Timeline editing rules and the silent +20% pure-ethanol swap cap; the
+static-vs-dynamic two-meter model with its over-target shade bands and hard +20% tray bound; the
+delegation threshold and capped visual pass; and the newest one, "Add a drink is destroyed, and
+reordering needs an affordance". The 31 agreed changes are listed in
+tasks/kickoff_history/2026-08-13_1915.md and remain accurate; two more join them, numbered 32 and 33
+in the section above this prompt.
 
-ONE INLINE TASK, WITH EXPLICIT TIMING FROM OSCAR: the "Your stats" flash on reload. Onboarding step
-1 paints briefly to an already-onboarded user because useUserMetrics starts userId as null with the
-query enabled: !!userId, and a disabled React Query reports isLoading false, so Dashboard's
-showOnboarding is true until auth resolves. Treat "user not yet known" as loading. FIX IT INLINE,
-AFTER the implementation agents are dispatched and running -- not before, and not as part of a spec.
+THE BEHAVIOUR CAN BE BUILT NOW. Scope Wave 5 into disjoint legs and route each against the threshold
+in docs/workflows/delegation.md. The seven deepseek_imp_* agents and their worktrees are warm and
+idle. Wave 5 is boilerplate-heavy UI work against a settled spec, which the delegation path is good
+at -- but the meter shade bands and the swap-eligibility filter are dense, small and easy to get
+subtly wrong, so weigh those for inline work. What CANNOT be done until the frames arrive is the
+visual acceptance of 5a-5e; docs/workflows/visual_check.md governs that, it is Luna's, it does NOT
+run on the delegation path, and you HALT and wait for Oscar on reaching it.
 
-Derive the baseline by RUNNING the commands, never by quoting a file. It is 131 tests across 14
-files, typecheck 0 errors, lint known-failing at exactly 20 problems (10 errors, 10 warnings), build
-~36s, git diff --check clean.
+SIX OUTSTANDING FIXES, all recorded in the table above this prompt. Three are inline and unblocked:
+the BMI/FFMI switch being one-way (useUserMetrics.ts:60-64, and it corrupts the BAC math because
+unitConversions.ts:195 branches TBW on metricType); the Taste sheet discarding its initial prop and
+wiping categories_liked/avoided on first tap (TasteSheet.tsx:68); and the "Your stats" flash on
+reload. That last one has explicit timing from Oscar: FIX IT INLINE, AFTER the implementation agents
+are dispatched and running -- not before, and not as part of a spec. Two more are Wave 5 legs
+blocked on frames (the reorder affordance needs 5b, destroying Add a drink needs 5e). The sixth, the
+missing onboarding strength rail, is an UNDECIDED design question logged as PENDING -- the 4c
+drawing has only Sweetness, so the build matches its frame and adding a rail needs a drawing. ASK
+OSCAR before acting on that one.
+
+Derive the baseline by RUNNING the commands, never by quoting a file. Last observed: 131 tests
+across 14 files, typecheck 0 errors, lint known-failing at exactly 20 problems (10 errors, 10
+warnings), build ~36s, git diff --check clean. Note npm run typecheck must be tsc -b --noEmit; bare
+tsc --noEmit compiles zero files in this repo.
+
+OSCAR'S UNCOMMITTED WORK IS IN THE TREE AND IS NOT YOURS. DrinkSmart-design-reference.html shows
+deleted with -reference-wave4.html untracked -- that is his rename. Preserve it; do not stage,
+revert or complete it.
 
 WHAT NOT TO REDO. Five recon claims in Wave 4 did not survive checking, all misattributions of
 cause. Verify against the files before "fixing" anything a report calls broken. Two live traps: the
@@ -230,6 +250,6 @@ OPERATING INSTRUCTIONS FROM OSCAR, which have carried through several sessions a
   delegating to so Oscar can keep an eye on things.
 - Run autonomously. Ask only if you genuinely need to stop.
 - Keep dispatching in as few waves as possible. Do not shrink a wave to manage host load.
-- Commit locally as you go. Never push — that is Oscar's alone.
+- Commit locally as you go. Never push -- that is Oscar's alone.
 - Keep every worktree and agent warm. Delete nothing.
 ```

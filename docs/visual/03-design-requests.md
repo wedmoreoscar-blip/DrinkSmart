@@ -107,12 +107,26 @@ drawing, never to improvise one -- inventing values is rank 6 on the precedence 
 | Id | Needed | Why the existing frames do not cover it |
 | --- | --- | --- |
 | 5a | Plan tab after `Build the night`: each category row showing its selected drinks as a drop-down, with the small unoutlined `hide`/`show` control | `4d` draws category rows in their resting state only. The drop-down, its rows, and an unoutlined text control are all new; the token set has no precedent for the last one |
-| 5b | A Timeline entry carrying BOTH `lock` and `swap` | `1d` draws a single trailing lock on a 362x64 row of `[62px time][34px marker][flex content]`. Where a second control goes, and what gives at 64px, is a spatial decision a drawing should settle |
+| 5b | A Timeline entry carrying `lock`, `swap` **and `reorder`** | `1d` draws a single trailing lock on a 362x64 row of `[62px time][34px marker][flex content]`. Where further controls go, and what gives at 64px, is a spatial decision a drawing should settle. **Widened 2026-08-13** — see the amendment below |
 | 5c | The `add a drink` picker entered via swap, constrained to +20% pure ethanol | `4d`/`4e` draw the unconstrained picker. Nothing states how a filtered catalogue reads, or how an unavailable drink is shown -- greyed, absent, or labelled |
 | 5d | The tray meter's four over-target shade states, and the band-advice line | The meter is drawn only at or under target. Its over-target behaviour -- shade changes while the fill never rises past full -- has no frame, and the red band is the one place `no red` is overridden |
+| 5e | The Timeline footer with `Add a drink` removed | `1d` line 95-96 and README line 733 draw the footer as a matched pair of flex-1 56px buttons. `Add a drink` is being destroyed (see `docs/decisions.md`), leaving `Re-plan the rest` alone in a row composed for two. The single-button footer has no frame |
 
-**The literal prompt sent to Claude Design is in `04-wave5-design-prompt.md`**, mirrored as the
-Traycer `spec` artifact `wave-5-design-request`. Keep the two copies identical.
+**Amendment, 2026-08-13 — `5b` widened, `5e` added.** Two further findings landed after the original
+request was drafted, and **both were appended to the prompt and sent**.
+
+- **`5b` is now a three-control problem.** Timeline reordering is already built (`DndContext` +
+  `SortableContext`, `handleDragEnd` → `reorderTimelineEntries`) but has **no drawn affordance** at
+  all: the drag listeners sit on the row's text block, so the gesture is press-the-name-and-drag,
+  and no frame or README line depicts a handle. Lock, swap and reorder must be settled in **one**
+  frame — drawn apart they settle nothing, since the whole question is what fits at 64px.
+- **`5e` follows from destroying `Add a drink`**, which is now LOCKED on the unbounded-alcohol test.
+
+**The literal prompt is in `04-wave5-design-prompt.md`**, mirrored as the Traycer `spec` artifact
+`wave-5-design-request`. Keep the two copies identical; the amendments are **append-only at the
+bottom of the prompt** by Oscar's instruction, so extend it the same way.
+
+**SENT to Claude Design 2026-08-13 ~20:30 BST, appends included.** Wave 5 expects `5a`-`5e`.
 
 The behaviour is fully settled; only the appearance is missing. A drawing that contradicts the
 locked behaviour above is a regression to raise, not a spec to follow.
