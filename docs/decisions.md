@@ -715,9 +715,15 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   Pick one object and use it everywhere.
 - ~~Nothing in the redesign has been rendered in a browser.~~ **Closed 2026-08-11:** Waves 2 and 3
   completed independent browser/screenshot acceptance. ~~Wave 4 is designed but has not yet been
-  implemented or rendered.~~ **Updated 2026-08-13:** all seven Wave 4 legs are implemented, reviewed,
+  implemented or rendered.~~ ~~**Updated 2026-08-13:** all seven Wave 4 legs are implemented, reviewed,
   repaired and integrated (`main` at `081b209`). **No part of Wave 4 has been rendered in a browser**
-  — that is the visual check's job and it has not run.
+  — that is the visual check's job and it has not run.~~ **Closed 2026-08-13:** the Wave 4 visual
+  check ran and is complete (`main` at `286a877`). One recon agent and three fixers in one shared
+  worktree; every drawn frame `4a`–`4o` captured at 402x874 with `getComputedStyle` read-backs, and
+  the orchestrator's capped section 9 pass verified the cross-cutting locked rules independently.
+  Deferred to the next wave, both compositional rather than styling defects: the auth screens lack
+  the bottom chrome `4m` draws, and `1c`/`4d` are drawn as two screens where the app stacks them on
+  one scrolling surface.
 - Live Supabase migration, auth, RLS, and edge-function verification.
 - Real iOS and Android notification/build verification.
 - ~~Unit coverage for the extracted AppContext session/pacing engine remains pending in W3-A2.~~
