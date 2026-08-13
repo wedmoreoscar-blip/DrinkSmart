@@ -251,6 +251,28 @@ Start `npm run dev` once, before dispatching the fixers, under
 their own. Pass it as `APP_URL` so every runner script points at the same place instead of
 hardcoding a port that may not be the one Vite chose.
 
+**Run it from the shared worktree, and give that worktree an `.env` first.** The server must serve
+the tree the fixers edit, or their changes never reach a screenshot. But a worktree is created with
+only `.env.example`, and **Vite reads env from its own project root, not from the main checkout** —
+so `VITE_SUPABASE_URL` is undefined, the anonymous auth bootstrap dies before first paint, and the
+app serves a blank body. Symlink the root `.env` in rather than copying it, so there is one source
+of truth and no copy to drift:
+
+```
+ln -sfn /home/oscar/DrinkSmart/.env <worktree>/.env
+```
+
+`.env` is gitignored, so the symlink leaves the worktree clean. This cost Luna-0 its first recon
+turn on 2026-08-13. It is the same class of gap as the missing `node_modules` that `CLAUDE.md`
+already warns about: **a worktree is a checkout, not a provisioned environment**, and provisioning
+is the orchestrator's.
+
+**Confirm the app boots, not that the port answers.** `curl` returned HTTP 200 throughout the
+failure above — Vite was serving an `index.html` whose scripts then threw. One text-only Playwright
+read-back settles it before you dispatch anyone: assert `pageerror`/console errors are empty and
+`document.body.innerText` is non-empty. That is free, it is not an image, and it is the difference
+between handing agents a working app and handing them a blank one.
+
 Running `npm run dev` several times in one directory does not fail — Vite increments to the next
 free port — so the failure mode is not a crash but several redundant servers on unpredictable
 ports serving byte-identical files. One server, one port, one lifecycle, owned by the orchestrator.
