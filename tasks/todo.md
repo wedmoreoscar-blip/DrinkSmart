@@ -169,3 +169,32 @@ Acceptance:
 Runtime receiver creation and the no-code end-to-end smoke test are intentionally deferred until the
 first real `$codex-tui-relay` activation; this documentation implementation did not provision a live
 Traycer agent.
+
+## Queued — parallelise the visual check's recon stage (approved 2026-08-13)
+
+Approved by Oscar during the Wave 4 visual check, to be written **as soon as that pass closes** and
+before the next wave's check. Deliberately not written mid-flight: changing the contract under a
+running agent produces a recon that half-follows two versions of the rules.
+
+**The defect in `docs/workflows/visual_check.md`:** recon is serial and single-agent while repair is
+parallel and multi-agent. That is inverted. Discovery is the stage that scales cleanly; repair is the
+stage carrying the hazards. The doc parallelises the hazardous half and serialises the safe one.
+
+**Why the constraint does not transfer.** Fixers must own disjoint *files* because a shared worktree
+has no isolation and last-write-wins silently. Recon writes no product code — its only writes are
+per-screen `notes.md`, already disjoint by screen. The safety rationale simply does not apply, and
+the doc never noticed because one agent was enough when a wave was eight frames.
+
+**The change:** allow n recon agents on disjoint screen sets above a threshold of roughly eight drawn
+frames. **Luna-0 remains sole author of the headcount and the file-ownership split** — that synthesis
+genuinely needs whole-wave context, which is the real reason recon was single-agent, and it survives
+the change intact.
+
+**Second change, same edit:** split "Measure, do not only look" into two standards. Recon measures
+enough to **prove a defect is real**; the fixer measures enough to **know it is gone**. Today every
+number is measured three times — recon, fixer, then the orchestrator's §9 pass. A recon finding still
+may not be "looks off to me": it must still carry a number that contradicts a stated one.
+
+Evidence to fold in when writing: Wave 3 ran 8 frames / 3 agents / ~87 min recon-to-milestone; Wave 4
+ran 15 frames / 1 recon agent. Ask Luna-0 in its handback where recon actually lost time — driving
+into hard states, measuring, or writing — since it is the only one that knows.
