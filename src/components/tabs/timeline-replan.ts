@@ -1,11 +1,14 @@
 import {
-  computeRemainingBudget,
   lockedDrinkEntries,
-  lockedEthanolTotal,
   type LockedDrinkSource,
 } from "@/lib/planGenerationContracts";
 import type { GeneratePlanInput, UserMetricsForCalc } from "@/lib/generatePlan";
 import { parsePreferences, type PreferenceData } from "@/lib/preferences";
+import {
+  deriveRegenerationContext,
+  type ConsumedSnapshot,
+  type TimelineEntry,
+} from "@/lib/sessionEngine";
 
 const DEFAULT_DURATION_MINUTES = 180;
 const MIN_DURATION = 60;
@@ -65,7 +68,26 @@ type ReplanInput = {
   lockedDrinkIds: string[];
   drinkingStartTime: Date | null;
   drinkingTargetTime: Date | null;
+  timeline: TimelineEntry[];
+  consumedSnapshots: ConsumedSnapshot[];
+  now: Date;
 };
+
+export function remainingReplanBudget(input: {
+  targetEthanolMl: number;
+  timeline: TimelineEntry[];
+  consumedSnapshots: ConsumedSnapshot[];
+  lockedDrinkIds: string[];
+  now: Date;
+}): number {
+  return deriveRegenerationContext({
+    targetEthanolMl: input.targetEthanolMl,
+    timeline: input.timeline,
+    consumedSnapshots: input.consumedSnapshots,
+    keptSourceIds: input.lockedDrinkIds,
+    now: input.now,
+  }).remainingEthanolMl;
+}
 
 /**
  * Build the same generation request PlanTab constructs and run it through the
@@ -86,6 +108,9 @@ export async function replanRemaining(input: ReplanInput): Promise<ReplanResult>
     lockedDrinkIds,
     drinkingStartTime,
     drinkingTargetTime,
+    timeline,
+    consumedSnapshots,
+    now,
   } = input;
 
   const [{ supabase }, { computeTargetEthanolMl, buildCatalog, generatePlan, generatedDrinkToEntry }] =
@@ -99,8 +124,13 @@ export async function replanRemaining(input: ReplanInput): Promise<ReplanResult>
 
   const catalog = buildCatalog();
   const lockedEntries = lockedDrinkEntries(drinks, lockedDrinkIds, catalog);
-  const lockedEthanolMl = lockedEthanolTotal(lockedEntries);
-  const budget = computeRemainingBudget(targetEthanolMl, lockedEthanolMl);
+  const budget = remainingReplanBudget({
+    targetEthanolMl,
+    timeline,
+    consumedSnapshots,
+    lockedDrinkIds,
+    now,
+  });
 
   if (budget <= 0) return { entries: [], usedFallback: false };
 

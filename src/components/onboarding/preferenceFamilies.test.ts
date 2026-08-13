@@ -6,13 +6,12 @@ import { preferenceCategoryKeys } from "@/lib/preferences";
 // original spec said "six chips from preferenceCategoryKeys" while that constant
 // yields eighteen keys -- so the mapping is the whole point of the clause and the
 // thing most likely to drift.
-describe("PREFERENCE_FAMILIES (W4-3 amendment 1, clause 4a)", () => {
-  it("renders exactly the six families 4c draws, in the drawn order", () => {
+describe("PREFERENCE_FAMILIES (Wave 5)", () => {
+  it("renders the five authoritative families in order", () => {
     expect(PREFERENCE_FAMILIES.map((f) => f.label)).toEqual([
-      "Beer",
+      "Beer & cider",
       "Wine",
       "Spirits",
-      "Cider",
       "Cocktails",
       "Low & no",
     ]);
@@ -30,9 +29,8 @@ describe("PREFERENCE_FAMILIES (W4-3 amendment 1, clause 4a)", () => {
 
   it("maps each family to the keys the amendment names", () => {
     const byLabel = Object.fromEntries(PREFERENCE_FAMILIES.map((f) => [f.label, f.keys]));
-    expect(byLabel.Beer).toEqual(["beer_pint", "beer_bottle"]);
+    expect(byLabel["Beer & cider"]).toEqual(["beer_pint", "beer_bottle", "cider"]);
     expect(byLabel.Wine).toEqual(["wine_red", "wine_white", "wine_rose", "wine_sparkling"]);
-    expect(byLabel.Cider).toEqual(["cider"]);
     // `alcopops` was missing from the amendment's table and is corrected into
     // Cocktails; the coverage assertion above is what surfaced it.
     expect(byLabel.Cocktails).toEqual(["cocktails", "spritz", "alcopops"]);

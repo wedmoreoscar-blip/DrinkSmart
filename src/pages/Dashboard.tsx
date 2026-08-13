@@ -12,6 +12,7 @@ import { MetricsSync } from "@/components/MetricsSync";
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("plan");
   const [planFullScreen, setPlanFullScreen] = useState(false);
+  const [swapDrinkId, setSwapDrinkId] = useState<string | null>(null);
   const { isOnboarded, loading: metricsLoading, refetch } = useUserMetrics();
   const [onboardingClosed, setOnboardingClosed] = useState(false);
 
@@ -23,7 +24,10 @@ const Dashboard = () => {
       <div className="flex h-[calc(100dvh-env(safe-area-inset-bottom))] flex-col bg-background">
         <Tabs
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={(value) => {
+            if (value !== "plan") setSwapDrinkId(null);
+            setActiveTab(value);
+          }}
           className="mx-auto flex w-full max-w-6xl flex-1 flex-col min-h-0"
         >
           {/* 4a is drawn at padding:20px 20px 0. p-4 gave 16px and md:p-6 introduced a
@@ -37,13 +41,24 @@ const Dashboard = () => {
             className={planFullScreen ? "min-h-0 flex-1 overflow-hidden" : "flex-1 overflow-y-auto"}
           >
             <PlanTab
-              onPlanReady={() => setActiveTab("timeline")}
+              onPlanReady={() => {
+                setSwapDrinkId(null);
+                setActiveTab("timeline");
+              }}
               onFullScreenChange={setPlanFullScreen}
+              swapDrinkId={swapDrinkId}
+              onSwapComplete={() => setSwapDrinkId(null)}
             />
           </TabsContent>
 
           <TabsContent value="timeline" className="flex-1 overflow-y-auto">
-            <TimelineTab onNext={() => setActiveTab("plan")} />
+            <TimelineTab
+              onNext={() => setActiveTab("plan")}
+              onSwapRequest={(drinkId) => {
+                setSwapDrinkId(drinkId);
+                setActiveTab("plan");
+              }}
+            />
           </TabsContent>
 
           <TabsList data-wind-down-tab-bar className={planFullScreen ? "hidden" : undefined}>

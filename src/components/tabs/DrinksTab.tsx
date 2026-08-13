@@ -94,7 +94,13 @@ const DrinksTab = ({
   swapDrinkId,
   onSwapComplete,
 }: DrinksTabProps) => {
-  const { state, addUnplannedDrink, updateDrinks, toggleLockedDrink } = useAppContext();
+  const {
+    state,
+    addUnplannedDrink,
+    updateDrinks,
+    toggleLockedDrink,
+    replaceBreakWithDrink,
+  } = useAppContext();
   const {
     establishments,
     getEstablishmentDrinks,
@@ -247,10 +253,29 @@ const DrinksTab = ({
 
   // ---- Swap mode -----------------------------------------------------------
 
-  const sourceEntry = useMemo(
-    () => (swapDrinkId ? drinks.find((d) => d.id === swapDrinkId) ?? null : null),
-    [swapDrinkId, drinks],
+  const sourceBreak = useMemo(
+    () =>
+      swapDrinkId
+        ? state.breaks.find((entry) => entry.entryId === swapDrinkId) ?? null
+        : null,
+    [state.breaks, swapDrinkId],
   );
+  const sourceEntry = useMemo<AlcoholTimelineEntryInput | null>(() => {
+    if (!swapDrinkId) return null;
+    const drink = drinks.find((entry) => entry.id === swapDrinkId);
+    if (drink) return drink;
+    if (!sourceBreak) return null;
+    return {
+      id: sourceBreak.entryId,
+      category: "",
+      drink: sourceBreak.drinkName,
+      customName: sourceBreak.drinkName,
+      customABV: "0",
+      quantity: String(sourceBreak.volumeMl ?? 330),
+      unit: "ml",
+      isCustom: true,
+    };
+  }, [drinks, sourceBreak, swapDrinkId]);
   const swapMode = sourceEntry !== null;
 
   useEffect(() => {
@@ -313,7 +338,11 @@ const DrinksTab = ({
       pricePerUnit: swapSelectedDrink.price,
       isCustom: false,
     };
-    updateDrinks(drinks.map((d) => (d.id === sourceEntry.id ? next : d)));
+    if (sourceBreak) {
+      replaceBreakWithDrink(sourceBreak.entryId, next);
+    } else {
+      updateDrinks(drinks.map((d) => (d.id === sourceEntry.id ? next : d)));
+    }
     setSwapSelectedId(null);
     onSwapComplete?.();
   };
@@ -334,6 +363,15 @@ const DrinksTab = ({
     }
     return groups;
   }, [planEntries, entryAbv]);
+
+  const visibleCategories = useMemo(() => {
+    const venueCategories = new Map(categories.map((entry) => [entry.label, entry]));
+    return PICKER_CATEGORY_ORDER.flatMap((label) => {
+      const venueCategory = venueCategories.get(label);
+      if (venueCategory) return [venueCategory];
+      return planGroups.has(label) ? [{ label, count: 0, minPrice: 0 }] : [];
+    });
+  }, [categories, planGroups]);
 
   const toggleHidden = (label: string) => {
     setHiddenCategories((prev) => {
@@ -587,7 +625,7 @@ const DrinksTab = ({
               </button>
             )}
             <div className="flex flex-col gap-2.5">
-              {categories.map((cat) => {
+              {visibleCategories.map((cat) => {
                 const group = planGroups.get(cat.label);
                 const picked = group?.entries ?? [];
                 const open = !hiddenCategories.has(cat.label);

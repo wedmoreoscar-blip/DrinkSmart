@@ -200,8 +200,8 @@ export const PreferencesPicker = ({
             value={prefs.strong}
             labels={STRONG_WORDS}
             label={ONBOARD2_COPY.strengthLabel}
-            startWord="Light"
-            endWord="Very strong"
+            startWord="none"
+            endWord="very strong"
             onSelect={(value) => update({ strong: value })}
           />
         </div>

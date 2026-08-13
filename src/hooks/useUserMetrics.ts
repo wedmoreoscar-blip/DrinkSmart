@@ -8,6 +8,7 @@ import {
   parsePreferences,
   type PreferenceData,
 } from "@/lib/preferences";
+import { metricsToColumns } from "@/lib/userMetricsPersistence";
 
 export type UserMetricsData = {
   metricType: "bmi" | "ffmi";
@@ -52,29 +53,6 @@ const emptySnapshot: ProfileQueryData = {
 };
 
 const profileQueryKey = (userId: string | null) => ["profile", userId] as const;
-
-function metricsToColumns(metrics: UserMetricsData) {
-  const effectiveMetricType = metrics.metricType;
-
-  return {
-    columns: {
-      height_cm: metrics.heightCm ? parseFloat(metrics.heightCm) : null,
-      height_ft: metrics.heightFt ? parseFloat(metrics.heightFt) : null,
-      height_in: metrics.heightIn ? parseFloat(metrics.heightIn) : null,
-      height_unit: metrics.heightUnit,
-      weight: metrics.weight ? parseFloat(metrics.weight) : null,
-      weight_unit: metrics.weightUnit,
-      body_fat:
-        effectiveMetricType === "ffmi" && metrics.bodyFat
-          ? parseFloat(metrics.bodyFat)
-          : null,
-      age: metrics.age ? parseInt(metrics.age) : null,
-      sex: metrics.sex || null,
-      metric_type: effectiveMetricType,
-    },
-    effectiveMetricType,
-  };
-}
 
 function columnsToMetrics(data: {
   metric_type: string | null;

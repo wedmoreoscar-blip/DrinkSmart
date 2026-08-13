@@ -9,6 +9,7 @@ import {
   deriveWindDownSummary,
   markEntryConsumed,
   pruneStaleActionState,
+  reorderRemainingTimeline,
   rescheduleTimeline,
   sourceDrinkIdFromEntryId,
   timelineEntryId,
@@ -857,5 +858,49 @@ describe("rescheduleTimeline lock-independent timing", () => {
       { b1: 15 }
     );
     expect(result.timeline[1].time.getTime()).toBe(60 * MIN);
+  });
+});
+
+describe("reorderRemainingTimeline", () => {
+  it("reorders only the current/future entries into the existing future time slots", () => {
+    const timeline = [
+      { ...alcoholTimelineFixture()[0], time: new Date(0) },
+      { ...alcoholTimelineFixture()[1], time: new Date(30 * 60000) },
+      { ...alcoholTimelineFixture()[2], time: new Date(60 * 60000) },
+    ];
+
+    const result = reorderRemainingTimeline(timeline, 2, 1, new Date(20 * 60000), []);
+
+    expect(result.map((entry) => entry.entryId)).toEqual([
+      timeline[0].entryId,
+      timeline[2].entryId,
+      timeline[1].entryId,
+    ]);
+    expect(result.map((entry) => entry.time.getTime())).toEqual([
+      0,
+      30 * 60000,
+      60 * 60000,
+    ]);
+  });
+
+  it("keeps a consumed entry fixed even when its scheduled time is still ahead", () => {
+    const timeline = [
+      { ...alcoholTimelineFixture()[0], time: new Date(30 * 60000) },
+      { ...alcoholTimelineFixture()[1], time: new Date(60 * 60000) },
+      { ...alcoholTimelineFixture()[2], time: new Date(90 * 60000) },
+    ];
+    const consumed = [
+      {
+        entryId: timeline[1].entryId,
+        sourceDrinkId: timeline[1].drinkId,
+        consumedAt: new Date(0),
+        pureAlcoholMl: timeline[1].pureAlcoholMl,
+      },
+    ];
+
+    const result = reorderRemainingTimeline(timeline, 2, 0, new Date(0), consumed);
+    const fixed = result.find((entry) => entry.entryId === timeline[1].entryId);
+
+    expect(fixed?.time.getTime()).toBe(60 * 60000);
   });
 });

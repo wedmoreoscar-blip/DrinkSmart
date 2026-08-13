@@ -160,6 +160,12 @@ const PlanTab = ({
 
   const catalog = useMemo(() => buildCatalog(), []);
 
+  useEffect(() => {
+    if (state.drinks.some((drink) => drink.drink || (drink.isCustom && drink.customName))) {
+      setPlanBuilt(true);
+    }
+  }, [state.drinks]);
+
   const currentLevel = Math.max(1, Math.min(state.inebriationLevel, 7));
   const currentBand =
     BUZZ_BANDS.find((b) => currentLevel >= b.minLevel && currentLevel <= b.maxLevel) ??
@@ -559,14 +565,22 @@ const PlanTab = ({
         </div>
       </div>
 
-        <Button
-          size="act"
-          className="mt-3 w-full gap-2 text-[#b5abfc] text-[22px] leading-[1.3]"
-          onClick={handleGenerate}
-          disabled={genState === "loading"}
-        >
-          {generateButtonContent}
-        </Button>
+        <div className="mt-3 flex items-center gap-3">
+          <Button
+            size="tap"
+            variant="outline"
+            className="min-w-0 flex-1 gap-2 text-[19px] leading-[1.3]"
+            onClick={handleGenerate}
+            disabled={genState === "loading"}
+          >
+            {generateButtonContent}
+          </Button>
+          {planBuilt && (
+            <span className="max-w-[132px] text-micro leading-[1.35] text-muted-foreground">
+              re-rolls only what is not locked
+            </span>
+          )}
+        </div>
 
       </div>
 

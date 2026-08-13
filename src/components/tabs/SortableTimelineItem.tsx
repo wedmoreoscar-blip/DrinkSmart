@@ -26,7 +26,6 @@ type SortableTimelineItemProps = {
   entry: DrinkTimelineEntry;
   isPast: boolean;
   isCurrent: boolean;
-  isFuture: boolean;
   isDraggable: boolean;
   isLocked: boolean;
   moving: boolean;
@@ -120,7 +119,6 @@ export const SortableTimelineItem = ({
   entry,
   isPast,
   isCurrent,
-  isFuture,
   isDraggable,
   isLocked,
   moving,

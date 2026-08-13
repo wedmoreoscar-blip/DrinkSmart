@@ -8,6 +8,7 @@ import {
   calculateSessionTimeline,
   markEntryConsumed,
   pruneStaleActionState,
+  reorderRemainingTimeline,
   rescheduleTimeline,
   type AlcoholTimelineEntryInput,
   type BreakTimelineEntryInput,
@@ -80,6 +81,7 @@ type AppContextType = {
   addUnplannedDrink: (drink: DrinkEntry) => void;
   rescheduleRemainingTimeline: (now?: Date) => void;
   applyRegeneratedRemainingDrinks: (generatedDrinks: DrinkEntry[], now?: Date) => void;
+  replaceBreakWithDrink: (breakEntryId: string, drink: DrinkEntry, now?: Date) => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -212,7 +214,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return {
         ...prev,
         drinks,
-        lockedDrinkIds: pruned.locked,
+        lockedDrinkIds: [
+          ...pruned.locked,
+          ...prev.lockedDrinkIds.filter((id) => prev.breaks.some((entry) => entry.entryId === id)),
+        ],
         consumedTimelineEntries: pruned.consumed,
         delayedEntryMinutes: pruned.delayed,
       };
@@ -287,47 +292,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const reorderTimelineEntries = (oldIndex: number, newIndex: number) => {
     setState((prev) => {
-      // Create a new array with reordered entries
-      const newTimeline = [...prev.drinkTimeline];
-      const [movedEntry] = newTimeline.splice(oldIndex, 1);
-      newTimeline.splice(newIndex, 0, movedEntry);
-
-      // Recalculate timestamps based on new order
-      const { timeDelta, drinkingStartTime } = prev;
-      if (!timeDelta || !drinkingStartTime || newTimeline.length === 0) {
-        return { ...prev, drinkTimeline: newTimeline };
-      }
-
-      const totalTimeDeltaMinutes = timeDelta * 60;
-      
-      // Calculate time allocation for each drink based on its percentage
-      const timelineDrinkIds = [...new Set(newTimeline.map(entry => entry.drinkId))];
-      const drinkPercentages = new Map<string, number>();
-      timelineDrinkIds.forEach(drinkId => {
-        const firstEntry = newTimeline.find(e => e.drinkId === drinkId);
-        if (firstEntry) {
-          const totalUnits = newTimeline.filter(e => e.drinkId === drinkId).length;
-          drinkPercentages.set(drinkId, firstEntry.percentageOfTarget * totalUnits);
-        }
-      });
-
-      // Assign times based on percentages
-      let cumulativeTime = 0;
-      const updatedTimeline = newTimeline.map((entry, index) => {
-        const drinkId = entry.drinkId;
-        const percentage = entry.percentageOfTarget;
-        const timeForThisUnit = (percentage / 100) * totalTimeDeltaMinutes;
-        
-        const entryTime = new Date(drinkingStartTime.getTime() + cumulativeTime * 60 * 1000);
-        cumulativeTime += timeForThisUnit;
-
-        return {
-          ...entry,
-          time: entryTime,
-        };
-      });
-
-      return { ...prev, drinkTimeline: updatedTimeline };
+      const drinkTimeline = reorderRemainingTimeline(
+        prev.drinkTimeline,
+        oldIndex,
+        newIndex,
+        new Date(),
+        prev.consumedTimelineEntries
+      );
+      return drinkTimeline === prev.drinkTimeline ? prev : { ...prev, drinkTimeline };
     });
   };
 
@@ -461,9 +433,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         {
           ...prev,
           drinks,
-          lockedDrinkIds: pruned.locked,
+          lockedDrinkIds: [
+            ...pruned.locked,
+            ...prev.lockedDrinkIds.filter((id) =>
+              prev.breaks.some((entry) => entry.entryId === id)
+            ),
+          ],
           consumedTimelineEntries: pruned.consumed,
           delayedEntryMinutes: pruned.delayed,
+        },
+        now ?? new Date()
+      );
+    });
+  };
+
+  const replaceBreakWithDrink = (breakEntryId: string, drink: DrinkEntry, now?: Date) => {
+    setState((prev) => {
+      if (!prev.breaks.some((entry) => entry.entryId === breakEntryId)) return prev;
+      return computeSessionTimeline(
+        {
+          ...prev,
+          breaks: prev.breaks.filter((entry) => entry.entryId !== breakEntryId),
+          drinks: [...prev.drinks, { ...drink, id: breakEntryId }],
         },
         now ?? new Date()
       );
@@ -513,6 +504,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         addUnplannedDrink,
         rescheduleRemainingTimeline,
         applyRegeneratedRemainingDrinks,
+        replaceBreakWithDrink,
       }}
     >
       {children}

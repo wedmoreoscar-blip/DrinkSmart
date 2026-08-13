@@ -130,8 +130,12 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
     localStorage.setItem("web-drink-reminders", enabled ? "true" : "false");
   };
 
+  const consumedEntryIds = new Set(
+    state.consumedTimelineEntries.map((snapshot) => snapshot.entryId)
+  );
   const nextEntryIndex = state.drinkTimeline.findIndex(
-    (entry) => entry.time.getTime() > currentTime.getTime(),
+    (entry) =>
+      entry.time.getTime() > currentTime.getTime() && !consumedEntryIds.has(entry.entryId),
   );
   const firstMovableIndex = Math.max(0, nextEntryIndex);
 
@@ -219,6 +223,9 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
       lockedDrinkIds: state.lockedDrinkIds,
       drinkingStartTime: state.drinkingStartTime,
       drinkingTargetTime: state.drinkingTargetTime,
+      timeline: state.drinkTimeline,
+      consumedSnapshots: state.consumedTimelineEntries,
+      now: currentTime,
     });
     setReplanning(false);
     if (result.entries === null) return;
@@ -363,10 +370,11 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
 
               {state.drinkTimeline.map((entry, index) => {
                 const id = sortableIdFor(entry);
-                const isPast = entry.time.getTime() <= currentTime.getTime();
+                const isPast =
+                  entry.time.getTime() <= currentTime.getTime() || consumedEntryIds.has(entry.entryId);
                 const isCurrent = index === nextEntryIndex;
-                const isFuture = !isPast && !isCurrent;
                 const isMovingOrigin = movingEntryId === id;
+                const actionSourceId = entry.kind === "break" ? entry.entryId : entry.drinkId;
 
                 return (
                   <div key={id}>
@@ -402,12 +410,11 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
                         entry={entry}
                         isPast={isPast}
                         isCurrent={isCurrent}
-                        isFuture={isFuture}
                         isDraggable={!isPast}
-                        isLocked={state.lockedDrinkIds.includes(entry.drinkId)}
+                        isLocked={state.lockedDrinkIds.includes(actionSourceId)}
                         moving={movingEntryId !== null}
-                        onToggleLock={() => toggleLockedDrink(entry.drinkId)}
-                        onSwapRequest={() => onSwapRequest?.(entry.drinkId || entry.entryId)}
+                        onToggleLock={() => toggleLockedDrink(actionSourceId)}
+                        onSwapRequest={() => onSwapRequest?.(actionSourceId)}
                       />
                     </div>
                   </div>

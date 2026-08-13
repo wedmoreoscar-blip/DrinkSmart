@@ -501,6 +501,58 @@ export function rescheduleTimeline(input: {
 }
 
 /**
+ * Reorder one movable timeline entry while preserving every elapsed/consumed
+ * entry and the existing future time slots. Locks do not participate: they
+ * protect regeneration choices, not row movement or scheduled times.
+ */
+export function reorderRemainingTimeline(
+  timeline: TimelineEntry[],
+  oldIndex: number,
+  newIndex: number,
+  now: Date,
+  consumed: ConsumedSnapshot[]
+): TimelineEntry[] {
+  if (
+    oldIndex < 0 ||
+    newIndex < 0 ||
+    oldIndex >= timeline.length ||
+    newIndex >= timeline.length ||
+    oldIndex === newIndex
+  ) {
+    return timeline;
+  }
+
+  const consumedIds = new Set(consumed.map((snapshot) => snapshot.entryId));
+  const fixedIndices = new Set<number>();
+  timeline.forEach((entry, index) => {
+    if (entry.time.getTime() <= now.getTime() || consumedIds.has(entry.entryId)) {
+      fixedIndices.add(index);
+    }
+  });
+  if (fixedIndices.has(oldIndex) || fixedIndices.has(newIndex)) return timeline;
+  const low = Math.min(oldIndex, newIndex);
+  const high = Math.max(oldIndex, newIndex);
+  for (const index of fixedIndices) {
+    if (index > low && index < high) return timeline;
+  }
+
+  const reordered = [...timeline];
+  const [moved] = reordered.splice(oldIndex, 1);
+  reordered.splice(newIndex, 0, moved);
+
+  const futureSlots = timeline
+    .filter((_, index) => !fixedIndices.has(index))
+    .map((entry) => entry.time.getTime());
+  let slotIndex = 0;
+  return reordered.map((entry, index) => {
+    if (fixedIndices.has(index)) return entry;
+    const time = new Date(futureSlots[slotIndex]);
+    slotIndex += 1;
+    return { ...entry, time };
+  });
+}
+
+/**
  * Keep source drinks protected by consumed snapshots or kept ids, remove
  * every replaceable source drink, and append the supplied generated drinks
  * once. Repeated generated ids keep their first occurrence; reapplying the

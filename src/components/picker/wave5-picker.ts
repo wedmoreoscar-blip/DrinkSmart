@@ -24,7 +24,7 @@ export const PLAN_BUILT_COPY = {
   toggle: (open: boolean) => (open ? "hide" : "show"),
   trayReading: (ml: number, target: number) => fmtMl(ml) + " of " + fmtMl(target) + " ml",
   traySub: (n: number) => "pure alcohol · " + n + (n === 1 ? " drink" : " drinks"),
-  trayPrimary: "Start",
+  trayPrimary: "Done",
 };
 
 export const SWAP_COPY = {
@@ -64,7 +64,7 @@ export function overTargetAdvice(
 ): string | null {
   if (!targetMl || targetMl <= 0 || !Number.isFinite(totalMl)) return null;
   const ratio = totalMl / targetMl;
-  if (ratio < 1.15 || ratio >= 1.2) return null;
+  if (ratio <= 1.15 || ratio > 1.2) return null;
   const bandIndex = BAND_LEVELS.findIndex(
     (band) => inebriationLevel >= band.minLevel && inebriationLevel <= band.maxLevel
   );
