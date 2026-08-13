@@ -96,7 +96,9 @@ equally to lint, tests, and any future runner.
   `PreToolUse`/`Bash` hook in `.claude/settings.json`, denies any `traycer agent send` whose spec
   lacks the verbatim `scope.md` + `closing.md` blocks. Replies (`--response-id`) are exempt. Nothing
   else in this workflow is mechanically enforced: spec quality, the honesty of a verification
-  baseline, and whether `speccheck` runs at all remain agent-side discipline.
+  baseline, and whether `speccheck` runs at all remain agent-side discipline. *(Narrowed
+  2026-08-13: integration is now also machine-gated — `tools/spend-guard` denies the fast-forward
+  merge of an `integration*` ref without a spend-ledger row; see the 2026-08-13 entry.)*
 - The guard matches `traycer agent send` only. Delegation driven outside Traycer — `codex exec`,
   `deepseek -p` — bypasses it, and the matcher must be widened before either becomes a real route.
 
@@ -636,6 +638,40 @@ from the `softer`/`stronger` nudge control, which is genuinely 12px.
   correct partitioning should avoid.
 - The shadcn top-tabs pattern is not used anywhere. The three tabs live in the bottom bar;
   `src/components/ui/tabs.tsx` is owned by that work alone, not by the primitives pass.
+
+## LOCKED — Delegation threshold, spend ledger, and the capped visual pass (2026-08-13)
+
+- **Delegation has an explicit size-and-kind gate**, decided at scoping time
+  (`docs/workflows/delegation.md`, "When to delegate at all"): delegate mechanical, fully
+  specifiable diffs of roughly 150+ production lines or any multi-leg disjoint wave; keep inline
+  anything smaller, anything requiring design judgment mid-implementation, dense single-file
+  logic, and work whose independent tests would rival the implementation. Rationale: delegation
+  removes iteration *churn* from the orchestrator's window, not code — the spec, handback diff,
+  tests, and repairs all land in its context regardless — so below the threshold the fixed
+  per-delegation floor exceeds the churn and delegation loses on tokens, latency, and quality at
+  once. The line count is a working estimate, to be corrected by the spend ledger.
+- **`docs/delegation_spend.md` is the single source of delegation token history**: one row per
+  delegated leg — date, label, orchestrator-context tokens (spec-start to integration done,
+  estimate acceptable), and a short "where they went" note. `tools/spend-guard`, registered as a
+  second `PreToolUse`/`Bash` hook, denies any `git merge` **of** an `integration*` ref until the
+  batch's well-formed rows exist (working tree, index, or on the merged ref). Mentions in
+  heredocs and merges *into* integration branches pass through; the literal marker `[no-ledger]`
+  bypasses deliberately, for merges that integrate no delegation. Regression cases are hermetic
+  in `tools/check-agent-setup` via `SPEND_GUARD_REPO`. This narrows the 2026-08-07 entry's
+  "nothing else is mechanically enforced" statement: commissioning and integration are now both
+  machine-gated.
+- **The final visual check's orchestrator pass is capped, and Luna's justification is economic,
+  not capability** (`docs/workflows/visual_check.md`). The orchestrator is multimodal — its §9
+  pass proves it — so Luna is used because it looks at screenshots at a fraction of frontier cost
+  on the ChatGPT subscription, and remains the only *implementer* that can ingest images at all.
+  §9 runs numeric-first (`getComputedStyle`/bounding-box read-backs before any image) and ingests
+  exactly one capture per drawn screen, once, with no re-shoot loop; findings are fixed inline
+  and confirmed by read-backs. A2A coordination between Luna fixers stays deliberately unbounded
+  (Oscar, 2026-08-13): Luna is cheap enough that bounding it is not worth the ceremony.
+- `ORCHESTRATION.md` (repo root) is the judgment layer over the workflow contracts — strengths,
+  weaknesses and mitigations, ten reasoned usage rules, and the falsification criterion the spend
+  ledger will settle. It records assessments rather than contracts; the workflow documents remain
+  authoritative where they differ.
 
 ## PENDING
 
