@@ -36,6 +36,8 @@ You cannot render HTML. Everything you need is readable without rendering:
 Suggested order of work: tokens → primitives, 1l then 1m (`src/components/ui/*`) → the bottom tab bar → the bottom tab bar
 and removal of the `Dashboard.tsx` header → 1n/1o → 1d → 1g → the engine work → 1f.
 
+`DrinkSmart-design-reference-w5.html` is Wave 5's four frames plus the `5x` rationale card, as one
+plain file a **human** can open in a browser (small, all styling inline — readable if you want it).
 `DrinkSmart-design-reference.html` is a single self-contained file for a **human** to open
 in a browser (some screens are interactive). It is 1.3 MB of compiled output — do not read
 or parse it; use `screens/` instead.
@@ -47,8 +49,8 @@ behaviour, not production code to ship. Recreate them in the repo's existing env
 (React + TypeScript + Tailwind + shadcn/ui), using its established patterns and primitives.
 The one exception is `tokens/`, which is production code.
 
-Each design carries a visible id badge (`1a`–`1k`); those ids name the files in `screens/`
-and the sections below.
+Each design carries a visible id badge (`1a`–`1k`, `4a`–`4o`, `5a`–`5d`); those ids name the files
+in `screens/` and the sections below.
 
 ## Fidelity
 
@@ -212,6 +214,286 @@ Sits flush to the bottom; `padding-bottom: env(safe-area-inset-bottom)` on body.
 
 ## Screens
 
+### Wave 5 — the generated night becomes editable
+
+Six frames, 402 × 874. Wave 5 adds one capability (curating a generated plan) and two new control
+classes (an unoutlined text control and a press-and-hold grip). Ids: `5a` `5b` `5c` `5d` `5e` `5f`; `5x`
+in the reference doc carries the decisions in prose.
+
+| Request | Frame | Files |
+| --- | --- | --- |
+| Plan tab after `Build the night` | `5a` | `screens/5a-plan-built.*` |
+| Timeline row: `lock`, `swap`, reorder | `5b` | `screens/5b-timeline-lock-swap.*` |
+| Timeline move mode + the new footer | `5e` | `screens/5e-timeline-move-mode.*` |
+| The swap picker (+20% bound) | `5c` | `screens/5c-swap-picker.*` |
+| Tray meter over target | `5d` | `screens/5d-meter-over-target.*` |
+| Onboarding step 2, both rails (**supersedes `4c`**) | `5f` | `screens/5f-onboarding-two-rails.*` |
+
+**Copy and formatting rules are in each file's trailing `<script>` block** — the shade table, the
+`+20%` cap arithmetic, the advisory-line rule and the column geometry all live there.
+
+#### The two new controls
+
+**One rule underneath the whole wave:** *no affordance may add unbounded alcohol to a plan.* Quick-add
+and `Add a drink` are both removed for that reason; `swap` (+20% ceiling) and the Plan tab's tray
+are the only ways drinks enter a night.
+
+| Control | Geometry | Where |
+| --- | --- | --- |
+| Strength rail | second word-stop rail under one `Taste` heading; six stops, compact form | `5f` onboarding + the Profile taste sheet |
+| Text control `hide`/`show` | 19px `#b5abfc`, no box, 56px target, pressed `rgba(145,132,217,.10)` radius 8 | `5a` category rows |
+| Reorder grip | 44 × 36, radius 8, `#1c1e2c`, two 14 × 1.5px `#75798c` bars; press-and-hold | `5b` time column, under the clock |
+
+#### The new control: unoutlined text (`hide` / `show`)
+
+The set had no such thing — every control drawn so far is a 56px or 64px target with an outline or
+a fill — so it is established here rather than inferred:
+
+| Part | Literal |
+| --- | --- |
+| Label | 19px/400 `#b5abfc`, sentence case, no icon, no chevron |
+| Target | 56px min-height, 8px horizontal padding, no box, no fill, no border |
+| Pressed | `rgba(145,132,217,.10)` behind the label, radius 8 |
+| Placement | inside the category row, before the chevron, in both states |
+
+It is the weakest control on the screen on purpose, and it never shares a hit box with the
+chevron beside it. **The chevron's job is unchanged: it opens the category screen (`4e`).** It does
+not rotate and it is not the drop-down's toggle. `hide` when open, `show` when closed — the label
+stays in the same place in both states so nothing moves as groups open and close.
+
+#### `5a` — Plan tab after `Build the night`
+
+![5a](screens/5a-plan-built.png)
+
+`Build the night` no longer navigates. It generates, scrolls this tab to its tray, and reveals
+each category's picks **in place, with no tap**. The drop-down is one visual object with its
+category row: the row keeps radius `14 14 0 0`, the panel (`#1c1e2c`) closes it with `0 0 14 14`,
+and rows inside are divided by 1px `#262837` — never by gaps. A category with nothing picked reads
+`nothing picked` and has no panel; an empty panel is never drawn.
+
+**The drink row is 64px and carries two controls without becoming a toolbar:**
+
+```
+[ name 19px / meta 13px          ][ lock 56 ][ delete 56 ]
+```
+
+The row pays for the second control **in text, not in height**: price leaves its own column and
+joins the 13px meta line (`pint · 22.7 ml · £4.55`). Both controls are icon-only — no box, no
+fill, no divider between them, no background on the pair. Lock is the `1d` padlock, `#75798c`
+outline when open and solid `#9184d9` when locked; **a drink locked on the Timeline arrives here
+already solid** (it is the same state, not a second one). Delete is the outline bin, always
+`#75798c`, and removes with no confirmation — the user deletes an AI pick in order to replace it
+themselves.
+
+`Regenerate` is a 56px secondary with its scope stated beside it at 13px
+(*re-rolls only what is not locked*), never inside the label. The tray keeps `4d`'s geometry and
+holds the screen's one 64px action (`Start`). **Quick-add is gone** — nothing on this screen can
+add unbounded alcohol.
+
+#### `5b` — Timeline row: `lock`, `swap` and the reorder grip
+
+![5b](screens/5b-timeline-lock-swap.png)
+
+`1d`'s row was `[62px time][34px marker][flex content]` with one trailing lock. Three controls now
+have to live there. **Two fit at the trailing edge; the third does not, and the measurement is why:**
+
+```
+362 − 56 time − 34 marker − 3 × 56 controls = 104px of content
+"Camden Hells" at 22px                      = ~140px
+```
+
+A third trailing control costs either the drink's name or the 19px floor, and a 44px trailing
+handle buys the room by breaking the 56px touch floor on the one control that gets *dragged*. So:
+
+```diff
+- [62 time            ][34 marker][content][lock 56]
++ [56 time / grip 44×36][34 marker][content][swap 56][lock 56]
+```
+
+1. **The time column narrows 62 → 56** — a tabular `23:10` at 19px measures 48px, so the figure is
+   untouched; only slack goes. The spine moves with it, to x = 73.
+2. **The reorder grip goes in that column, under the clock**, left of the spine: 44 × 36, radius 8,
+   ground `#1c1e2c`, two 14 × 1.5px `#75798c` bars. **Press and hold to lift the drink** (`5e`). It
+   costs 10px of row height (64 → 74 on rows that have one) and nothing horizontal.
+3. **The row's meta collapses to one line.** On the current row `1d`'s 13px third line folds into
+   the sub as `175 ml · 21.0 ml alc`.
+
+**Control order is fixed: swap inside, lock outermost** — the lock keeps the slot `1d` gave it, so
+it never shifts. Swap is `#b2b6ca` (an action); lock is `#75798c` / `#9184d9` (a state).
+
+**The grip is the one control drawn under 56px square.** That is deliberate and it is the trade we
+would defend: a press-and-hold cannot be fired by a brush the way a tap can, the grip's width is
+the full column, and the whole row becomes the drag surface once held. **If you would rather pay
+20px of row height for a 56 × 56 grip, that is the trade — it is yours to make and nothing else
+changes.**
+
+**Affordances are absent, never inert.** Everything still to come carries a grip — **including the
+drink up next** (its grip sits inside the highlighted card, ground `#232532`, card 88 → 98px) **and
+locked drinks**. Only past rows have none: a drink you have had cannot be moved, swapped or locked.
+
+**A lock is not a pin.** Locked means *survives generation* and nothing else — `Regenerate`, a
+repeated `Build the night` and `Re-plan the rest` leave it alone — so a locked row keeps its grip and
+its solid padlock side by side, and the user may move it freely. Moving the drink up next re-times the
+hero and its notification: the countdown, the `MIN AWAY` numeral and the reminder all recompute from
+the dropped time, and if it lands after a following drink, that drink becomes the one up next. Past rows carry no swap or lock either — a drink you
+have had cannot be swapped or locked. Water rows carry all three: swapping water for a drink is
+allowed, and a locked water break is how a user protects a gap from `Re-plan the rest`, which now
+stays on this screen.
+
+**The footer, with `Add a drink` removed:** one **full-width 56px `Re-plan the rest`**, 1px
+`#383a46`, radius 14, 19px. A single narrow button in a row built for a pair reads like something
+is missing, and a full-width 64px one would compete with `Had it` in the hero. Above it, a 13px
+`#75798c` line carries the discovery: *Press and hold a grip to move that drink.*
+
+`Add a drink` is gone because it appended alcohol to a night **with no bound** — the thing the
+four-band cap and the +20% swap ceiling exist to prevent. Adding now happens on the Plan tab where
+the tray meter is watching; substituting happens through `swap`. Neither can run past the ceiling.
+
+#### `5e` — move mode
+
+![5e](screens/5e-timeline-move-mode.png)
+
+Reorder is **a mode, not a slot** — that is what makes three controls possible on a 64px row. Held
+grip → the list enters move mode, and in here each movable row carries **one** control, because
+swap and lock have nothing to do while a drink is in the air.
+
+- **The hero is replaced, not dimmed:** a 56px banner — `MOVING` / the drink name / *drop it
+  anywhere later tonight* — with a 56px `Done`. **This screen has no 64px action at all**, so the
+  one-primary rule is kept without a disabled hero sitting under the user's thumb.
+- **The vacated slot stays visible** as a 56px well (1px `#383a46`, 15px `#75798c` *left from here*),
+  so the move is legible as a move rather than a deletion.
+- **Drop indicator** is a 2px `#9184d9` line with no label — the lifted card already shows the new
+  time in `#b5abfc`. The lifted row is `#232532`, 1px `#9184d9`, `0 10px 26px rgba(10,11,18,.6)`,
+  with its grip held (`#2b2741`, 1px `#9184d9`, `#b5abfc` bars).
+- **Rows that cannot move — past drinks and locked drinks only — drop to `opacity .30` and lose
+  their grip.** A locked row keeps its solid padlock in the trailing slot — that padlock *is* the reason it cannot be dragged, stated exactly
+  where the grip would have been.
+- **Dropping re-spaces everything after it, preserving each gap.** Locked entries hold their times,
+  so a drop that would cross one is refused by the drop line simply not
+  appearing there. No dialogue, no confirmation, no toast: `Done` is the commit and the list is the
+  receipt. The tab bar stays reachable at `opacity .45`.
+
+#### `5f` — onboarding step 2 gains the Strength rail — **supersedes `4c`**
+
+![5f](screens/5f-onboarding-two-rails.png)
+
+Strength is a **taste**, exactly like sweetness: it says which drinks the picker reaches for, not
+how much alcohol the night holds — that is fixed by the band (`1n`) before this is ever read. Two
+rails a few hundred pixels from the real intensity dial invite the opposite reading, so three things
+carry the distinction at once:
+
+1. **One `Taste` heading over both rails.** There is no section called *Strength*; `Strength` is a
+   15px row label, the same weight `Sweetness` gets. The second rail reads as a sibling.
+2. **The stop words describe drinks, not drinkers**: `alcohol-free · light · mild · medium · strong ·
+   very strong`, ends anchored `none` … `very strong`. **No word here appears on the buzz picker**
+   (Light / Social / Loose / Heavy) — the two vocabularies must not overlap or the rail becomes a
+   second band.
+3. **One 13px line, and only one:** *Which drinks get picked, not how many. How drunk you get is the
+   band you choose next.* It points forward to `1n` rather than defending itself, so it reads as a
+   hand-off, not a disclaimer. It never says *this is not a limit*.
+
+The downstream effect is deliberately **not** described on the screen: with the total fixed by the
+band, `very strong` yields fewer, stronger drinks and `light` yields more, weaker ones. That is the
+engine spending a fixed budget, not this control acting. Saying it here would invite exactly the
+reading we are avoiding.
+
+**`Low & no` stops being a chip.** It is now the strength rail's far-left stop (`alcohol-free`) —
+the same value, visible, in one place, instead of a chip silently driving a rail. The category chips
+drop from **six to four** and now match the picker's own alcohol categories (`4d`): `Beer & cider`
+absorbs `Cider`, and the soft/low-alcohol category is reached by the rail.
+
+**What gave, so neither rail is drawn tight:**
+
+```diff
+- chip grid 3 rows (six chips)        → 2 rows (four chips)       −66px
+- rail: chosen word on its own line   → right-aligned on the label line
+- rail: end words on their own row    → flanking the track inline  −55px per rail
+- Start margin 18 → 16, ghost 4 → 2                               −4px
++ second rail, compact form                                       +88px
+```
+
+Two compact rails cost ~176px against the old single rail's ~143px; the trims give back ~125px, so
+the card keeps roughly 180px of headroom at 874 and the step is not split. **The body copy was not
+cut** — it is the sentence that keeps the step honest.
+
+**This changes the Profile taste sheet too, and it should follow.** The sheet reached from `4a`'s
+`Taste` row carries the same two rails, the same compact form, the same six strength stops with
+`alcohol-free` at the far left, and the same 13px line. One form, drawn once, used in two places.
+
+#### `5c` — the swap picker
+
+![5c](screens/5c-swap-picker.png)
+
+`4d`/`4e` constrained to `cap = swapped.ml × 1.2`, no lower bound — swapping a drink for water is
+allowed and normal.
+
+**The bound is drawn as absence.** Ineligible drinks are not rendered: not greyed, not disabled,
+not labelled. Three things carry the *why* — the title names the drink being replaced
+(`Swap Carling`), a 19px line states the cap in the same unit the rows use (*Anything up to 27 ml
+of alcohol — Carling's 22.7 plus a fifth. Weaker is always fine.*), and a 13px footnote counts
+what is missing (*6 more drinks here are stronger than 27 ml…*). Categories keep their order and
+their headings; a category with nothing eligible drops out whole. Rows are `4e`'s rows minus the
+stepper — one drink replaces one drink, so there is no quantity and no portion segment. The
+selected row takes the `0 0 0 2px #9184d9` ring and gains a 13px accent delta (`+1.1 ml`).
+**No warning, dialogue or confirmation appears anywhere in this flow;** an eligible swap is taken.
+
+**The tray shows a subtraction — the only screen that does.** Committed fill is the plan's total
+**minus the swapped drink** (solid `#9184d9`), so the vessel visibly drops as the screen opens and
+the user sees the gap they are filling. The candidate paints on top in the existing pending
+treatment (`rgba(145,132,217,.22)`, 1px `#9184d9` top edge) and **is never solid**. Reading:
+`70 + 24 ml` over `of 98 ml · Carling taken out`.
+
+#### `5d` — the tray meter past target
+
+![5d](screens/5d-meter-over-target.png)
+
+**Geometry does not change past full.** Height stays 100%, the vessel keeps its 26 × 60 box, 7px
+radius and 1px `#3f424d` edge. Only the fill colour changes: the meter never grows, the fill never
+rises above full, and no overflow mark, cap, arrow or second segment is drawn. The reading stays
+the true figure (`116 of 98 ml`), tabular, never clamped and never prefixed with *over*.
+
+| Over target | Fill | Token |
+| --- | --- | --- |
+| 0 – 5% | `#9184d9` | `--primary`, unchanged |
+| 5 – 10% | `#d3bd72` | `--over-1` (new) |
+| 10 – 15% | `#d29a51` | `--warning`, already in the layer |
+| 15 – 20% | `#c8605e` | `--over-3` (new) — **the one red in the product** |
+| above 20% | — | unreachable; selection is bounded there, so no state exists |
+
+**The line, red band only:** 17px `#cfd3e5`, directly beneath the reading, inside the tray. It
+names the band this night actually is and the band whose target it is — *This is a Loose night, on
+Social's target.* — and stops there. It does not tell the user to drink less, does not praise a
+decision to stop, and does not block anything. It is **absent for Heavy** (nothing sits above it)
+and absent in every shade below red. Raising the band is the user's move, made where bands are
+chosen (`1n`).
+
+#### Token diff for Wave 5
+
+Two colours, and only because `no red` was deliberately overridden for the 15–20% shade:
+
+```diff
+  --warning: 35 58% 57%;      /* #d29a51 — reused as the 10–15% over-target shade */
++ --over-1:  45 55% 64%;      /* #d3bd72 — 5–10% over target */
++ --over-3:  1  52% 58%;      /* #c8605e — 15–20% over target. The ONLY red in the app;
++                                it exists for this one meter fill and nothing else. */
+```
+
+`--destructive` stays aliased to `--warning`. **This is not licence for a palette:** no text, icon,
+border, badge or button anywhere takes `--over-3`, and `no green` remains absolute. No new type
+size, radius, spacing step or motion value.
+
+#### What changed in the flow (for the diff, not for the drawings)
+
+- `Build the night` generates in place and scrolls the Plan tab to its tray; it does not navigate.
+- Locking is a property of a drink, shown identically on both tabs. `Regenerate`, a repeated
+  `Build the night` and `Re-plan the rest` all re-roll **only unlocked** drinks.
+- `Re-plan the rest` stays on the Timeline, and is now the footer's only button.
+- Reordering (already built, never drawn) gets an explicit affordance: the press-and-hold grip in
+  `5b` and the move mode in `5e`. Movable = everything still to come, including the drink up next and locked drinks (a lock survives generation, it does not pin a time); only past rows have no grip.
+- **`Add a drink` is removed from the Timeline footer** for the same reason as quick-add.
+- **Quick-add is removed** — capping the scale at four bands is the reason, and an unbounded add
+  would undo it.
+
 ### Wave 4 — §B to §G, the six that were never drawn
 
 Fourteen frames, all 402 × 874, drawn at the numbers below. Every frame consumes `1k`/`1l`/`1m`
@@ -288,7 +570,7 @@ is no dismissable prompt anywhere else in the app.
 it is absent, never disabled and never a locked row. Nothing above it changes, so no one can tell
 something is missing.
 
-#### §C — Onboarding, two steps (`4b`, `4c`)
+#### §C — Onboarding, two steps (`4b`, `4c` — **`4c` superseded by `5f`**)
 
 ![4b](screens/4b-onboarding-stats.png)
 ![4c](screens/4c-onboarding-taste.png)
@@ -312,7 +594,8 @@ about their body that the engine does not use, and it lands worst on the people 
 The FFMI route — the one path where body fat *is* arithmetic — lives in Profile (`4a`, the
 `Method` row), entered by the user, with no estimate. Watson TBW runs unchanged either way.
 
-**Step 2 is skippable in words, not by an X**: six 56px category chips in a 2-column grid
+**Step 2 is skippable in words, not by an X** (redrawn as `5f`, which adds the Strength rail, cuts
+the chips to four and turns `Low & no` into the rail's far-left stop): six 56px category chips in a 2-column grid
 (selected = `0 0 0 2px #9184d9` with a 15px tick), the `1m` word-stops for sweetness, a 64px
 `Start`, and beneath it a 56px ghost row *I have no preferences* — which writes
 `taste = null, categories = []` and lets the picker order categories by what the venue stocks.
@@ -726,12 +1009,13 @@ Row types:
 | Water / break | 13px dot, 1px **dashed** `#9397ab`, hollow (`#161826` fill) | `Water` in `#cfd3e5`, `330 ml · 20 min break` |
 | Now marker | — | `now` label in `#b5abfc` + a 1px rule fading accent → transparent |
 | Next drink (hero row) | 15px solid `#9184d9` with `0 0 0 5px rgba(145,132,217,.22)` halo | raised card: `#1c1e2c`, radius 14, `0 0 0 1px #9184d9`, margin `0 -6px 10px`; name 500/25, `175 ml glass, 12%` 19px, `21.0 ml · 21% of target` 13px `#75798c` |
-| Future drink | 13px, 1.5px `#5d5294` outline, hollow | name 22px, detail 15px; optional 44px trailing lock button |
+| Future drink | 13px, 1.5px `#5d5294` outline, hollow | name 22px, detail 15px; trailing swap + lock and a grip under the clock — see `5b` |
 | Locked ("kept") | 13px, 1.5px **`#9184d9`** outline, hollow | name + `kept` chip (11px/0.06em uppercase, `#423a6a` bg, `#e7e5fe` text, radius 6), detail `25 ml shot · stays if you re-plan`; filled padlock glyph in accent |
 | Plan end | 23px horizontal dash | `Plan ends`, `sober around 08:30` 15px `#75798c` |
 
-Footer of the spine: `Add a drink` and `Re-plan the rest` — two flex-1 buttons, 56px, 1px
-`#383a46`, radius 14, 19px.
+Footer of the spine: **superseded by `5b`** — `Add a drink` is removed (it could add unbounded
+alcohol) and the footer becomes one full-width 56px `Re-plan the rest`, 1px `#383a46`, radius 14,
+19px, with a 13px hint above it.
 
 **Copy rule:** unplanned additions and locked drinks read as *adjustment*, never breakage.
 Never "you've gone off plan".
@@ -838,9 +1122,13 @@ Three things the current engine cannot express. These are backend/logic tasks, n
    BAC contribution.
 2. **Wind-down state.** A session needs a terminal state with a sober-by estimate
    (0.015 %/h elimination), a time-under-0.08% figure, a peak BAC, and drunk-vs-planned totals.
-3. **Locking + regeneration.** Individual drinks must be lockable (`kept`) and the remainder
-   of the plan regenerated around them when the user re-plans, adds an unplanned drink, or
-   pushes one back by 15 minutes.
+3. **Locking, deletion, swap, reorder + regeneration.** Individual drinks must be lockable, deletable and
+   replaceable, with the remainder regenerated around the locked set when the user re-plans, adds
+   a drink, or pushes one back by 15 minutes. Swap needs the catalog queryable by pure-alcohol
+   ceiling (`≤ swapped.ml × 1.2`, no floor). Reorder needs a drop to re-space following entries;
+   locked entries move like any other (the lock only exempts them from generation), and moving the
+   drink up next must re-time the hero, its countdown and its scheduled notification. Drawn in Wave 5 — `5a`, `5b`,
+   `5c`, `5e`.
 
 UI state per screen: selected band + nudge, session duration and start time (Plan); logged
 entries, current time, locked ids, scroll position (Timeline); session phase (planning /
@@ -855,10 +1143,10 @@ active / winding down).
 
 ## Not designed yet
 
-**Nothing outstanding from §A–§G.** Onboarding, Profile, the drink picker, auth / account upgrade,
+**Nothing outstanding from §A–§G, and Wave 5 closes the editing capability.** Onboarding, Profile, the drink picker, auth / account upgrade,
 the menu scanner and establishment browsing are all drawn — see *Wave 4* above. Still undrawn and
-not requested: the drink-detail edit screen reached from a saved catalog row, and the
-notification-permission prompt. Directions that were settled before those six were drawn: the drink catalog resolves its
+not requested: the drink-detail edit screen reached from a saved catalog row, the
+notification-permission prompt, and the empty-plan state of `5a` before anything is generated. Directions that were settled before those six were drawn: the drink catalog resolves its
 density conflict by **progressive disclosure** (categories first, drinks inside); custom-drink
 entry is a **sheet over the catalog**; the Profile **Appearance card is cut**, with the argument
 drawn; establishments are **two-tier** (global seeded venues plus the user's own from the scanner),
@@ -870,9 +1158,11 @@ name-only, no GPS, with **price designed in** ahead of the column existing.
 | --- | --- |
 | `README.md` | This file — the spec. Self-sufficient. |
 | `screens/*.png` | Rendered image of each design, 2x. Look at these. |
+| `screens/5a`–`5f` | Wave 5: the editable plan — drop-downs, lock + swap + reorder, move mode, the swap picker, over-target shades, onboarding's second rail. |
 | `screens/4o-keypad-field-group.*` | Wave 4's one new primitive — the numeric keypad field group. |
 | `screens/4a`–`4n` | Wave 4: §B Profile, §C onboarding, §D picker, §E scanner, §F establishments, §G auth. Each HTML carries its copy and formatting rules in a trailing `<script>`. |
 | `screens/*.html` | Exact inline-styled markup for each design. Port, don't paste. |
 | `tokens/index.css` | Production drop-in for `src/index.css` |
 | `tokens/tailwind.config.ts` | Production drop-in for `tailwind.config.ts` |
+| `DrinkSmart-design-reference-w5.html` | Wave 5 only, as a plain readable file for a human. |
 | `DrinkSmart-design-reference.html` | The full interactive design doc, for a human in a browser. Do not parse. |

@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ────────────────────────────────────────────────────────────────────────
+   DrinkSmart — token layer
+   Dark-only. There is no light theme: the app is used in a dark room and a
+   light mode would be a liability. `.dark` is kept in sync with `:root` so
+   the existing `darkMode: ["class"]` config can't produce a broken state.
+
+   Derived from the Nocturne system (blue-grey ground, one blurple accent,
+   mono palette, 8/14px radii). Two deliberate departures from Nocturne:
+   its 0.70x density and 15px body are too tight for one-handed use at low
+   light and low sobriety, so the type scale and the spacing/touch scale
+   below are DrinkSmart's own. All colours are HSL per the repo rule.
+   ──────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root,
+  .dark {
+    /* ── ground ─────────────────────────────────────────────── */
+    --background: 233 27% 12%;          /* #161826 */
+    --foreground: 240 10% 92%;          /* #e9e9ed */
+
+    --card: 232 18% 17%;                /* #232532 */
+    --card-foreground: 240 10% 92%;
+    --popover: 232 18% 17%;
+    --popover-foreground: 240 10% 92%;
+
+    /* ── accent (the only chromatic role — mono palette) ─────── */
+    --primary: 249 53% 68%;             /* #9184d9 */
+    --primary-foreground: 233 27% 12%;
+    --primary-hover: 247 93% 83%;       /* #b5abfc — lighter on a dark ground */
+
+    /* ── neutrals ───────────────────────────────────────────── */
+    --secondary: 225 9% 18%;            /* #292b31 */
+    --secondary-foreground: 240 10% 92%;
+    --muted: 227 10% 27%;               /* #3f424d */
+    --muted-foreground: 230 18% 75%;    /* #b2b6ca — NOT a thin grey.
+                                           Nothing legible is set below this. */
+    --accent: 249 25% 20%;              /* #2b2741 — hover/selected tint */
+    --accent-foreground: 245 100% 95%;
+
+    --border: 231 11% 25%;
+    --input: 231 11% 25%;
+    --ring: 249 53% 68%;
+
+    /* ── warning: one colour, and it is not red ──────────────── */
+    /* Over target, too fast, too soon. Amber at the accent's lightness so
+       it reads as information, not alarm. There is no destructive red in
+       DrinkSmart; --destructive is aliased so shadcn variants still work. */
+    --warning: 35 58% 57%;              /* #d29a51 */
+    --warning-foreground: 233 27% 12%;
+    --destructive: 35 58% 57%;
+    --destructive-foreground: 233 27% 12%;
+
+    /* ── success: deliberately unremarkable ──────────────────── */
+    /* Finishing a plan is not an achievement. Completed states desaturate
+       rather than turn green; there is no celebratory colour in the system. */
+    --success: 230 13% 62%;             /* #9397ab */
+    --success-foreground: 233 27% 12%;
+
+    /* ── radii ──────────────────────────────────────────────── */
+    --radius: 0.875rem;                 /* 14px, Nocturne --radius-lg */
+
+    /* ── type scale (px, mobile) ─────────────────────────────── */
+    /* Set for arm's length in a dark bar. --fs-body is the floor for
+       anything the user must read; --fs-micro is for optional detail only. */
+    --fs-hero: 76px;    --lh-hero: 0.92;   /* the countdown */
+    --fs-display: 44px; --lh-display: 1.0; /* target ml, band name */
+    --fs-title: 28px;   --lh-title: 1.15;
+    --fs-lead: 22px;    --lh-lead: 1.3;
+    --fs-body: 19px;    --lh-body: 1.45;
+    --fs-label: 15px;   --ls-label: 0.09em; /* uppercase labels */
+    --fs-micro: 13px;
+
+    /* ── spacing + touch ────────────────────────────────────── */
+    --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+    --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+    --touch-min: 56px;                  /* nothing tappable is smaller */
+    --touch-primary: 64px;              /* the one action per screen */
+
+    /* ── elevation: an edge plus ambient darkness ────────────── */
+    --shadow-sm: 0 0 0 1px hsl(231 11% 25%);
+    --shadow-md: 0 0 0 1px hsl(227 10% 27%), 0 6px 18px hsl(233 27% 6% / 0.55);
+    --shadow-lg: 0 0 0 1px hsl(230 13% 62% / 0.5), 0 16px 40px hsl(233 27% 4% / 0.65);
+
+    /* ── motion ─────────────────────────────────────────────── */
+    /* Slow. Nothing in this app should feel urgent or congratulatory. */
+    --transition-smooth: all 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    --transition-page: all 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+    --transition-liquid: all 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ── retired ────────────────────────────────────────────── */
+    /* --gradient-hero / --gradient-card are kept as flat fills so existing
+       call sites don't break. No gradient washes in this system. */
+    --gradient-hero: hsl(232 18% 17%);
+    --gradient-card: hsl(232 18% 17%);
+
+    /* sidebar (unused by the 3-tab app; kept in step with the ground) */
+    --sidebar-background: 233 27% 12%;
+    --sidebar-foreground: 240 10% 92%;
+    --sidebar-primary: 249 53% 68%;
+    --sidebar-primary-foreground: 233 27% 12%;
+    --sidebar-accent: 249 25% 20%;
+    --sidebar-accent-foreground: 245 100% 95%;
+    --sidebar-border: 231 11% 25%;
+    --sidebar-ring: 249 53% 68%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+
+  html { color-scheme: dark; }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: Inter, system-ui, sans-serif;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    -webkit-font-smoothing: antialiased;
+    /* one-handed: never let the layout hide under the home indicator */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  h1, h2, h3, h4 { font-weight: 500; letter-spacing: -0.015em; }
+
+  /* Every number the user reads at a glance is tabular. */
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  /* Themed focus, never the browser default. */
+  :focus { outline: none; }
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  ::selection { background: hsl(var(--primary) / 0.3); }
+}

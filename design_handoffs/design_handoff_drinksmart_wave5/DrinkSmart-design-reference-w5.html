@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DrinkSmart — Wave 5 design reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{margin:0;background:#0e0f18;font-family:Inter,system-ui,sans-serif;color:#e9e9ed}
+a{color:#9184d9}a:hover{color:#b5abfc}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(233,233,237,.1);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#9184d9;color:#161826;border-radius:4px;text-decoration:none}
+.dv-tname{font:500 13px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed}
+.dv-sub{font:500 11px/1 Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#75798c;margin:34px 0 14px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(233,233,237,.1);color:#e9e9ed;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 Inter,system-ui,sans-serif;color:rgba(233,233,237,.55);max-width:402px}
+.dv-opt>.dv-card{overflow-x:hidden}
+.dv-scroll{scrollbar-width:none}.dv-scroll::-webkit-scrollbar{display:none}
+.dv-card{max-width:100%;background:#161826;border:1px solid rgba(233,233,237,.1);border-radius:8px;overflow:hidden}
+.dv-opt:target .dv-oid{background:#9184d9;color:#161826}
+.dv-next{margin:26px 0 0;font:12px/1.5 Inter,system-ui,sans-serif;color:rgba(233,233,237,.5)}
+pre{margin:0;font:11.5px/1.7 ui-monospace,Menlo,monospace;color:#cfd3e5;white-space:pre-wrap}
+code{font:11.5px ui-monospace,Menlo,monospace;color:#d2cefd}
+
+</style>
+</head>
+<body>
+<section class="dv-turn" id="t5">
+<div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">Wave 5 — the generated night becomes editable: drop-downs on the Plan tab, three controls on a Timeline row, a constrained swap picker, and the meter past target</span></div>
+<div class="dv-opt" id="5x"><div class="dv-olabel" style="max-width:760px"><a class="dv-oid" href="#5x">5x</a>The three decisions these four screens make, and one thing I would raise</div>
+<div class="dv-card" style="width:760px;padding:26px 28px;display:flex;flex-direction:column;gap:16px">
+<div style="font:500 21px/1.35 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed;max-width:62ch;text-wrap:pretty">Curating a night needs one new control class and no new colour. The class is a <b style="font-weight:500;color:#b5abfc">plain text control</b> — <i>hide</i> / <i>show</i> — the first thing in the set with neither outline nor fill.</div>
+<div style="font:400 15px/1.6 Inter,system-ui,sans-serif;color:#b2b6ca;max-width:74ch;text-wrap:pretty"><b style="font-weight:500;color:#e9e9ed">1 · The text control.</b> 19px, accent-light, no border, no fill, sitting in a 56px target that is invisible until pressed (pressed = accent tint at 10% behind the label, radius 8). It is legible as a control because it is the only accent-coloured text in the row and it is right-aligned into empty space. It is deliberately weaker than the chevron beside it: the chevron opens the category screen, the text collapses the list, and the two never share a target.</div>
+<div style="font:400 15px/1.6 Inter,system-ui,sans-serif;color:#b2b6ca;max-width:74ch;text-wrap:pretty"><b style="font-weight:500;color:#e9e9ed">2 · Two controls on a small repeating row.</b> Lock and delete are 56 × 56 icon-only targets with no box, at the trailing edge, and the row pays for them in <i>text</i>, not in height: the price leaves its own column and joins the 13px meta line (<i>pint · 22.7 ml · £4.55</i>). One line of name, one line of meta, two silent glyphs. No dividers between the controls, no background — that is what would make it a toolbar.</div>
+<div style="font:400 15px/1.6 Inter,system-ui,sans-serif;color:#b2b6ca;max-width:74ch;text-wrap:pretty"><b style="font-weight:500;color:#e9e9ed">3 · What yields at 64px on the Timeline (<a class="dv-oid" href="#5b">5b</a>).</b> The time column narrows 62 → 56 (a tabular <i>23:10</i> at 19px is 48px wide, so nothing is lost) and the row's meta collapses to one line, absorbing the ml figure. Lock stays where <a class="dv-oid" href="#1d">1d</a> put it — trailing, outermost — and swap takes the slot inside it, so a lock never moves as rows gain or lose swap. On the highlighted current row the same pair applies; its 13px third line folds into the sub.</div>
+<div style="font:400 15px/1.6 Inter,system-ui,sans-serif;color:#b2b6ca;max-width:74ch;text-wrap:pretty"><b style="font-weight:500;color:#e9e9ed">4 · Three controls fit, but not three at the trailing edge.</b> The measurement is why: 362 − 56 time − 34 marker − 3 × 56 leaves <b style="font-weight:500;color:#e9e9ed">104px of content</b>, and <i>Camden Hells</i> at 22px is 140px — a third trailing control costs the drink's name or the 19px floor. So the reorder control goes where the row already has dead space: <b style="font-weight:500;color:#b5abfc">a 44 × 36 grip in the time column, directly under the clock</b>, left of the spine. The clock is 48px wide and 24px tall in a 56 × 74 column; the grip costs 10px of row height and nothing horizontal. Press and hold it to lift the drink (<a class="dv-oid" href="#5e">5e</a>). It is the one control drawn under 56px square — deliberately, and only because a press-and-hold cannot be triggered by a brush the way a tap can; its width is the full column and the whole row becomes the drag surface once held. If you would rather pay 20px of row height for a 56 × 56 grip, that is the trade and it is yours to make.</div>
+<div style="font:400 15px/1.6 Inter,system-ui,sans-serif;color:#b2b6ca;max-width:74ch;text-wrap:pretty"><b style="font-weight:500;color:#e9e9ed">5 · The affordance is absent, never inert.</b> Only a future, unlocked entry has a grip: past rows, the drink up next and locked drinks have none — and in move mode a locked row keeps its solid padlock in the trailing slot, which is the reason it cannot be dragged, stated where the grip would be. The footer, with <i>Add a drink</i> gone, is <b style="font-weight:500;color:#e9e9ed">one full-width 56px <i>Re-plan the rest</i></b>: a single narrow button in a row built for a pair reads like something is missing, and a 64px full-width one would compete with <i>Had it</i> in the hero. The 13px line above it carries the discovery — <i>Press and hold a grip to move that drink.</i></div>
+<div style="height:1px;background:linear-gradient(to right,transparent,rgba(233,233,237,.16) 48px,rgba(233,233,237,.16) calc(100% - 48px),transparent)"></div>
+<div style="font:400 15px/1.6 Inter,system-ui,sans-serif;color:#b2b6ca;max-width:74ch;text-wrap:pretty"><b style="font-weight:500;color:#e9e9ed">One thing to raise, not encoded here.</b> In <a class="dv-oid" href="#5c">5c</a> the +20% bound is drawn as <i>absence</i>: ineligible drinks are not in the list, the bound is stated once at the top, and a 13px footnote counts what is missing. Greying them would advertise the stronger drink you cannot have on a screen whose whole job is a like-for-like replacement. The risk is a user who came looking for a specific stronger drink and cannot see why it is gone — the footnote is what carries that, and it is the weakest part of these four. If you would rather they were listed and disabled, that is a one-row change and I would not fight it.</div>
+</div></div>
+<div class="dv-sub">5a · Plan tab after <i>Build the night</i> — 402 × 874</div>
+<div class="dv-opts"><div class="dv-opt" id="5a"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#5a">5a</a><b style="color:#e9e9ed;font-weight:500">§A</b> &nbsp;The generated night, revealed in place. Each category row carries its picks as a drop-down; <i>hide</i> is the new unoutlined text control; the chevron still opens the category</div>
+<div class="dv-card" data-screen-label="Plan — built" style="width:402px;height:874px;display:flex;flex-direction:column;padding:20px 20px 0;background:#161826;overflow:hidden;">
+<div style="flex:none">
+<div style="display:flex;align-items:baseline;justify-content:space-between"><div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca">Tonight</div><div style="font:400 15px/1.2 Inter,system-ui,sans-serif;color:#75798c;font-variant-numeric:tabular-nums">now 21:48</div></div>
+<div style="display:flex;align-items:flex-end;gap:14px;margin-top:10px"><div style="flex:1"><div style="font:500 30px/1.1 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed">Your night</div><div style="font:400 19px/1.35 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:4px;font-variant-numeric:tabular-nums">Social · 5 drinks · 85 of 98 ml</div></div></div>
+<div style="display:flex;align-items:center;gap:12px;margin-top:14px"><div style="min-height:56px;flex:none;padding:0 22px;border-radius:12px;box-shadow:0 0 0 1px #383a46;display:flex;align-items:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#e9e9ed">Regenerate</div><div style="font:400 13px/1.4 Inter,system-ui,sans-serif;color:#75798c;flex:1;text-wrap:pretty">re-rolls only what is not locked</div></div>
+</div>
+<div class="dv-scroll" style="flex:1;overflow:hidden;margin-top:16px;display:flex;flex-direction:column;gap:12px">
+
+<div style="flex:none">
+<div style="min-height:72px;background:#232532;border-radius:14px 14px 0 0;padding:14px 8px 14px 18px;display:flex;align-items:center;gap:6px"><div style="flex:1;min-width:0"><div style="font:500 24px/1.15 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed">Beer &amp; cider</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">3 picked · 60 ml</div></div><div style="min-height:56px;display:flex;align-items:center;padding:0 8px;font:400 19px/1 Inter,system-ui,sans-serif;color:#b5abfc;flex:none">hide</div><div style="width:44px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M6.5 4L12 9l-5.5 5" stroke="#75798c" stroke-width="1.8" stroke-linecap="round"/></svg></div></div>
+<div style="background:#1c1e2c;border-radius:0 0 14px 14px;padding:0 8px 0 18px">
+<div style="display:flex;align-items:center;min-height:64px;border-bottom:1px solid #262837">
+<div style="flex:1;min-width:0"><div style="font:400 19px/1.25 Inter,system-ui,sans-serif;color:#e9e9ed">Carling</div><div style="font:400 13px/1.3 Inter,system-ui,sans-serif;color:#75798c;margin-top:3px;font-variant-numeric:tabular-nums">pint · 22.7 ml · £4.55</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" stroke="#75798c" stroke-width="1.5"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#75798c" stroke-width="1.5"/></svg></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 6.2h12M8 6.2V4.6h4v1.6M6.7 6.2l.7 10.2h5.2l.7-10.2" stroke="#75798c" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+</div>
+<div style="display:flex;align-items:center;min-height:64px;border-bottom:1px solid #262837">
+<div style="flex:1;min-width:0"><div style="font:400 19px/1.25 Inter,system-ui,sans-serif;color:#e9e9ed">Guinness</div><div style="font:400 13px/1.3 Inter,system-ui,sans-serif;color:#75798c;margin-top:3px;font-variant-numeric:tabular-nums">pint · 23.8 ml · £5.40</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" fill="#9184d9"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#9184d9" stroke-width="1.5"/></svg></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 6.2h12M8 6.2V4.6h4v1.6M6.7 6.2l.7 10.2h5.2l.7-10.2" stroke="#75798c" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+</div>
+<div style="display:flex;align-items:center;min-height:64px">
+<div style="flex:1;min-width:0"><div style="font:400 19px/1.25 Inter,system-ui,sans-serif;color:#e9e9ed">Camden Hells</div><div style="font:400 13px/1.3 Inter,system-ui,sans-serif;color:#75798c;margin-top:3px;font-variant-numeric:tabular-nums">half · 13.1 ml · £3.40</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" stroke="#75798c" stroke-width="1.5"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#75798c" stroke-width="1.5"/></svg></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 6.2h12M8 6.2V4.6h4v1.6M6.7 6.2l.7 10.2h5.2l.7-10.2" stroke="#75798c" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+</div>
+</div>
+</div>
+
+<div style="flex:none">
+<div style="min-height:72px;background:#232532;border-radius:14px 14px 0 0;padding:14px 8px 14px 18px;display:flex;align-items:center;gap:6px"><div style="flex:1;min-width:0"><div style="font:500 24px/1.15 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed">Soft &amp; low-alcohol</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">1 picked · 0 ml</div></div><div style="min-height:56px;display:flex;align-items:center;padding:0 8px;font:400 19px/1 Inter,system-ui,sans-serif;color:#b5abfc;flex:none">hide</div><div style="width:44px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M6.5 4L12 9l-5.5 5" stroke="#75798c" stroke-width="1.8" stroke-linecap="round"/></svg></div></div>
+<div style="background:#1c1e2c;border-radius:0 0 14px 14px;padding:0 8px 0 18px">
+<div style="display:flex;align-items:center;min-height:64px">
+<div style="flex:1;min-width:0"><div style="font:400 19px/1.25 Inter,system-ui,sans-serif;color:#cfd3e5">Water</div><div style="font:400 13px/1.3 Inter,system-ui,sans-serif;color:#75798c;margin-top:3px;font-variant-numeric:tabular-nums">330 ml · break · free</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" fill="#9184d9"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#9184d9" stroke-width="1.5"/></svg></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 6.2h12M8 6.2V4.6h4v1.6M6.7 6.2l.7 10.2h5.2l.7-10.2" stroke="#75798c" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+</div>
+</div>
+</div>
+
+<div style="flex:none;display:flex;align-items:center;min-height:72px;background:#232532;border-radius:14px;padding:14px 8px 14px 18px;gap:6px"><div style="flex:1;min-width:0"><div style="font:500 24px/1.15 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed">Spirits &amp; mixers</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">1 picked · 25 ml</div></div><div style="min-height:56px;display:flex;align-items:center;padding:0 8px;font:400 19px/1 Inter,system-ui,sans-serif;color:#b5abfc;flex:none">show</div><div style="width:44px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M6.5 4L12 9l-5.5 5" stroke="#75798c" stroke-width="1.8" stroke-linecap="round"/></svg></div></div>
+
+<div style="flex:none;min-height:72px;background:#232532;border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px"><div><div style="font:500 24px/1.15 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed">Wine</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px">nothing picked</div></div><svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M6.5 4L12 9l-5.5 5" stroke="#75798c" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+</div>
+<div style="margin:12px -20px 0;padding:12px 20px;background:#1c1e2c;border-top:1px solid #292b31;display:flex;align-items:center;gap:14px;flex:none">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:87%;background:#9184d9"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">85 of 98 ml</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:3px">pure alcohol · 5 drinks</div></div>
+<div style="min-height:64px;flex:none;padding:0 24px;white-space:nowrap;border:1px solid #9184d9;border-radius:14px;display:flex;align-items:center;justify-content:center;font:500 22px/1 Inter,system-ui,sans-serif;color:#b5abfc">Start</div>
+</div>
+<div style="margin:0 -20px;background:#161826;border-top:1px solid #292b31;display:flex;flex:none"><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7" r="4" stroke="#75798c" stroke-width="1.6"/><path d="M3.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Profile</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#b5abfc"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="6" y="2.5" width="10" height="17" rx="3" stroke="#b5abfc" stroke-width="1.6"/><path d="M6.5 11h9v5.5a3 3 0 0 1-3 3h-3a3 3 0 0 1-3-3V11z" fill="#b5abfc"/></svg><span style="font:500 13px/1 Inter,system-ui,sans-serif">Plan</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2.5v17" stroke="#75798c" stroke-width="1.6"/><circle cx="11" cy="7" r="2.6" fill="#75798c"/><circle cx="11" cy="15" r="2.6" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Timeline</span></div></div>
+</div></div></div>
+<div class="dv-sub">5b · Timeline row: <i>lock</i>, <i>swap</i>, and the reorder grip — 402 × 874</div>
+<div class="dv-opts"><div class="dv-opt" id="5b"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#5b">5b</a><b style="color:#e9e9ed;font-weight:500">§A</b> &nbsp;Two controls at 64px. Lock keeps <a class="dv-oid" href="#1d">1d</a>'s outermost slot; swap takes the one inside it. The time column narrows 62 → 56 and the meta collapses to one line</div>
+<div class="dv-card" data-screen-label="Timeline — lock and swap" style="width:402px;height:874px;display:flex;flex-direction:column;padding:20px 20px 0;background:#161826;overflow:hidden;">
+<div style="padding:0 0 18px;border-bottom:1px solid #292b31;flex:none">
+<div style="display:flex;align-items:baseline;justify-content:space-between"><div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b5abfc">Next</div><div style="font:400 15px/1.2 Inter,system-ui,sans-serif;color:#b2b6ca;font-variant-numeric:tabular-nums">now 22:12</div></div>
+<div style="display:flex;align-items:flex-end;gap:18px;margin-top:12px"><div style="flex:1"><div style="font:500 30px/1.1 Inter,system-ui,sans-serif;letter-spacing:-.015em">House Red</div><div style="font:400 22px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:4px;font-variant-numeric:tabular-nums">175 ml glass · 22:30</div></div><div style="text-align:right;flex:none"><div style="font:500 76px/0.92 Inter,system-ui,sans-serif;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:#e9e9ed">18</div><div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca;margin-top:2px">min away</div></div></div>
+<div style="display:flex;gap:10px;margin-top:18px"><div style="flex:1;height:64px;border:1px solid #9184d9;border-radius:14px;display:flex;align-items:center;justify-content:center;font:500 22px/1 Inter,system-ui,sans-serif;color:#b5abfc">Had it</div><div style="width:104px;height:64px;border:1px solid #383a46;border-radius:14px;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#e9e9ed">+15</div></div>
+</div>
+<div class="dv-scroll" style="flex:1;overflow:hidden;position:relative;padding:16px 0 8px">
+<div style="position:absolute;left:73px;top:24px;bottom:106px;width:1px;background:linear-gradient(to bottom,transparent,rgba(233,233,237,.16) 30px,rgba(233,233,237,.16) calc(100% - 30px),transparent)"></div>
+
+<div style="display:flex;align-items:flex-start;min-height:64px;opacity:.45">
+<div style="width:56px;flex:none;font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca;padding-top:8px">22:05</div>
+<div style="width:34px;flex:none;display:flex;justify-content:center;padding-top:5px"><div style="width:13px;height:13px;border-radius:50%;border:1px dashed #9397ab;background:#161826"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:400 22px/1.25 Inter,system-ui,sans-serif;color:#cfd3e5">Water</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px">330 ml · had</div></div>
+</div>
+
+<div style="display:flex;align-items:center;gap:10px;margin:6px 0 10px">
+<div style="width:56px;flex:none;font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b5abfc">now</div>
+<div style="flex:1;height:1px;background:linear-gradient(to right,#9184d9,rgba(145,132,217,.15))"></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:98px;background:#1c1e2c;border-radius:14px;box-shadow:0 0 0 1px #9184d9;margin:0 -6px 10px;padding:10px 2px 10px 0">
+<div style="width:62px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding-left:6px"><div style="font:500 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#e9e9ed">22:30</div><div style="width:44px;height:36px;border-radius:8px;background:#232532;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div></div></div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:15px;height:15px;border-radius:50%;background:#9184d9;box-shadow:0 0 0 5px rgba(145,132,217,.22)"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:500 25px/1.2 Inter,system-ui,sans-serif;letter-spacing:-.015em">House Red</div><div style="font:400 15px/1.35 Inter,system-ui,sans-serif;color:#cfd3e5;margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap">175 ml · 21.0 ml alc</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3.5 7.2h11l-3-3M16.5 12.8h-11l3 3" stroke="#b2b6ca" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" stroke="#75798c" stroke-width="1.5"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#75798c" stroke-width="1.5"/></svg></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:74px">
+<div style="width:56px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+<div style="font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca">23:10</div>
+<div style="width:44px;height:36px;border-radius:8px;background:#1c1e2c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div></div>
+</div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:13px;height:13px;border-radius:50%;border:1.5px solid #5d5294;background:#161826"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:400 22px/1.25 Inter,system-ui,sans-serif">Carling</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">pint · 22.7 ml</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3.5 7.2h11l-3-3M16.5 12.8h-11l3 3" stroke="#b2b6ca" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" stroke="#75798c" stroke-width="1.5"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#75798c" stroke-width="1.5"/></svg></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:74px">
+<div style="width:56px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+<div style="font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca">23:45</div>
+<div style="width:44px;height:36px;border-radius:8px;background:#1c1e2c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div></div>
+</div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:13px;height:13px;border-radius:50%;border:1px dashed #9397ab;background:#161826"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:400 22px/1.25 Inter,system-ui,sans-serif;color:#cfd3e5">Water</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px">330 ml · 20 min</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3.5 7.2h11l-3-3M16.5 12.8h-11l3 3" stroke="#b2b6ca" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" stroke="#75798c" stroke-width="1.5"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#75798c" stroke-width="1.5"/></svg></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:74px">
+<div style="width:56px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:6px"><div style="font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca">00:05</div><div style="width:44px;height:36px;border-radius:8px;background:#1c1e2c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div></div></div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:13px;height:13px;border-radius:50%;border:1.5px solid #9184d9;background:#161826"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:400 22px/1.25 Inter,system-ui,sans-serif">Vodka</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">25 ml shot · kept</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3.5 7.2h11l-3-3M16.5 12.8h-11l3 3" stroke="#b2b6ca" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" fill="#9184d9"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#9184d9" stroke-width="1.5"/></svg></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:58px">
+<div style="width:56px;flex:none;font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca;padding-top:2px">01:30</div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:23px;height:1px;background:#75798c;margin-top:14px"></div></div>
+<div style="flex:1;padding-left:10px"><div style="font:400 19px/1.3 Inter,system-ui,sans-serif;color:#cfd3e5">Plan ends</div><div style="font:400 15px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:2px;font-variant-numeric:tabular-nums">sober around 08:30</div></div>
+</div>
+
+<div style="padding:0 0 12px;display:flex;flex-direction:column;gap:8px">
+<div style="font:400 13px/1.4 Inter,system-ui,sans-serif;color:#75798c">Press and hold a grip to move that drink.</div>
+<div style="min-height:56px;border:1px solid #383a46;border-radius:14px;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif">Re-plan the rest</div>
+</div>
+</div>
+<div style="margin:0 -20px;background:#161826;border-top:1px solid #292b31;display:flex;flex:none"><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7" r="4" stroke="#75798c" stroke-width="1.6"/><path d="M3.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Profile</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="6" y="2.5" width="10" height="17" rx="3" stroke="#75798c" stroke-width="1.6"/><path d="M6.5 11h9v5.5a3 3 0 0 1-3 3h-3a3 3 0 0 1-3-3V11z" fill="#75798c"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Plan</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#b5abfc"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2.5v17" stroke="#b5abfc" stroke-width="1.6"/><circle cx="11" cy="7" r="2.6" fill="#b5abfc"/><circle cx="11" cy="15" r="2.6" stroke="#b5abfc" stroke-width="1.6"/></svg><span style="font:500 13px/1 Inter,system-ui,sans-serif">Timeline</span></div></div>
+</div></div><div class="dv-opt" id="5e"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#5e">5e</a><b style="color:#e9e9ed;font-weight:500">§A</b> &nbsp;Move mode — the third control, held for a mode instead of squeezed onto the row. One grip per row, everything that cannot move loses its handle rather than greying it</div>
+<div class="dv-card" data-screen-label="Timeline — move mode" style="width:402px;height:874px;display:flex;flex-direction:column;padding:20px 20px 0;background:#161826;overflow:hidden;">
+<div style="flex:none;padding:0 0 14px;border-bottom:1px solid #292b31;display:flex;align-items:center;gap:12px">
+<div style="flex:1;min-width:0"><div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b5abfc">Moving</div><div style="font:500 25px/1.2 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed;margin-top:5px">Carling</div><div style="font:400 15px/1.35 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:3px">drop it anywhere later tonight</div></div>
+<div style="min-height:56px;flex:none;padding:0 22px;border:1px solid #383a46;border-radius:14px;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#e9e9ed">Done</div>
+</div>
+<div class="dv-scroll" style="flex:1;overflow:hidden;position:relative;padding:16px 0 8px">
+<div style="position:absolute;left:73px;top:24px;bottom:76px;width:1px;background:linear-gradient(to bottom,transparent,rgba(233,233,237,.16) 30px,rgba(233,233,237,.16) calc(100% - 30px),transparent)"></div>
+
+<div style="display:flex;align-items:center;min-height:64px;opacity:.3">
+<div style="width:56px;flex:none;font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca">22:05</div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:13px;height:13px;border-radius:50%;border:1px dashed #9397ab;background:#161826"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:400 22px/1.25 Inter,system-ui,sans-serif;color:#cfd3e5">Water</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px">330 ml · had</div></div>
+</div>
+
+<div style="display:flex;align-items:center;gap:10px;margin:6px 0 10px">
+<div style="width:56px;flex:none;font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b5abfc">now</div>
+<div style="flex:1;height:1px;background:linear-gradient(to right,#9184d9,rgba(145,132,217,.15))"></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:74px">
+<div style="width:56px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:6px"><div style="font:500 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#e9e9ed">22:30</div><div style="width:44px;height:36px;border-radius:8px;background:#1c1e2c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div></div></div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:15px;height:15px;border-radius:50%;background:#9184d9"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:400 22px/1.25 Inter,system-ui,sans-serif">House Red</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px">up next · can move too</div></div>
+</div>
+
+<div style="display:flex;align-items:center;min-height:64px">
+<div style="width:56px;flex:none;font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#75798c">23:10</div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:13px;height:13px;border-radius:50%;border:1px dashed #4a4d5c;background:#161826"></div></div>
+<div style="flex:1;margin-left:10px;min-height:56px;border-radius:12px;box-shadow:0 0 0 1px #383a46;display:flex;align-items:center;padding:0 14px;font:400 15px/1.3 Inter,system-ui,sans-serif;color:#75798c">left from here</div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:74px">
+<div style="width:56px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:6px"><div style="font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca">23:45</div><div style="width:44px;height:36px;border-radius:8px;background:#1c1e2c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div></div></div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:13px;height:13px;border-radius:50%;border:1px dashed #9397ab;background:#161826"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:400 22px/1.25 Inter,system-ui,sans-serif;color:#cfd3e5">Water</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px">330 ml · 20 min</div></div>
+</div>
+
+<div style="display:flex;align-items:center;gap:10px;margin:2px 0 6px">
+<div style="width:56px;flex:none"></div>
+<div style="flex:1;height:2px;background:#9184d9;border-radius:1px"></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:86px;background:#232532;border-radius:14px;box-shadow:0 0 0 1px #9184d9,0 10px 26px rgba(10,11,18,.6);margin:0 -6px 8px;padding:8px 2px 8px 0">
+<div style="width:62px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding-left:6px"><div style="font:500 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b5abfc">00:10</div><div style="width:44px;height:36px;border-radius:8px;background:#2b2741;box-shadow:0 0 0 1px #9184d9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="width:14px;height:1.5px;border-radius:1px;background:#b5abfc"></div><div style="width:14px;height:1.5px;border-radius:1px;background:#b5abfc"></div></div></div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:13px;height:13px;border-radius:50%;border:1.5px solid #9184d9;background:#161826"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:500 22px/1.25 Inter,system-ui,sans-serif;color:#e9e9ed">Carling</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#cfd3e5;margin-top:2px;font-variant-numeric:tabular-nums">pint · 22.7 ml</div></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:74px">
+<div style="width:56px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:6px"><div style="font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca">00:25</div><div style="width:44px;height:36px;border-radius:8px;background:#1c1e2c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div><div style="width:14px;height:1.5px;border-radius:1px;background:#75798c"></div></div></div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:13px;height:13px;border-radius:50%;border:1.5px solid #9184d9;background:#161826"></div></div>
+<div style="flex:1;padding-left:10px;min-width:0"><div style="font:400 22px/1.25 Inter,system-ui,sans-serif">Vodka</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px">25 ml shot · kept, and movable</div></div>
+<div style="width:56px;height:56px;flex:none;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2" fill="#9184d9"/><path d="M6.8 8.5V6a3.2 3.2 0 0 1 6.4 0v2.5" stroke="#9184d9" stroke-width="1.5"/></svg></div>
+</div>
+
+<div style="display:flex;align-items:flex-start;min-height:64px;padding-top:4px;opacity:.3">
+<div style="width:56px;flex:none;font:400 19px/1.2 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#b2b6ca;padding-top:6px">01:30</div>
+<div style="width:34px;flex:none;display:flex;justify-content:center"><div style="width:23px;height:1px;background:#75798c;margin-top:14px"></div></div>
+<div style="flex:1;padding-left:10px"><div style="font:400 19px/1.3 Inter,system-ui,sans-serif;color:#cfd3e5">Plan ends</div></div>
+</div>
+
+<div style="font:400 13px/1.45 Inter,system-ui,sans-serif;color:#75798c;padding:8px 0 18px;text-wrap:pretty">Everything after the drop re-spaces to keep its gaps. A lock only survives re-planning — it does not pin a time, so locked drinks move like any other.</div>
+</div>
+<div style="margin:0 -20px;background:#161826;border-top:1px solid #292b31;display:flex;flex:none;opacity:.45"><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7" r="4" stroke="#75798c" stroke-width="1.6"/><path d="M3.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Profile</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="6" y="2.5" width="10" height="17" rx="3" stroke="#75798c" stroke-width="1.6"/><path d="M6.5 11h9v5.5a3 3 0 0 1-3 3h-3a3 3 0 0 1-3-3V11z" fill="#75798c"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Plan</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2.5v17" stroke="#75798c" stroke-width="1.6"/><circle cx="11" cy="7" r="2.6" fill="#75798c"/><circle cx="11" cy="15" r="2.6" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Timeline</span></div></div>
+</div></div></div>
+<div class="dv-sub">5f · Onboarding step 2, both rails — supersedes 4c — 402 × 874</div>
+<div class="dv-opts"><div class="dv-opt" id="5f"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#5f">5f</a><b style="color:#e9e9ed;font-weight:500">§C</b> &nbsp;Two rails under one <i>Taste</i> heading. Strength is a taste, so it is worded as one — and <i>Low &amp; no</i> stops being a chip and becomes the rail's far-left stop</div>
+<div class="dv-card" data-screen-label="Onboarding — taste, two rails" style="width:402px;height:874px;display:flex;flex-direction:column;padding:0;background:#161826;overflow:hidden;">
+<div style="flex:1;background:rgba(10,11,18,.72);display:flex;flex-direction:column;justify-content:flex-end;padding:16px"><div style="background:#232532;border-radius:20px;padding:24px;box-shadow:0 0 0 1px rgba(147,151,171,.5), 0 16px 40px rgba(8,9,14,.65);display:flex;flex-direction:column">
+<div style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca">2 of 2</div>
+<div style="font:500 28px/1.15 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed;margin-top:10px">What you drink</div>
+<div style="font:400 19px/1.45 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:8px">Only so the picker opens somewhere sensible. Nothing in the timeline depends on it.</div>
+
+<div style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca;margin:20px 0 10px">Usually</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div style="min-height:56px;border-radius:12px;background:#1c1e2c;box-shadow:0 0 0 2px #9184d9;display:flex;align-items:center;justify-content:center;gap:8px;font:400 19px/1 Inter,system-ui,sans-serif;color:#e9e9ed"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex:none"><path d="M3.5 8.5l3 3L12.5 5" stroke="#b5abfc" stroke-width="2.2" stroke-linecap="round"/></svg>Beer &amp; cider</div>
+<div style="min-height:56px;border-radius:12px;background:#1c1e2c;box-shadow:0 0 0 1px #383a46;display:flex;align-items:center;justify-content:center;gap:8px;font:400 19px/1 Inter,system-ui,sans-serif;color:#b2b6ca">Wine</div>
+<div style="min-height:56px;border-radius:12px;background:#1c1e2c;box-shadow:0 0 0 2px #9184d9;display:flex;align-items:center;justify-content:center;gap:8px;font:400 19px/1 Inter,system-ui,sans-serif;color:#e9e9ed"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex:none"><path d="M3.5 8.5l3 3L12.5 5" stroke="#b5abfc" stroke-width="2.2" stroke-linecap="round"/></svg>Spirits</div>
+<div style="min-height:56px;border-radius:12px;background:#1c1e2c;box-shadow:0 0 0 1px #383a46;display:flex;align-items:center;justify-content:center;gap:8px;font:400 19px/1 Inter,system-ui,sans-serif;color:#b2b6ca">Cocktails</div>
+</div>
+
+<div style="font:500 13px/1 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca;margin:20px 0 0">Taste</div>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:12px"><div style="font:400 15px/1.2 Inter,system-ui,sans-serif;color:#b2b6ca">Sweetness</div><div style="font:500 22px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed">dry-ish</div></div>
+<div style="display:flex;align-items:center;gap:10px;min-height:56px">
+<div style="font:400 13px/1.4 Inter,system-ui,sans-serif;color:#75798c;flex:none">dry</div>
+<div style="flex:1;position:relative;display:flex;align-items:center">
+<div style="position:absolute;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(233,233,237,.16) 30px,rgba(233,233,237,.16) calc(100% - 30px),transparent)"></div>
+<div style="position:relative;flex:1;display:flex;align-items:center;justify-content:space-between"><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div><div style="width:20px;height:20px;border-radius:50%;background:#9184d9;box-shadow:0 0 0 5px rgba(145,132,217,.22)"></div><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div></div>
+</div>
+<div style="font:400 13px/1.4 Inter,system-ui,sans-serif;color:#75798c;flex:none">sweet</div>
+</div>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:8px"><div style="font:400 15px/1.2 Inter,system-ui,sans-serif;color:#b2b6ca">Strength</div><div style="font:500 22px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed">medium</div></div>
+<div style="display:flex;align-items:center;gap:10px;min-height:56px">
+<div style="font:400 13px/1.4 Inter,system-ui,sans-serif;color:#75798c;flex:none;white-space:nowrap">none</div>
+<div style="flex:1;position:relative;display:flex;align-items:center">
+<div style="position:absolute;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(233,233,237,.16) 30px,rgba(233,233,237,.16) calc(100% - 30px),transparent)"></div>
+<div style="position:relative;flex:1;display:flex;align-items:center;justify-content:space-between"><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div><div style="width:20px;height:20px;border-radius:50%;background:#9184d9;box-shadow:0 0 0 5px rgba(145,132,217,.22)"></div><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div><div style="width:11px;height:11px;border-radius:50%;background:#3f424d"></div></div>
+</div>
+<div style="font:400 13px/1.4 Inter,system-ui,sans-serif;color:#75798c;flex:none;white-space:nowrap">very strong</div>
+</div>
+<div style="font:400 13px/1.45 Inter,system-ui,sans-serif;color:#75798c;margin-top:6px;text-wrap:pretty">Which drinks get picked, not how many. How drunk you get is the band you choose next.</div>
+
+<div style="min-height:64px;margin:16px 0 0;border:1px solid #9184d9;border-radius:14px;display:flex;align-items:center;justify-content:center;font:500 22px/1 Inter,system-ui,sans-serif;color:#b5abfc">Start</div>
+<div style="min-height:56px;margin:2px 0 0;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#b2b6ca">I have no preferences</div>
+</div></div>
+</div></div></div>
+<div class="dv-sub">5c · The swap picker — 402 × 874</div>
+<div class="dv-opts"><div class="dv-opt" id="5c"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#5c">5c</a><b style="color:#e9e9ed;font-weight:500">§D</b> &nbsp;Constrained by absence: the bound is stated once, ineligible drinks are simply not listed, and a footnote counts them. The tray shows the night <i>minus</i> Carling, with the candidate pending on top</div>
+<div class="dv-card" data-screen-label="Picker — swap" style="width:402px;height:874px;display:flex;flex-direction:column;padding:22px 20px 0;background:#161826;overflow:hidden;">
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+<div style="min-height:56px;display:flex;align-items:center;gap:12px;flex:none"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" style="flex:none"><path d="M13 4.5L6.5 11l6.5 6.5" stroke="#e9e9ed" stroke-width="1.8" stroke-linecap="round"/></svg><div style="font:500 24px/1.15 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed;flex:1">Swap Carling</div><div style="font:400 15px/1.2 Inter,system-ui,sans-serif;color:#75798c;font-variant-numeric:tabular-nums">15</div></div>
+<div style="font:400 19px/1.45 Inter,system-ui,sans-serif;color:#b2b6ca;flex:none;text-wrap:pretty">Anything up to <span style="color:#e9e9ed;font-variant-numeric:tabular-nums">27 ml</span> of alcohol — Carling's 22.7 plus a fifth. Weaker is always fine.</div>
+<div style="display:flex;flex-direction:column;gap:10px;overflow:hidden">
+<div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#75798c;margin-top:2px">Beer &amp; cider</div>
+<div style="min-height:72px;background:#232532;border-radius:14px;box-shadow:0 0 0 2px #9184d9;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px"><div><div style="font:400 22px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed">Guinness</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">4.2% · pint · 23.8 ml</div></div><div style="text-align:right;flex:none"><div style="font:500 19px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">£5.40</div><div style="font:400 13px/1.2 Inter,system-ui,sans-serif;color:#b5abfc;margin-top:3px;font-variant-numeric:tabular-nums">+1.1 ml</div></div></div>
+<div style="min-height:72px;background:#232532;border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px"><div><div style="font:400 22px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed">Camden Hells</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">4.6% · pint · 26.1 ml</div></div><div style="font:500 19px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums;flex:none">£6.20</div></div>
+<div style="min-height:72px;background:#232532;border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px"><div><div style="font:400 22px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed">Camden Hells</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">4.6% · half · 13.1 ml</div></div><div style="font:500 19px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums;flex:none">£3.40</div></div>
+<div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#75798c;margin-top:6px">Soft &amp; low-alcohol</div>
+<div style="min-height:72px;background:#232532;border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px"><div><div style="font:400 22px/1.2 Inter,system-ui,sans-serif;color:#cfd3e5">Water</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">330 ml · 0 ml</div></div><div style="font:500 19px/1.2 Inter,system-ui,sans-serif;color:#b2b6ca;font-variant-numeric:tabular-nums;flex:none">free</div></div>
+<div style="min-height:72px;background:#232532;border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px"><div><div style="font:400 22px/1.2 Inter,system-ui,sans-serif;color:#cfd3e5">Lucky Saint 0.5%</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:2px;font-variant-numeric:tabular-nums">0.5% · bottle · 1.7 ml</div></div><div style="font:500 19px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums;flex:none">£4.80</div></div>
+<div style="font:400 13px/1.5 Inter,system-ui,sans-serif;color:#75798c;padding:4px 2px 0;text-wrap:pretty">6 more drinks here are stronger than 27 ml, so they cannot replace this one.</div>
+</div>
+</div>
+<div style="margin:0 -20px;padding:12px 20px;background:#1c1e2c;border-top:1px solid #292b31;display:flex;align-items:center;gap:14px;flex:none">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:24%;background:rgba(145,132,217,.22);border-top:1px solid #9184d9"></div><div style="height:72%;background:#9184d9"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">70 + 24 ml</div><div style="font:400 15px/1.3 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:3px;font-variant-numeric:tabular-nums">of 98 ml · Carling taken out</div></div>
+<div style="min-height:64px;flex:none;padding:0 24px;white-space:nowrap;border:1px solid #9184d9;border-radius:14px;display:flex;align-items:center;justify-content:center;font:500 22px/1 Inter,system-ui,sans-serif;color:#b5abfc">Swap</div>
+</div>
+<div style="margin:0 -20px;background:#161826;border-top:1px solid #292b31;display:flex;flex:none"><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="7" r="4" stroke="#75798c" stroke-width="1.6"/><path d="M3.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" stroke="#75798c" stroke-width="1.6"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Profile</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#75798c"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="6" y="2.5" width="10" height="17" rx="3" stroke="#75798c" stroke-width="1.6"/><path d="M6.5 11h9v5.5a3 3 0 0 1-3 3h-3a3 3 0 0 1-3-3V11z" fill="#75798c"/></svg><span style="font:400 13px/1 Inter,system-ui,sans-serif">Plan</span></div><div style="flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#b5abfc"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2.5v17" stroke="#b5abfc" stroke-width="1.6"/><circle cx="11" cy="7" r="2.6" fill="#b5abfc"/><circle cx="11" cy="15" r="2.6" stroke="#b5abfc" stroke-width="1.6"/></svg><span style="font:500 13px/1 Inter,system-ui,sans-serif">Timeline</span></div></div>
+</div></div></div>
+<div class="dv-sub">5d · The tray meter past target — 402 × 874</div>
+<div class="dv-opts"><div class="dv-opt" id="5d"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#5d">5d</a><b style="color:#e9e9ed;font-weight:500">Meter states</b> &nbsp;The fill never rises above full; only the shade changes. Red is the one place <code>no red</code> is overridden — and the only place a line of guidance appears</div>
+<div class="dv-card" data-screen-label="Meter — over target" style="width:402px;height:874px;display:flex;flex-direction:column;padding:22px 20px 20px;background:#161826;overflow:hidden;gap:14px">
+<div style="flex:none"><div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca">Tray meter · over target</div><div style="font:400 19px/1.4 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:8px;text-wrap:pretty">Full is full. Past the target the vessel holds its height and changes shade only.</div></div>
+
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#9184d9"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">101 of 98 ml</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+3% · unchanged accent</div></div>
+</div>
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#d3bd72"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">105 of 98 ml</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+7% · yellow · #d3bd72</div></div>
+</div>
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#d29a51"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">110 of 98 ml</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+12% · orange · #d29a51 (the existing --warning)</div></div>
+</div>
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#c8605e"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">116 of 98 ml</div><div style="font:400 17px/1.4 Inter,system-ui,sans-serif;color:#cfd3e5;margin-top:5px">This is a Loose night, on Social's target.</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+18% · red · #c8605e · one line, only here</div></div>
+</div>
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#c8605e"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">142 of 120 ml</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+18% on Heavy · same red, no line — nothing sits above Heavy</div></div>
+</div>
+<div style="border-radius:14px;padding:12px 16px;box-shadow:0 0 0 1px #292b31;display:flex;align-items:center;gap:14px;min-height:80px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #292b31;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;opacity:.45"><div style="height:100%;background:#c8605e"></div></div>
+<div style="flex:1"><div style="font:400 19px/1.35 Inter,system-ui,sans-serif;color:#75798c;text-wrap:pretty">Above +20% has no state. Selection is bounded there, so the meter never has to draw it.</div></div>
+</div>
+</div>
+</div></div></div>
+</section>
+</body>
+</html>

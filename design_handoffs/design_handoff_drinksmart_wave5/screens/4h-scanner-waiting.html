@@ -1,0 +1,40 @@
+<!-- DrinkSmart design reference — 4h  (§E — Menu scanner, waiting)
+     Markup extracted from the design prototype. NOT production code.
+     Device frame is 402 x 874, drawn at 1x; PNG is 2x. All styling is inline and literal.
+     Copy and formatting rules are in the trailing <script> block — read it.
+-->
+<div class="dv-opt" id="4h"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#4h">4h</a><b style="color:#e9e9ed;font-weight:500">§E</b> &nbsp;Waiting — leavable, because it is a network round trip. The result arrives as a toast</div>
+<div class="dv-card" data-screen-label="Scanner — waiting" style="width:402px;height:874px;display:flex;flex-direction:column;padding:22px 20px 0;background:#161826;overflow:hidden;">
+<div style="min-height:56px;display:flex;align-items:center;gap:12px;flex:none"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" style="flex:none"><path d="M5 5l12 12M17 5L5 17" stroke="#e9e9ed" stroke-width="1.8" stroke-linecap="round"/></svg><div style="font:400 19px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed;flex:1">Scan a menu</div></div>
+<div style="flex:1;margin:8px 0 0;border-radius:14px;background:#1c1e2c;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px">
+<div style="position:absolute;left:40px;top:70px;right:40px;display:flex;flex-direction:column;gap:13px;opacity:0.18"><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:13px;width:143px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:117px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:156px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:13px;width:97.5px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:130px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:110.5px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:13px;width:149.5px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:104px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:11px;width:136.5px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div><div style="display:flex;align-items:center;justify-content:space-between;gap:16px"><div style="height:13px;width:123.5px;border-radius:3px;background:#3f424d"></div><div style="height:11px;width:34px;border-radius:3px;background:#383a46"></div></div></div>
+<div style="position:relative;width:52px;height:52px;border-radius:50%;box-shadow:0 0 0 2px #292b31;display:flex;align-items:center;justify-content:center">
+<svg width="52" height="52" viewBox="0 0 52 52" fill="none" style="position:absolute;left:0;top:0"><path d="M26 2a24 24 0 0 1 24 24" stroke="#9184d9" stroke-width="2" stroke-linecap="round"/></svg>
+</div>
+<div style="position:relative;font:500 24px/1.2 Inter,system-ui,sans-serif;letter-spacing:-.015em;color:#e9e9ed;margin-top:20px">Reading the menu</div>
+<div style="position:relative;max-width:280px;text-align:center;margin-top:8px"><div style="font:400 17px/1.4 Inter,system-ui,sans-serif;color:#b2b6ca">Five to ten seconds, usually. Longer on a big menu.</div></div>
+</div>
+<div style="padding:14px 0 0;flex:none">
+<div style="min-height:64px;margin:0;border:1px solid #9184d9;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;font:500 22px/1 Inter,system-ui,sans-serif;color:#b5abfc">Keep planning</div>
+<div style="margin-top:10px;text-align:center"><div style="font:400 17px/1.4 Inter,system-ui,sans-serif;color:#b2b6ca">We will tell you when it is read — nothing here needs watching.</div></div>
+<div style="min-height:56px;margin:6px 0 0;display:flex;align-items:center;justify-content:center;font:400 19px/1 Inter,system-ui,sans-serif;color:#b2b6ca">Cancel the read</div>
+</div>
+</div></div>
+<script>
+/* 4h — §E Menu scanner, waiting · copy and formatting rules */
+const SCAN_WAIT_COPY = {
+  title: "Reading the menu",
+  estimate: "Five to ten seconds, usually. Longer on a big menu.",
+  leave: "Keep planning",                 // the 64px primary — waiting is not a wall
+  reassure: "We will tell you when it is read — nothing here needs watching.",
+  cancel: "Cancel the read",
+  doneToast: n => n + " drinks read — check them",     // 1m toast, action "Check"
+  slowNote: "Still going. Big menus take a while.",    // replaces estimate after 20s
+};
+/* MOTION: the arc is a 90° stroke on a 52px ring, one rotation every 1.8s, linear,
+   no pulse and no easing bounce. It is the only moving thing on the screen.
+   Do NOT block the app while parsing. The request continues in the background; the
+   result lands as a toast on whatever screen the user is on. If they are still here
+   when it lands, go straight to 4i. Timeout at 45s → 4j. */
+
+</script>

@@ -1,0 +1,64 @@
+<!-- DrinkSmart design reference — 5d  (Meter states — over target)
+     Markup extracted from the design prototype. NOT production code.
+     Device frame is 402 x 874, drawn at 1x; PNG is 2x. All styling is inline and literal.
+     Copy and formatting rules are in the trailing <script> block — read it.
+-->
+<div class="dv-opt" id="5d"><div class="dv-olabel" style="max-width:402px"><a class="dv-oid" href="#5d">5d</a><b style="color:#e9e9ed;font-weight:500">Meter states</b> &nbsp;The fill never rises above full; only the shade changes. Red is the one place <code>no red</code> is overridden — and the only place a line of guidance appears</div>
+<div class="dv-card" data-screen-label="Meter — over target" style="width:402px;height:874px;display:flex;flex-direction:column;padding:22px 20px 20px;background:#161826;overflow:hidden;gap:14px">
+<div style="flex:none"><div style="font:500 15px/1.2 Inter,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b2b6ca">Tray meter · over target</div><div style="font:400 19px/1.4 Inter,system-ui,sans-serif;color:#b2b6ca;margin-top:8px;text-wrap:pretty">Full is full. Past the target the vessel holds its height and changes shade only.</div></div>
+
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#9184d9"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">101 of 98 ml</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+3% · unchanged accent</div></div>
+</div>
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#d3bd72"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">105 of 98 ml</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+7% · yellow · #d3bd72</div></div>
+</div>
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#d29a51"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">110 of 98 ml</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+12% · orange · #d29a51 (the existing --warning)</div></div>
+</div>
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#c8605e"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">116 of 98 ml</div><div style="font:400 17px/1.4 Inter,system-ui,sans-serif;color:#cfd3e5;margin-top:5px">This is a Loose night, on Social's target.</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+18% · red · #c8605e · one line, only here</div></div>
+</div>
+<div style="background:#1c1e2c;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:88px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #3f424d;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden"><div style="height:100%;background:#c8605e"></div></div>
+<div style="flex:1"><div style="font:500 22px/1.1 Inter,system-ui,sans-serif;color:#e9e9ed;font-variant-numeric:tabular-nums">142 of 120 ml</div><div style="font:400 13px/1.35 Inter,system-ui,sans-serif;color:#75798c;margin-top:4px;font-variant-numeric:tabular-nums">+18% on Heavy · same red, no line — nothing sits above Heavy</div></div>
+</div>
+<div style="border-radius:14px;padding:12px 16px;box-shadow:0 0 0 1px #292b31;display:flex;align-items:center;gap:14px;min-height:80px">
+<div style="width:26px;height:60px;flex:none;border-radius:7px;box-shadow:0 0 0 1px #292b31;background:#161826;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;opacity:.45"><div style="height:100%;background:#c8605e"></div></div>
+<div style="flex:1"><div style="font:400 19px/1.35 Inter,system-ui,sans-serif;color:#75798c;text-wrap:pretty">Above +20% has no state. Selection is bounded there, so the meter never has to draw it.</div></div>
+</div>
+</div>
+</div></div>
+<script>
+/* 5d — tray meter over target · shades and the one line of guidance */
+const OVER_TARGET = [
+  { over: [0.00, 0.05], fill: "#9184d9", name: "unchanged accent" },
+  { over: [0.05, 0.10], fill: "#d3bd72", name: "yellow" },
+  { over: [0.10, 0.15], fill: "#d29a51", name: "orange" },
+  { over: [0.15, 0.20], fill: "#c8605e", name: "red", advise: true },
+  // above +20%: unreachable. Selection is bounded there; the meter has no state for it.
+];
+const shadeFor = ratio => OVER_TARGET.find(b => ratio >= b.over[0] && ratio < b.over[1]) || OVER_TARGET[0];
+const BAND_ORDER = ["Light", "Social", "Loose", "Heavy"];
+const adviseLine = (planBand, suggestBand) =>
+  BAND_ORDER.indexOf(planBand) === BAND_ORDER.length - 1
+    ? null                                           // Heavy: nothing above it, nothing is said
+    : "This is a " + suggestBand + " night, on " + planBand + "'s target.";
+/* GEOMETRY DOES NOT CHANGE PAST FULL.
+   height stays 100%, the vessel keeps its 26 x 60 box, 7px radius and 1px #3f424d edge.
+   Only the fill colour changes. The meter never grows, the fill never rises above full,
+   and no overflow mark, cap, arrow or second segment is drawn.
+   The reading stays "116 of 98 ml" — the true figure, tabular, never clamped and never
+   prefixed with "over".
+
+   THE LINE (red band only, 17px #cfd3e5, directly beneath the reading, inside the tray).
+   It names the band this night actually is and the band whose target it is, and it stops
+   there: it does not tell the user to drink less, does not praise a decision, and does
+   not block the selection. It is absent for Heavy — and absent in every shade below red.
+   Raising the band from that line is the user's move, made where bands are chosen (1n). */
+</script>
