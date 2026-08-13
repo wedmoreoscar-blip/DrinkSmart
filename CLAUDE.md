@@ -26,12 +26,13 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
   were all one root cause: `preferences` and `drinks` cast to `Record<string, unknown>` where the
   generated Supabase client expects `Json`, mistyping every write to `profiles` and `user_sessions`.
   Fixed 2026-08-08.
-- `npm run lint` — **fails with 10 errors and 11 warnings** in pre-existing application files. This
-  is the known baseline; it must not get worse. Do not report the quick verification profile as
-  passing.
-- `npm run build` — **PASSES** (~16–26s).
+- `npm run lint` — **fails with exactly `20 problems (10 errors, 10 warnings)`** in pre-existing
+  application files (re-derived 2026-08-13 on `b6c3768`). This is the known baseline; it must not
+  get worse. Do not report the quick verification profile as passing. The warning count dropped from
+  11 to 10 during Wave 4, removed by that wave's own changes.
+- `npm run build` — **PASSES** (~18–26s).
 - `*.tsbuildinfo` is gitignored; `tsc -b` emits it.
-- `npm test` (Vitest) — **PASSES, 119 tests across 11 files** (2026-08-12; was 93). Covers the
+- `npm test` (Vitest) — **PASSES, 128 tests across 14 files** (2026-08-13; was 119/11, was 93). Covers the
   planner contracts (W3-A1), the deterministic session engine in `src/lib/sessionEngine.ts`
   (W3-A2), and Wave 4's `4o` keypad primitive and onboarding preference families. Note that Vitest
   transforms with esbuild and does **not** typecheck: a green suite says nothing about types, so

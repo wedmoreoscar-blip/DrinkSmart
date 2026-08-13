@@ -107,16 +107,25 @@ authorization to begin.
 ### Agent naming and access
 
 **Luna agents are indexed from 0.** The first and primary agent is **Luna-0** — in this repository
-`drinksmart_luna_0`, with further agents `drinksmart_luna_1`, `drinksmart_luna_2`, and so on.
-(Earlier revisions of this file called the primary agent "Luna-1" and counted from one; that
-numbering is withdrawn.)
+**`visual_luna_0`**, in `visual_check_worktree` on `visual_check_branch`, with further agents
+`visual_luna_1`, `visual_luna_2`, and so on. (Earlier revisions of this file called the primary
+agent "Luna-1" and counted from one; that numbering is withdrawn.)
 
-**An agent's name states the repository it works in, and that binding is absolute.** Every agent is
-named for its repository, so `drinksmart_*` agents do work in DrinkSmart and nothing else, exactly
-as `gitvis_*` agents do work in `git_visual_system` and nothing else. This holds whatever dispatches
-them — it is a property of the agent, not of whoever is orchestrating at the time.
+**Corrected 2026-08-13.** This file previously named the primary agent `drinksmart_luna_0`, which
+has never existed. The warm agent is `visual_luna_0` and Traycer offers no rename — `traycer agent
+configure` switches harness, model, profile and permission mode only — so renaming would mean
+destroying a warm agent to re-create it, which the keep-everything-warm rule forbids. The
+divergence is recorded here rather than repaired in the roster. **Use the names that exist, not the
+ones a convention implies.**
 
-Names repeat across repositories — `drinksmart_luna_0` and `gitvis_luna_0` share the bare suffix
+**An agent's name states the repository it works in, and that binding is absolute.** Every agent
+belongs to exactly one repository — `drinksmart_*` and `visual_luna_*` agents do work in DrinkSmart
+and nothing else, exactly as `gitvis_*` agents do work in `git_visual_system` and nothing else. This
+holds whatever dispatches them: it is a property of the agent, not of whoever is orchestrating at
+the time. `visual_luna_0` is bound to DrinkSmart by its worktree, which is what the binding actually
+rests on; its name simply fails to advertise it.
+
+Names repeat across repositories — `visual_luna_0` and `gitvis_luna_0` share the bare suffix
 `luna_0` — so **match on the full name or the id, never on the suffix.**
 
 ### Blind is the usual case, not a requirement
