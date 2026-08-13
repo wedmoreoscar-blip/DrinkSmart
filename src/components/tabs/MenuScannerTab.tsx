@@ -16,6 +16,10 @@ import { ScannerReview, type ReviewField } from "@/components/scanner/ScannerRev
 import { ScannerFailed } from "@/components/scanner/ScannerFailed";
 import { SCAN_WAIT_COPY } from "@/components/scanner/copy";
 import type { ParsedDrink, PhotoItem, ScanFailure } from "@/components/scanner/types";
+import {
+  classifyScanError,
+  toEstablishmentDrinkInsert,
+} from "@/components/scanner/scanner-model";
 
 type ScannerScreen = "capture" | "waiting" | "review" | "failed";
 
@@ -28,11 +32,22 @@ type ParseMenuResponse = {
 type MenuScannerTabProps = {
   onNext: () => void;
   onClose?: () => void;
+  onLeave?: () => void;
+  onReviewReady?: () => void;
+  onSaved?: (establishmentId: string) => void;
+  onTaskChange?: (task: "parsing" | "ready" | "failed") => void;
 };
 
 const VENUE_NAME_FALLBACK = "Scanned menu";
 
-const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
+const MenuScannerTab = ({
+  onNext,
+  onClose,
+  onLeave,
+  onReviewReady,
+  onSaved,
+  onTaskChange,
+}: MenuScannerTabProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addSessionEstablishment, refetch, isLoggedIn } = useEstablishments();
@@ -45,34 +60,41 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
   const [isSaving, setIsSaving] = useState(false);
 
   const screenRef = useRef<ScannerScreen>("capture");
-  useEffect(() => {
-    screenRef.current = screen;
-  }, [screen]);
   const scanIdRef = useRef(0);
+  const timerRef = useRef<number | null>(null);
+
+  const showScreen = useCallback((next: ScannerScreen) => {
+    screenRef.current = next;
+    setScreen(next);
+  }, []);
+
+  useEffect(
+    () => () => {
+      scanIdRef.current += 1;
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
   const handleClose = () => {
     if (onClose) onClose();
     else onNext();
   };
 
-  const classifyError = (err: unknown): ScanFailure => {
-    if (typeof navigator !== "undefined" && navigator.onLine === false) return "offline";
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/network|offline|failed to fetch/i.test(msg)) return "offline";
-    return "refused";
-  };
-
   const startParse = useCallback(
     (photoItem: PhotoItem) => {
       const id = ++scanIdRef.current;
-      setScreen("waiting");
+      showScreen("waiting");
+      onTaskChange?.("parsing");
 
       const timer = window.setTimeout(() => {
         if (scanIdRef.current === id && screenRef.current === "waiting") {
           setFailure("timeout");
-          setScreen("failed");
+          showScreen("failed");
+          onTaskChange?.("failed");
         }
       }, 45000);
+      timerRef.current = timer;
 
       void supabase.functions
         .invoke<ParseMenuResponse>("parse-menu", {
@@ -89,17 +111,25 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
           if (drinks.length === 0) {
             if (screenRef.current === "waiting") {
               setFailure("nothing");
-              setScreen("failed");
+              showScreen("failed");
+              onTaskChange?.("failed");
             }
             return;
           }
           setParsedDrinks(drinks);
           if (data?.suggestedName) setEstablishmentName(data.suggestedName);
-          if (screenRef.current === "waiting") setScreen("review");
+          if (screenRef.current === "waiting") showScreen("review");
+          onTaskChange?.("ready");
           toast({
             title: SCAN_WAIT_COPY.doneToast(drinks.length),
             action: (
-              <ToastAction altText="Check" onClick={() => setScreen("review")}>
+              <ToastAction
+                altText="Check"
+                onClick={() => {
+                  showScreen("review");
+                  onReviewReady?.();
+                }}
+              >
                 Check
               </ToastAction>
             ),
@@ -109,11 +139,14 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
           if (scanIdRef.current !== id) return;
           window.clearTimeout(timer);
           if (screenRef.current !== "waiting") return;
-          setFailure(classifyError(err));
-          setScreen("failed");
+          setFailure(
+            classifyScanError(err, typeof navigator === "undefined" ? true : navigator.onLine),
+          );
+          showScreen("failed");
+          onTaskChange?.("failed");
         });
     },
-    [toast],
+    [onReviewReady, onTaskChange, showScreen, toast],
   );
 
   const addPhoto = (base64: string, mimeType: string) => {
@@ -162,7 +195,6 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
           toast({
             title: "Error",
             description: `Failed to process ${file.name}`,
-            variant: "destructive",
           });
         }
       }
@@ -175,7 +207,7 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
   const handleCancel = () => {
     scanIdRef.current += 1;
     setPhoto(null);
-    setScreen("capture");
+    showScreen("capture");
   };
 
   const commitDrink = (index: number, key: ReviewField, value: number | null) => {
@@ -199,7 +231,6 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
       toast({
         title: "Invalid drinks",
         description: "All drinks must have a name",
-        variant: "destructive",
       });
       return;
     }
@@ -208,6 +239,7 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
     setIsSaving(true);
 
     try {
+      let savedEstablishmentId: string;
       if (isLoggedIn) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.id) throw new Error("Not authenticated");
@@ -223,28 +255,21 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
         const { error: drinksError } = await supabase
           .from("establishment_drinks")
           .insert(
-            parsedDrinks.map((drink) => ({
-              establishment_id: estData.id,
-              drink_name: drink.name.trim(),
-              abv: drink.abv as number,
-              category: drink.category,
-              category_label: drink.categoryLabel,
-              price: drink.price,
-              volume: drink.volume,
-              volume_unit: drink.volumeUnit,
-              user_id: session.user.id,
-            })),
+            parsedDrinks.map((drink) =>
+              toEstablishmentDrinkInsert(drink, estData.id, session.user.id),
+            ),
           );
 
         if (drinksError) throw drinksError;
 
         await refetch();
+        savedEstablishmentId = estData.id;
       } else {
-        addSessionEstablishment(
+        savedEstablishmentId = addSessionEstablishment(
           venueName,
           parsedDrinks.map((drink) => ({
             drink_name: drink.name.trim(),
-            abv: drink.abv as number,
+            abv: drink.abv,
             category: drink.category,
             category_label: drink.categoryLabel,
             price: drink.price,
@@ -254,13 +279,13 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
         );
       }
 
+      onSaved?.(savedEstablishmentId);
       onNext();
     } catch (error) {
       console.error("Error saving establishment:", error);
       toast({
         title: "Save failed",
         description: error instanceof Error ? error.message : "Failed to save menu",
-        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
@@ -279,7 +304,7 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
         <ScannerCapture onShutter={handleShutter} onPick={handlePick} onClose={handleClose} />
       )}
       {screen === "waiting" && (
-        <ScannerWaiting onLeave={onNext} onCancel={handleCancel} onClose={handleClose} />
+        <ScannerWaiting onLeave={onLeave ?? onNext} onCancel={handleCancel} onClose={handleClose} />
       )}
       {screen === "review" && (
         <ScannerReview
@@ -288,6 +313,7 @@ const MenuScannerTab = ({ onNext, onClose }: MenuScannerTabProps) => {
           onCommit={commitDrink}
           onSave={handleSave}
           onClose={handleClose}
+          isSaving={isSaving}
         />
       )}
       {screen === "failed" && photo && (

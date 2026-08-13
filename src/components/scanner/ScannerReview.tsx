@@ -3,10 +3,16 @@ import { Button } from "@/components/ui/button";
 import { KeypadFieldGroup, type KeypadField } from "@/components/ui/keypad-field-group";
 
 import { SCAN_REVIEW_COPY } from "./copy";
+import {
+  countDrinkGaps,
+  nextGapTarget,
+  orderDrinkIndices,
+  type ReviewField,
+} from "./scanner-model";
 import { ScannerHeader } from "./ScannerHeader";
 import type { ParsedDrink } from "./types";
 
-export type ReviewField = "abv" | "serve" | "price";
+export type { ReviewField } from "./scanner-model";
 
 export type ScannerReviewProps = {
   drinks: ParsedDrink[];
@@ -14,11 +20,10 @@ export type ScannerReviewProps = {
   onCommit: (index: number, key: ReviewField, value: number | null) => void;
   onSave: () => void;
   onClose: () => void;
+  isSaving?: boolean;
 };
 
 const money = (p: number) => (p === 0 ? "£0" : "£" + p.toFixed(2).replace(/\.00$/, ""));
-
-const hasGap = (d: ParsedDrink) => d.abv == null || d.volume == null || d.price == null;
 
 const gapReason = (d: ParsedDrink) => {
   if (d.abv == null) return SCAN_REVIEW_COPY.reasons.abv;
@@ -32,23 +37,27 @@ const fieldsFor = (d: ParsedDrink): KeypadField[] => [
   { key: "price", unit: "£", value: d.price },
 ];
 
-export const ScannerReview = ({ drinks, venueName, onCommit, onSave, onClose }: ScannerReviewProps) => {
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+export const ScannerReview = ({
+  drinks,
+  venueName,
+  onCommit,
+  onSave,
+  onClose,
+  isSaving = false,
+}: ScannerReviewProps) => {
+  const [editingTarget, setEditingTarget] = useState<{ index: number; field: ReviewField } | null>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const gapCount = drinks.reduce(
-    (n, d) => n + (d.abv == null ? 1 : 0) + (d.volume == null ? 1 : 0) + (d.price == null ? 1 : 0),
-    0,
-  );
-
-  const gapped = drinks.reduce<number[]>((acc, d, i) => {
-    if (hasGap(d) || editingIndex === i) acc.push(i);
-    return acc;
-  }, []);
-  const clean = drinks.reduce<number[]>((acc, d, i) => {
-    if (!hasGap(d) && editingIndex !== i) acc.push(i);
-    return acc;
-  }, []);
+  const gapCount = countDrinkGaps(drinks);
+  const ordered = orderDrinkIndices(drinks);
+  const editingIndex = editingTarget?.index ?? null;
+  const gapped = ordered.gapped.includes(editingIndex ?? -1)
+    ? ordered.gapped
+    : editingIndex == null
+      ? ordered.gapped
+      : [...ordered.gapped, editingIndex];
+  const clean = ordered.clean.filter((index) => index !== editingIndex);
 
   useEffect(() => {
     if (editingIndex !== null) {
@@ -57,13 +66,16 @@ export const ScannerReview = ({ drinks, venueName, onCommit, onSave, onClose }: 
   }, [editingIndex]);
 
   const commit = (index: number, key: ReviewField, value: number | null) => {
-    setEditingIndex(index);
+    setEditingTarget({ index, field: key });
     onCommit(index, key, value);
   };
 
   const advanceFrom = (index: number) => {
-    const next = drinks.findIndex((d, i) => i > index && hasGap(d));
-    setEditingIndex(next === -1 ? null : next);
+    // onAdvance only fires once this drink's own group has no gap left, so scanning
+    // from its last field lands on the first remaining gap in a later drink.
+    const next = nextGapTarget(drinks, { drinkIndex: index, field: "price" });
+    setEditingTarget(next === null ? null : { index: next.drinkIndex, field: next.field });
+    if (next !== null) setFocusRequest((request) => request + 1);
   };
 
   return (
@@ -89,6 +101,8 @@ export const ScannerReview = ({ drinks, venueName, onCommit, onSave, onClose }: 
                   onCommit={(key, value) => commit(index, key as ReviewField, value)}
                   onAdvance={() => advanceFrom(index)}
                   emptyIsAllowed
+                  focusKey={editingTarget?.index === index ? editingTarget.field : null}
+                  focusRequest={focusRequest}
                   title={drinks[index].name}
                   note={gapReason(drinks[index])}
                 />
@@ -109,7 +123,10 @@ export const ScannerReview = ({ drinks, venueName, onCommit, onSave, onClose }: 
                 <button
                   key={index}
                   type="button"
-                  onClick={() => setEditingIndex(index)}
+                  onClick={() => {
+                    setEditingTarget({ index, field: "abv" });
+                    setFocusRequest((request) => request + 1);
+                  }}
                   className="flex min-h-tap w-full items-center justify-between gap-3 text-left"
                 >
                   <span className="flex-1 truncate text-body text-foreground">{drink.name}</span>
@@ -126,7 +143,7 @@ export const ScannerReview = ({ drinks, venueName, onCommit, onSave, onClose }: 
         )}
       </div>
       <div className="flex-none pt-3">
-        <Button size="act" className="w-full" onClick={onSave}>
+        <Button size="act" className="w-full" onClick={onSave} disabled={isSaving}>
           {SCAN_REVIEW_COPY.cta(drinks.length, venueName)}
         </Button>
         <p className="mt-2.5 text-center text-micro text-[#75798c]">{SCAN_REVIEW_COPY.footnote}</p>

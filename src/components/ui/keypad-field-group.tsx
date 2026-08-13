@@ -17,6 +17,9 @@ export type KeypadFieldGroupProps = {
   emptyIsAllowed?: boolean; // 4i saves with gaps left; 4f does not
   title?: string; // group card heading, e.g. "Camden Hells"
   note?: string; // 13px right-aligned status, e.g. "price unread"
+  focusKey?: string | null;
+  focusRequest?: number;
+  fieldLayout?: "row" | "custom-drink";
   className?: string;
 };
 
@@ -34,10 +37,14 @@ export function KeypadFieldGroup({
   onAdvance,
   title,
   note,
+  focusKey,
+  focusRequest,
+  fieldLayout = "row",
   className,
 }: KeypadFieldGroupProps) {
   const [focusedKey, setFocusedKey] = React.useState<string | null>(null);
   const [working, setWorking] = React.useState<Record<string, string>>({});
+  const fieldRefs = React.useRef<Record<string, HTMLButtonElement | null>>({});
 
   const focusedField = fields.find((field) => field.key === focusedKey) ?? null;
   const gapsLeft = fields.reduce((count, field) => count + (field.value === null ? 1 : 0), 0);
@@ -68,6 +75,16 @@ export function KeypadFieldGroup({
         : { ...current, [field.key]: field.value === null ? "" : String(field.value) },
     );
   };
+
+  React.useEffect(() => {
+    if (!focusKey) return;
+    const field = fields.find((candidate) => candidate.key === focusKey);
+    if (!field) return;
+    focusField(field);
+    fieldRefs.current[field.key]?.focus();
+    // focusRequest deliberately retriggers focus for the same key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey, focusRequest]);
 
   const pressKey = (key: string) => {
     const field = focusedField;
@@ -111,7 +128,7 @@ export function KeypadFieldGroup({
           {note ? <div className="text-micro text-[#75798c]">{note}</div> : null}
         </div>
       )}
-      <div className="mt-3 flex gap-2">
+      <div className={cn("mt-3 gap-2", fieldLayout === "custom-drink" ? "grid grid-cols-2" : "flex")}>
         {fields.map((field) => {
           const focused = focusedKey === field.key;
           const valueText = focused
@@ -122,6 +139,9 @@ export function KeypadFieldGroup({
           return (
             <button
               key={field.key}
+              ref={(element) => {
+                fieldRefs.current[field.key] = element;
+              }}
               type="button"
               aria-label={`${field.key} ${field.unit}`}
               aria-current={focused ? "true" : undefined}
@@ -129,6 +149,7 @@ export function KeypadFieldGroup({
               onClick={() => focusField(field)}
               className={cn(
                 "flex min-h-tap flex-1 items-center justify-center gap-px rounded-ctl bg-field text-body tabular-nums",
+                fieldLayout === "custom-drink" && field.key === "price" && "col-span-2",
                 focused
                   ? "shadow-[0_0_0_2px_#9184d9]"
                   : field.value === null
@@ -144,9 +165,15 @@ export function KeypadFieldGroup({
           );
         })}
       </div>
-      <div className="mt-1.5 flex gap-2">
+      <div className={cn("mt-1.5 gap-2", fieldLayout === "custom-drink" ? "grid grid-cols-2" : "flex")}>
         {fields.map((field) => (
-          <div key={field.key} className="flex-1 text-center text-micro text-[#75798c]">
+          <div
+            key={field.key}
+            className={cn(
+              "flex-1 text-center text-micro text-[#75798c]",
+              fieldLayout === "custom-drink" && field.key === "price" && "col-span-2",
+            )}
+          >
             {field.unit}
           </div>
         ))}

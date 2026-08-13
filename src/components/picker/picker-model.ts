@@ -24,6 +24,9 @@ export const perUnitVolumeMl = (drink: EstablishmentDrink, portion: Portion): nu
   return drink.volume ?? 330;
 };
 
+export const pureAlcoholMl = (drink: EstablishmentDrink, portion: Portion = "pint"): number =>
+  (perUnitVolumeMl(drink, portion) * (drink.abv ?? 0)) / 100;
+
 export const portionWord = (drink: EstablishmentDrink, portion: Portion): string => {
   const unit = volumeUnit(drink);
   if (unit.includes("pint")) return portion;

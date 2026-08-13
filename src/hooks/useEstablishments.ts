@@ -13,7 +13,7 @@ export type EstablishmentDrink = {
   id: string;
   establishment_id: string;
   drink_name: string;
-  abv: number;
+  abv: number | null;
   category: string;
   category_label: string;
   price: number | null;
@@ -111,8 +111,8 @@ export const useEstablishments = () => {
       const sessionDrinks = session.drinks.filter(
         (d) => d.establishment_id === establishmentId
       );
-      if (sessionDrinks.length > 0) return sessionDrinks;
-      return db.drinks.filter((d) => d.establishment_id === establishmentId);
+      const databaseDrinks = db.drinks.filter((d) => d.establishment_id === establishmentId);
+      return [...databaseDrinks, ...sessionDrinks];
     },
     [db.drinks, session.drinks]
   );
@@ -163,6 +163,35 @@ export const useEstablishments = () => {
     queryClient.setQueryData<SessionData>(sessionEstablishmentsKey, emptySession);
   }, [queryClient]);
 
+  const addEstablishmentDrink = useCallback(
+    async (
+      establishmentId: string,
+      drink: Omit<EstablishmentDrink, "id" | "establishment_id">,
+    ): Promise<void> => {
+      if (userId) {
+        const { error } = await supabase.from("establishment_drinks").insert({
+          ...drink,
+          establishment_id: establishmentId,
+          user_id: userId,
+        });
+        if (error) throw error;
+        await dbQuery.refetch();
+        return;
+      }
+
+      const sessionDrink: EstablishmentDrink = {
+        ...drink,
+        id: `session-drink-${Date.now()}`,
+        establishment_id: establishmentId,
+      };
+      queryClient.setQueryData<SessionData>(sessionEstablishmentsKey, (old) => ({
+        establishments: old?.establishments ?? [],
+        drinks: [...(old?.drinks ?? []), sessionDrink],
+      }));
+    },
+    [dbQuery, queryClient, userId],
+  );
+
   const getAllSearchableDrinks = useCallback(() => {
     const dbDrinks = db.drinks.map((d) => ({
       name: d.drink_name,
@@ -209,6 +238,7 @@ export const useEstablishments = () => {
     getUserEstablishments,
     sessionEstablishments: session.establishments,
     addSessionEstablishment,
+    addEstablishmentDrink,
     clearSessionEstablishments,
     getAllSearchableDrinks,
     refetch,

@@ -6,6 +6,7 @@ import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { CATEGORY_COPY } from "./picker-copy";
 import type { Portion } from "./picker-model";
 import { DrinkRow } from "./DrinkRow";
+import { pureAlcoholMl } from "./picker-model";
 
 type CategoryScreenProps = {
   categoryLabel: string;
@@ -43,12 +44,15 @@ export const CategoryScreen = ({
   const abvActive = filters.abvRange.min > 0 || filters.abvRange.max < 100;
 
   const visibleDrinks = useMemo(() => {
-    const filtered = drinks.filter(
-      (d) => d.abv >= filters.abvRange.min && d.abv <= filters.abvRange.max,
+    const abvActive = filters.abvRange.min > 0 || filters.abvRange.max < 100;
+    const filtered = drinks.filter((d) =>
+      d.abv == null
+        ? !abvActive
+        : d.abv >= filters.abvRange.min && d.abv <= filters.abvRange.max,
     );
     const sorted = [...filtered];
-    if (sort === CATEGORY_COPY.sort[1]) sorted.sort((a, b) => b.abv - a.abv);
-    else if (sort === CATEGORY_COPY.sort[2]) sorted.sort((a, b) => a.abv - b.abv);
+    if (sort === CATEGORY_COPY.sort[1]) sorted.sort((a, b) => (b.abv ?? -1) - (a.abv ?? -1));
+    else if (sort === CATEGORY_COPY.sort[2]) sorted.sort((a, b) => pureAlcoholMl(a) - pureAlcoholMl(b));
     else sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
     return sorted;
   }, [drinks, filters.abvRange, sort]);

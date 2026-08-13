@@ -14,10 +14,10 @@ export const PICKER_COPY = {
 };
 
 export const CATEGORY_COPY = {
-  rowSub: (abv: number, portion: string, ml: number) =>
-    abv.toFixed(1) + "% · " + portion + " · " + ml.toFixed(1) + " ml each",
-  rowSubSingle: (abv: number, portion: string, ml: number) =>
-    abv.toFixed(1) + "% · " + portion + " · " + ml.toFixed(1) + " ml",
+  rowSub: (abv: number | null, portion: string, ml: number) =>
+    (abv == null ? "—" : abv.toFixed(1)) + "% · " + portion + " · " + ml.toFixed(1) + " ml each",
+  rowSubSingle: (abv: number | null, portion: string, ml: number) =>
+    (abv == null ? "—" : abv.toFixed(1)) + "% · " + portion + " · " + ml.toFixed(1) + " ml",
   priceTotal: (p: number, n: number) => money(p * n),
   priceUnit: (p: number, n: number) => n + " × " + money(p),
   selectedSummary: (n: number, portion: string, ml: number) =>

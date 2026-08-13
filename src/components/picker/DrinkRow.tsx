@@ -1,6 +1,6 @@
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { CATEGORY_COPY, fmtMl, money } from "./picker-copy";
-import { isPintDrink, perUnitVolumeMl, portionWord, type Portion } from "./picker-model";
+import { isPintDrink, perUnitVolumeMl, portionWord, pureAlcoholMl, type Portion } from "./picker-model";
 
 type DrinkRowProps = {
   drink: EstablishmentDrink;
@@ -24,7 +24,7 @@ export const DrinkRow = ({
   const pint = isPintDrink(drink);
   const word = portionWord(drink, portion);
   const perUnitMl = perUnitVolumeMl(drink, portion);
-  const perUnitPureMl = (perUnitMl * drink.abv) / 100;
+  const perUnitPureMl = pureAlcoholMl(drink, portion);
   const totalPureMl = perUnitPureMl * quantity;
 
   const sub =

@@ -16,7 +16,7 @@ export type Database = {
     Tables: {
       establishment_drinks: {
         Row: {
-          abv: number
+          abv: number | null
           category: string
           category_label: string
           created_at: string
@@ -29,7 +29,7 @@ export type Database = {
           volume_unit: string | null
         }
         Insert: {
-          abv: number
+          abv?: number | null
           category: string
           category_label: string
           created_at?: string
@@ -42,7 +42,7 @@ export type Database = {
           volume_unit?: string | null
         }
         Update: {
-          abv?: number
+          abv?: number | null
           category?: string
           category_label?: string
           created_at?: string

@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 export interface VesselMeterProps {
   targetMl: number;
   entries: { label: string; ml: number }[];
+  pendingMl?: number;
+  variant?: "full" | "tray";
   className?: string;
 }
 
@@ -19,8 +21,44 @@ type MeterLabel = {
   priority: number;
 };
 
-export const VesselMeter = ({ targetMl, entries, className }: VesselMeterProps) => {
+export const VesselMeter = ({
+  targetMl,
+  entries,
+  pendingMl = 0,
+  variant = "full",
+  className,
+}: VesselMeterProps) => {
   const plannedMl = entries.reduce((total, entry) => total + entry.ml, 0);
+  if (variant === "tray") {
+    const committedPct = targetMl > 0 ? Math.min(100, (plannedMl / targetMl) * 100) : 0;
+    const pendingPct =
+      targetMl > 0 ? Math.min(100 - committedPct, (Math.max(0, pendingMl) / targetMl) * 100) : 0;
+
+    return (
+      <div
+        data-vessel-meter="tray"
+        className={cn(
+          "relative h-[60px] w-[26px] flex-none overflow-hidden rounded-[7px] bg-[#161826] shadow-[0_0_0_1px_#3f424d]",
+          className,
+        )}
+      >
+        <div
+          className="absolute inset-x-0 bottom-0 bg-primary"
+          style={{ height: `${committedPct}%`, transition: "var(--transition-liquid)" }}
+        />
+        {pendingPct > 0 && (
+          <div
+            className="absolute inset-x-0 border-t border-primary bg-[rgba(145,132,217,.22)]"
+            style={{
+              bottom: `${committedPct}%`,
+              height: `${pendingPct}%`,
+              transition: "var(--transition-liquid)",
+            }}
+          />
+        )}
+      </div>
+    );
+  }
   const pxPerMl = targetMl > 0 ? TARGET_LINE_BOTTOM / targetMl : 0;
   const onTargetFillHeight = Math.min(VESSEL_HEIGHT, Math.min(plannedMl, targetMl) * pxPerMl);
   const overMl = Math.max(0, plannedMl - targetMl);

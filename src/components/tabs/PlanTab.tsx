@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppContext } from "@/contexts/AppContext";
 import { useUserMetrics } from "@/hooks/useUserMetrics";
 import { useLastSession } from "@/hooks/useLastSession";
 import { useToast } from "@/hooks/use-toast";
-import { History, Loader2, Minus, Plus, RefreshCw, ScanLine } from "lucide-react";
+import { History, Loader2, Minus, Plus, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBACForLevel } from "@/data/buzzLevels";
 import { OZ_ML, PINT_ML, SHOT_ML } from "@/lib/drinkConstants";
@@ -20,6 +19,8 @@ import {
 } from "@/lib/planGenerationContracts";
 import DrinksTab from "./DrinksTab";
 import MenuScannerTab from "./MenuScannerTab";
+import { EstablishmentsScreen } from "@/components/establishments/EstablishmentsScreen";
+import { planFlowReducer } from "./plan-navigation";
 import {
   buildCatalog,
   computeTargetEthanolMl,
@@ -77,6 +78,7 @@ const BUZZ_BANDS: BuzzBand[] = [
 
 type PlanTabProps = {
   onPlanReady: () => void;
+  onFullScreenChange?: (fullScreen: boolean) => void;
 };
 
 function deriveDurationMinutes(start: Date | null, target: Date | null): number {
@@ -113,7 +115,7 @@ function bandRangeLabel(band: BuzzBand): string {
   return `${min.toFixed(2)}–${max.toFixed(2)}%`;
 }
 
-const PlanTab = ({ onPlanReady }: PlanTabProps) => {
+const PlanTab = ({ onPlanReady, onFullScreenChange }: PlanTabProps) => {
   const {
     state,
     updateInebriationLevel,
@@ -128,7 +130,16 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
   const [duration, setDuration] = useState<number>(() =>
     deriveDurationMinutes(state.drinkingStartTime, state.drinkingTargetTime)
   );
-  const [scannerOpen, setScannerOpen] = useState(false);
+  const [flow, dispatchFlow] = useReducer(planFlowReducer, {
+    screen: "picker",
+    selectedVenueId: null,
+    scannerTask: "idle",
+  });
+
+  useEffect(() => {
+    onFullScreenChange?.(flow.screen === "scanner");
+    return () => onFullScreenChange?.(false);
+  }, [flow.screen, onFullScreenChange]);
 
   // AI generation state
   const [cachedPlan, setCachedPlan] = useState<GeneratePlanResult | null>(null);
@@ -451,7 +462,8 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
     );
 
   return (
-    <div className="h-full px-5 pb-0 animate-in fade-in duration-500">
+    <>
+    <div className={cn("h-full px-5 pb-0 animate-in fade-in duration-500", flow.screen !== "picker" && "hidden")}>
       <div className="flex min-h-[calc(100%-14px)] flex-col pt-[22px]">
       {/* Use last night — only when a prior session is persisted */}
       {lastSession && lastSession.drinks.length > 0 && (
@@ -632,22 +644,6 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
             Regenerate
           </Button>
         )}
-        <Sheet open={scannerOpen} onOpenChange={setScannerOpen}>
-          <SheetTrigger asChild>
-            <Button size="lg" variant="outline" className="gap-2">
-              <ScanLine className="w-4 h-4" />
-              Scan menu
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>Scan a drinks menu</SheetTitle>
-            </SheetHeader>
-            <div className="mt-4">
-              <MenuScannerTab onNext={() => setScannerOpen(false)} />
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
 
       {genState === "error" && (
@@ -660,9 +656,34 @@ const PlanTab = ({ onPlanReady }: PlanTabProps) => {
 
       {/* Drink picker — keep existing DrinksTab embedded */}
       <div className="mt-6">
-        <DrinksTab onNext={onPlanReady} />
+        <DrinksTab
+          onNext={onPlanReady}
+          onOpenVenues={() => dispatchFlow({ type: "open-venues" })}
+          selectedVenueId={flow.selectedVenueId}
+        />
       </div>
     </div>
+    <div className={cn("h-full", flow.screen !== "establishments" && "hidden")}>
+      <EstablishmentsScreen
+        selectedId={flow.selectedVenueId}
+        onSelect={(id) => dispatchFlow({ type: "select-venue", id })}
+        onScanMenu={() => dispatchFlow({ type: "open-scanner" })}
+        onBack={() => dispatchFlow({ type: "keep-planning" })}
+      />
+    </div>
+    {(flow.screen === "scanner" || flow.scannerTask !== "idle") && (
+      <div className={cn("h-full", flow.screen !== "scanner" && "hidden")}>
+        <MenuScannerTab
+          onNext={() => dispatchFlow({ type: "finish-scanner" })}
+          onClose={() => dispatchFlow({ type: "back-to-venues" })}
+          onLeave={() => dispatchFlow({ type: "keep-planning" })}
+          onReviewReady={() => dispatchFlow({ type: "check-scan" })}
+          onSaved={(id) => dispatchFlow({ type: "select-venue", id })}
+          onTaskChange={(task) => dispatchFlow({ type: "scanner-task", task })}
+        />
+      </div>
+    )}
+    </>
   );
 };
 

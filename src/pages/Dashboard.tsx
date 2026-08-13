@@ -11,6 +11,7 @@ import { MetricsSync } from "@/components/MetricsSync";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("plan");
+  const [planFullScreen, setPlanFullScreen] = useState(false);
   const { isOnboarded, loading: metricsLoading, refetch } = useUserMetrics();
   const [onboardingClosed, setOnboardingClosed] = useState(false);
 
@@ -29,15 +30,21 @@ const Dashboard = () => {
             <Profile />
           </TabsContent>
 
-          <TabsContent value="plan" className="flex-1 overflow-y-auto">
-            <PlanTab onPlanReady={() => setActiveTab("timeline")} />
+          <TabsContent
+            value="plan"
+            className={planFullScreen ? "min-h-0 flex-1 overflow-hidden" : "flex-1 overflow-y-auto"}
+          >
+            <PlanTab
+              onPlanReady={() => setActiveTab("timeline")}
+              onFullScreenChange={setPlanFullScreen}
+            />
           </TabsContent>
 
           <TabsContent value="timeline" className="flex-1 overflow-y-auto">
             <TimelineTab onNext={() => setActiveTab("plan")} />
           </TabsContent>
 
-          <TabsList data-wind-down-tab-bar>
+          <TabsList data-wind-down-tab-bar className={planFullScreen ? "hidden" : undefined}>
             <TabsTrigger value="profile">
               <User className="h-[22px] w-[22px]" strokeWidth={1.6} />
               Profile

@@ -10,7 +10,7 @@ const corsHeaders = {
 
 interface ParsedDrink {
   name: string;
-  abv: number;
+  abv: number | null;
   category: string;
   categoryLabel: string;
   price: number | null;
@@ -37,14 +37,7 @@ const SYSTEM_PROMPT = `You are a menu parsing assistant. Extract alcoholic drink
 
 For each drink, extract:
 - name: The drink name exactly as shown
-- abv: Alcohol percentage (0-100). If not shown, use common defaults:
-  - Lager/Beer: 4-5%
-  - Ale/IPA: 5-7%
-  - Cider: 4-6%
-  - Wine: 12-14%
-  - Spirits: 40%
-  - Cocktails: 15-25%
-  - Shots: 40%
+- abv: Alcohol percentage (0-100). null if it is not visible; never guess a default.
 - category: One of: beer, lager, ale, ipa, stout, cider, wine, red-wine, white-wine, rose-wine, spirits, vodka, gin, rum, whiskey, tequila, brandy, cocktails, shots, soft-drinks
 - categoryLabel: Human-readable category (e.g., "Lager", "Red Wine", "Vodka", "Cocktails")
 - price: The numeric price without currency symbol (e.g., 5.50). null if not visible.
@@ -75,7 +68,7 @@ const EXTRACT_TOOL = {
             type: 'object',
             properties: {
               name: { type: 'string', description: 'Drink name' },
-              abv: { type: 'number', description: 'Alcohol percentage (0-100)' },
+              abv: { type: ['number', 'null'], description: 'Alcohol percentage (0-100), or null when unread' },
               category: { type: 'string', description: 'Category slug' },
               categoryLabel: { type: 'string', description: 'Human-readable category' },
               price: { type: ['number', 'null'], description: 'Price as a number' },

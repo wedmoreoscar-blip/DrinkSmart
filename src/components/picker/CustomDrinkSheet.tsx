@@ -99,10 +99,10 @@ export const CustomDrinkSheet = ({
             />
             {errors.name && <div className="mt-2 text-note text-warning">{errors.name}</div>}
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <Label>{CUSTOM_COPY.fields.abv}</Label>
             <Label>{CUSTOM_COPY.fields.serve}</Label>
-            <Label>{CUSTOM_COPY.fields.price}</Label>
+            <Label className="col-span-2">{CUSTOM_COPY.fields.price}</Label>
           </div>
           <KeypadFieldGroup
             fields={[
@@ -113,6 +113,7 @@ export const CustomDrinkSheet = ({
             onCommit={handleCommit}
             onAdvance={attemptAdd}
             emptyIsAllowed={false}
+            fieldLayout="custom-drink"
             className="bg-transparent px-0 pb-0 pt-0"
           />
           {(errors.abv || errors.serve) && (

@@ -3,7 +3,6 @@ import { useAppContext } from "@/contexts/AppContext";
 import type { AlcoholTimelineEntryInput } from "@/lib/sessionEngine";
 import { PINT_ML, OZ_ML, SHOT_ML } from "@/lib/drinkConstants";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
-import { useSavedDrinks } from "@/hooks/useSavedDrinks";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import type { DrinkFilters } from "@/components/DrinkFilterPopover";
 import { CategoryScreen } from "@/components/picker/CategoryScreen";
@@ -20,6 +19,7 @@ import {
 type DrinksTabProps = {
   onNext: () => void;
   onOpenVenues?: () => void;
+  selectedVenueId?: string | null;
 };
 
 type Selection = {
@@ -28,15 +28,16 @@ type Selection = {
   portion: Portion;
 };
 
-const DrinksTab = ({ onNext, onOpenVenues }: DrinksTabProps) => {
+const DrinksTab = ({ onNext, onOpenVenues, selectedVenueId }: DrinksTabProps) => {
   const { state, addUnplannedDrink } = useAppContext();
-  const { saveDrink } = useSavedDrinks();
   const {
+    establishments,
     getEstablishmentDrinks,
     getUserEstablishments,
     getGlobalEstablishments,
     sessionEstablishments,
     getAllSearchableDrinks,
+    addEstablishmentDrink,
   } = useEstablishments();
 
   const drinks = state.drinks;
@@ -52,11 +53,12 @@ const DrinksTab = ({ onNext, onOpenVenues }: DrinksTabProps) => {
 
   const venue = useMemo(
     () =>
+      establishments.find((establishment) => establishment.id === selectedVenueId) ??
       sessionEstablishments[0] ??
       getUserEstablishments()[0] ??
       getGlobalEstablishments()[0] ??
       null,
-    [sessionEstablishments, getUserEstablishments, getGlobalEstablishments],
+    [establishments, selectedVenueId, sessionEstablishments, getUserEstablishments, getGlobalEstablishments],
   );
 
   const venueDrinks = useMemo(
@@ -176,7 +178,7 @@ const DrinksTab = ({ onNext, onOpenVenues }: DrinksTabProps) => {
     : null;
   const pendingMl =
     selectedDrink && selected
-      ? ((perUnitVolumeMl(selectedDrink, selected.portion) * selected.quantity * selectedDrink.abv) / 100)
+      ? ((perUnitVolumeMl(selectedDrink, selected.portion) * selected.quantity * (selectedDrink.abv ?? 0)) / 100)
       : 0;
 
   const handleSelect = (drinkId: string) => {
@@ -189,7 +191,7 @@ const DrinksTab = ({ onNext, onOpenVenues }: DrinksTabProps) => {
       id: Date.now().toString(),
       category: selectedDrink.category,
       drink: selectedDrink.drink_name,
-      customABV: String(selectedDrink.abv),
+      customABV: selectedDrink.abv == null ? undefined : String(selectedDrink.abv),
       quantity: entryQuantity(selectedDrink, selected.quantity, selected.portion),
       unit: entryUnit(selectedDrink),
       pricePerUnit: selectedDrink.price,
@@ -198,7 +200,7 @@ const DrinksTab = ({ onNext, onOpenVenues }: DrinksTabProps) => {
     setSelected(null);
   };
 
-  const handleAddCustom = (draft: CustomDrinkDraft) => {
+  const handleAddCustom = async (draft: CustomDrinkDraft) => {
     const entry: AlcoholTimelineEntryInput = {
       id: Date.now().toString(),
       category: "",
@@ -211,8 +213,16 @@ const DrinksTab = ({ onNext, onOpenVenues }: DrinksTabProps) => {
       pricePerUnit: draft.price,
     };
     addUnplannedDrink(entry);
-    if (draft.keepIt && draft.abv != null) {
-      saveDrink(draft.name, draft.abv);
+    if (draft.keepIt && draft.abv != null && venue) {
+      await addEstablishmentDrink(venue.id, {
+        drink_name: draft.name,
+        abv: draft.abv,
+        category: "custom",
+        category_label: "Other",
+        price: draft.price,
+        volume: draft.serve,
+        volume_unit: "ml",
+      });
     }
     setCustomOpen(false);
   };
