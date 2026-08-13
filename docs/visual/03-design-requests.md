@@ -109,6 +109,10 @@ drawing, never to improvise one -- inventing values is rank 6 on the precedence 
 | 5a | Plan tab after `Build the night`: each category row showing its selected drinks as a drop-down, with the small unoutlined `hide`/`show` control | `4d` draws category rows in their resting state only. The drop-down, its rows, and an unoutlined text control are all new; the token set has no precedent for the last one |
 | 5b | A Timeline entry carrying BOTH `lock` and `swap` | `1d` draws a single trailing lock on a 362x64 row of `[62px time][34px marker][flex content]`. Where a second control goes, and what gives at 64px, is a spatial decision a drawing should settle |
 | 5c | The `add a drink` picker entered via swap, constrained to +20% pure ethanol | `4d`/`4e` draw the unconstrained picker. Nothing states how a filtered catalogue reads, or how an unavailable drink is shown -- greyed, absent, or labelled |
+| 5d | The tray meter's four over-target shade states, and the band-advice line | The meter is drawn only at or under target. Its over-target behaviour -- shade changes while the fill never rises past full -- has no frame, and the red band is the one place `no red` is overridden |
+
+**The literal prompt sent to Claude Design is in `04-wave5-design-prompt.md`**, mirrored as the
+Traycer `spec` artifact `wave-5-design-request`. Keep the two copies identical.
 
 The behaviour is fully settled; only the appearance is missing. A drawing that contradicts the
 locked behaviour above is a regression to raise, not a spec to follow.
