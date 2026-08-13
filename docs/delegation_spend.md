@@ -18,6 +18,17 @@ A merge that genuinely integrates no delegation bypasses the guard with the lite
 | --- | --- | --- | --- |
 | 2026-08-13 | W4-5 drink picker | ~260k | spec 12k, commission + handback 30k, clause map 40k, independent tests 60k, repairs 90k, baseline 28k |
 | 2026-08-13 | W4-6 menu scanner | ~250k | spec 12k, commission + handback 28k, clause map 38k, independent tests 58k, repairs 86k, baseline 28k |
+| 2026-08-13 | W5-1 Plan curation | ~60k | spec 9k, commission + handback 8k, clause map 14k, merged-boundary repair/tests 21k, shared baseline 8k |
+| 2026-08-13 | W5-2 Timeline editing | ~95k | spec 11k, commission + handback 12k, clause map 22k, re-plan/reorder/water repairs + tests 42k, shared baseline 8k |
+| 2026-08-13 | W5-3 bounded picker/swap | ~120k | spec 12k, commission + handback 18k, clause map 30k, Dashboard/category/break-swap repairs + tests 52k, shared baseline 8k |
+| 2026-08-13 | W5-4 onboarding Strength | ~55k | spec 8k, commission + handback 8k, clause map 12k, endpoint/family-test repairs 19k, shared baseline 8k |
+| 2026-08-13 | W5-5 tray meter bands | ~45k | spec 7k, commission + handback 7k, clause map 10k, boundary/pending tests 13k, shared baseline 8k |
+
+Wave 5 rows are estimates split from one Codex TUI batch. The acceptance repair commit names the
+routine spec gaps that required checker-owned inline work: generation hint/state sync; consumed
+re-plan accounting; fixed-slot reorder; water/break action identity; Dashboard swap routing;
+planned-category visibility; red-band boundaries; five-chip/end-label tests; browser-safe metrics
+persistence; and removal of new bundler warnings.
 
 Both rows are estimates split from one batch. The Codex TUI orchestrator (session `019ff81c`) ran
 both legs in a single context and recorded ~471k uncached input + ~39k output tokens over the whole

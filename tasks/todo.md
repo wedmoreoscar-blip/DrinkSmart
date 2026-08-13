@@ -6,20 +6,20 @@ they conflict; the drawings govern the many visual details on which the written 
 
 ## Wave 5 execution
 
-- [ ] W5-1 — Plan generates and regenerates in place, auto-scrolls to curation, and advances only
+- [x] W5-1 — Plan generates and regenerates in place, auto-scrolls to curation, and advances only
   through tray `Done` (`deepseek_imp_0`, `drinksmart_worktree_0`).
-- [ ] W5-2 — Timeline full action suite for current/future drinks, explicit grip/move mode, bounded
+- [x] W5-2 — Timeline full action suite for current/future drinks, explicit grip/move mode, bounded
   swap entry point, and unlocked-only in-place re-plan (`deepseek_imp_1`, `drinksmart_worktree_1`).
-- [ ] W5-3 — Plan selected-drink panels plus hard-bounded normal and swap picker flows
+- [x] W5-3 — Plan selected-drink panels plus hard-bounded normal and swap picker flows
   (`deepseek_imp_2`, `drinksmart_worktree_2`).
-- [ ] W5-4 — Onboarding five-stop Strength rail and five-chip taste grid
+- [x] W5-4 — Onboarding five-stop Strength rail and five-chip taste grid
   (`deepseek_imp_3`, `drinksmart_worktree_3`).
-- [ ] W5-5 — Dynamic tray-meter shade bands and the two new colour tokens
+- [x] W5-5 — Dynamic tray-meter shade bands and the two new colour tokens
   (`deepseek_imp_4`, `drinksmart_worktree_4`).
-- [ ] Inline after dispatch — BMI/FFMI save correction, Taste-sheet initial/open sync and matching
+- [x] Inline after dispatch — BMI/FFMI save correction, Taste-sheet initial/open sync and matching
   compact rails, onboarding reload-flash fix, Dashboard swap wiring, and lock-is-not-a-time-anchor
   engine correction with checker-derived tests.
-- [ ] Batch `speccheck`, one repair loop, one full baseline, spend rows, and fast-forward `main`.
+- [x] Batch `speccheck`, one repair loop, one full baseline, spend rows, and fast-forward `main`.
 - [ ] HALT for Oscar before the separate Luna final visual check of frames `5a`–`5f`.
 
 ## Prior redesign record
