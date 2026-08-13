@@ -798,10 +798,7 @@ describe("timelineEntryId", () => {
   });
 });
 
-// Derived from spec Req 3 during acceptance, not from the implementation.
-// The submitted suite named a test for this clause but exercised no anchor,
-// and the clause was absent: rescheduleTimeline took no kept ids at all.
-describe("rescheduleTimeline absolute anchors", () => {
+describe("rescheduleTimeline lock-independent timing", () => {
   const MIN = 60000;
   const at = (
     entryId: string,
@@ -825,7 +822,6 @@ describe("rescheduleTimeline absolute anchors", () => {
 
   const run = (
     timeline: TimelineEntry[],
-    keptSourceIds: string[],
     nowMinutes: number,
     delayedMinutes: Record<string, number> = {}
   ) =>
@@ -833,42 +829,19 @@ describe("rescheduleTimeline absolute anchors", () => {
       timeline,
       consumed: [],
       delayedMinutes,
-      keptSourceIds,
       now: new Date(nowMinutes * MIN),
       targetEndTime: new Date(120 * MIN),
     });
 
-  it("holds a kept, unconsumed entry scheduled strictly after now", () => {
-    // A reflows from 0 to now=10 and its 30-minute interval would push the
-    // floor to 40, which previously dragged the kept entry B from 30 to 40.
-    const result = run([at("a1", "A", 0, 30), at("b1", "B", 30, 5)], ["B"], 10);
+  it("reflows every unconsumed drink instead of treating a locked choice as a time anchor", () => {
+    const result = run([at("a1", "A", 0, 30), at("b1", "B", 30, 5)], 10);
     expect(result.timeline[0].time.getTime()).toBe(10 * MIN);
-    expect(result.timeline[1].time.getTime()).toBe(30 * MIN);
+    expect(result.timeline[1].time.getTime()).toBe(40 * MIN);
   });
 
-  it("treats a kept entry scheduled at or before now as remaining work", () => {
-    // Kept selection does not exempt it: it is in the past, so it reflows.
-    const result = run([at("b1", "B", 5, 5)], ["B"], 10);
-    expect(result.timeline[0].time.getTime()).toBe(10 * MIN);
-  });
-
-  it("compresses a flexible run into the window before an anchor", () => {
-    // Two flexible entries with 30-minute intervals cannot fit before the
-    // anchor at 30; they compress rather than displacing it.
-    const result = run(
-      [at("a1", "A", 0, 30), at("c1", "C", 5, 30), at("b1", "B", 30, 5)],
-      ["B"],
-      0
-    );
-    expect(result.timeline[2].time.getTime()).toBe(30 * MIN);
-    expect(result.timeline[0].time.getTime()).toBe(0);
-    expect(result.timeline[1].time.getTime()).toBe(15 * MIN);
-  });
-
-  it("never emits decreasing timestamps around anchors", () => {
+  it("keeps all reflowed timestamps monotonic", () => {
     const result = run(
       [at("a1", "A", 0, 45), at("c1", "C", 2, 45), at("b1", "B", 20, 5), at("d1", "D", 25, 5)],
-      ["B"],
       0
     );
     const times = result.timeline.map((entry) => entry.time.getTime());
@@ -877,18 +850,12 @@ describe("rescheduleTimeline absolute anchors", () => {
     }
   });
 
-  it("moves a delayed anchor by exactly its delay and then holds it there", () => {
+  it("applies delay without turning the delayed drink into an anchor", () => {
     const result = run(
-      [at("a1", "A", 0, 30), at("b1", "B", 30, 5)],
-      ["B"],
+      [at("a1", "A", 0, 50), at("b1", "B", 30, 5)],
       10,
       { b1: 15 }
     );
-    expect(result.timeline[1].time.getTime()).toBe(45 * MIN);
-  });
-
-  it("treats every unconsumed entry as flexible when no kept ids are supplied", () => {
-    const result = run([at("a1", "A", 0, 30), at("b1", "B", 30, 5)], [], 10);
-    expect(result.timeline[1].time.getTime()).toBe(40 * MIN);
+    expect(result.timeline[1].time.getTime()).toBe(60 * MIN);
   });
 });

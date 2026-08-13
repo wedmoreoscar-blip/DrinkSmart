@@ -40,7 +40,6 @@ function buildTimeline(metrics: UserMetricsData, now: Date): TimelineEntry[] | n
     timeline: base.drinkTimeline,
     consumed: session.consumedTimelineEntries,
     delayedMinutes: session.delayedEntryMinutes,
-    keptSourceIds: session.lockedDrinkIds,
     now,
     targetEndTime: session.drinkingTargetTime,
   });

@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { Label } from "@/components/ui/label";
+import { useEffect, useRef, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { defaultPreferences, type PreferenceData } from "@/lib/preferences";
+import type { PreferenceData } from "@/lib/preferences";
 import { STRONG_WORDS, TASTE_WORDS } from "@/components/profile/tasteWords";
 
 const SWEET_STOPS = [0, 0.25, 0.5, 0.75, 1];
@@ -10,49 +9,56 @@ const SWEET_STOPS = [0, 0.25, 0.5, 0.75, 1];
 const WordStopRail = ({
   value,
   labels,
+  label,
   startWord,
   endWord,
   onSelect,
 }: {
   value: number;
   labels: Record<number, string>;
+  label: string;
   startWord: string;
   endWord: string;
   onSelect: (value: number) => void;
 }) => (
-  <div className="space-y-2">
-    <div className="text-lead font-medium text-foreground">
-      {labels[value] ?? labels[0.5]}
+  <div>
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-label text-secondary-foreground">{label}</span>
+      <span className="text-lead font-medium text-foreground">
+        {labels[value] ?? labels[0.5]}
+      </span>
     </div>
-    <div className="relative flex h-tap items-center">
-      <div className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_30px,rgba(233,233,237,.16)_calc(100%-30px),transparent)]" />
-      <div className="relative flex w-full items-center">
-        {SWEET_STOPS.map((stop) => {
-          const selected = value === stop;
-          return (
-            <button
-              key={stop}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onSelect(stop)}
-              className="flex h-tap flex-1 items-center justify-center"
-            >
-              <span
-                className={cn(
-                  "rounded-full",
-                  selected
-                    ? "h-5 w-5 bg-primary shadow-[0_0_0_5px_rgba(145,132,217,.22)]"
-                    : "h-[11px] w-[11px] bg-muted",
-                )}
-              />
-            </button>
-          );
-        })}
+    <div className="flex min-h-tap items-center gap-2.5">
+      <span className="flex-none text-micro text-muted-foreground">{startWord}</span>
+      <div className="relative flex flex-1 items-center">
+        <div className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_30px,rgba(233,233,237,.16)_calc(100%-30px),transparent)]" />
+        <div className="relative flex w-full items-center">
+          {SWEET_STOPS.map((stop) => {
+            const selected = value === stop;
+            return (
+              <button
+                key={stop}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onSelect(stop)}
+                className="flex h-tap flex-1 items-center justify-center"
+              >
+                <span
+                  className={cn(
+                    "rounded-full",
+                    selected
+                      ? "h-5 w-5 bg-primary shadow-[0_0_0_5px_rgba(145,132,217,.22)]"
+                      : "h-[11px] w-[11px] bg-muted",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </div>
-    <div className="flex justify-between text-micro text-[#75798c]">
-      <span>{startWord}</span>
-      <span>{endWord}</span>
+      <span className="flex-none whitespace-nowrap text-micro text-muted-foreground">
+        {endWord}
+      </span>
     </div>
   </div>
 );
@@ -65,7 +71,13 @@ type TasteSheetProps = {
 };
 
 export const TasteSheet = ({ open, onOpenChange, initial, onChange }: TasteSheetProps) => {
-  const [prefs, setPrefs] = useState<PreferenceData>({ ...defaultPreferences });
+  const [prefs, setPrefs] = useState<PreferenceData>({ ...initial });
+  const wasOpen = useRef(false);
+
+  useEffect(() => {
+    if (open && !wasOpen.current) setPrefs({ ...initial });
+    wasOpen.current = open;
+  }, [initial, open]);
 
   const update = (patch: Partial<PreferenceData>) => {
     const next = { ...prefs, ...patch };
@@ -79,27 +91,28 @@ export const TasteSheet = ({ open, onOpenChange, initial, onChange }: TasteSheet
         <SheetHeader>
           <SheetTitle className="text-title font-medium">Taste</SheetTitle>
         </SheetHeader>
-        <div className="mt-4 space-y-5">
-          <div className="space-y-2">
-            <Label>Sweet</Label>
-            <WordStopRail
-              value={prefs.sweet}
-              labels={TASTE_WORDS}
-              startWord="dry"
-              endWord="sweet"
-              onSelect={(v) => update({ sweet: v })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Strong</Label>
+        <div className="mt-4">
+          <WordStopRail
+            value={prefs.sweet}
+            labels={TASTE_WORDS}
+            label="Sweetness"
+            startWord="dry"
+            endWord="sweet"
+            onSelect={(v) => update({ sweet: v })}
+          />
+          <div className="mt-2">
             <WordStopRail
               value={prefs.strong}
               labels={STRONG_WORDS}
-              startWord="Light"
-              endWord="Very strong"
+              label="Strength"
+              startWord="none"
+              endWord="very strong"
               onSelect={(v) => update({ strong: v })}
             />
           </div>
+          <p className="mt-1.5 text-micro text-muted-foreground">
+            Which drinks get picked, not how many.
+          </p>
         </div>
       </SheetContent>
     </Sheet>

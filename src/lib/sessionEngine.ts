@@ -400,27 +400,19 @@ export function pruneStaleActionState(
 
 /**
  * Deterministic rescheduling of the existing drink set. Consumed entries
- * never move. Kept, unconsumed entries scheduled strictly after `now` remain
- * absolute anchors; any unconsumed entry scheduled at/before `now` reflows to
- * no earlier than `now`, even when its drink selection is kept. Flexible
- * entries redistribute monotonically around the anchors, compressing into the
- * window before an anchor rather than displacing it, and advancing the plan
- * end rather than colliding.
- *
- * `keptSourceIds` carries the locked drink ids. Omitting it means no entry is
- * an anchor and every unconsumed entry is treated as remaining work.
+ * never move; every unconsumed entry is remaining work and can reflow. Drink
+ * locks are intentionally absent here because they protect catalogue choices
+ * during regeneration, not scheduled times.
  */
 export function rescheduleTimeline(input: {
   timeline: TimelineEntry[];
   consumed: ConsumedSnapshot[];
   delayedMinutes: Record<string, number>;
-  keptSourceIds?: string[];
   now: Date;
   targetEndTime: Date | null;
 }): { timeline: TimelineEntry[]; effectivePlanEndTime: Date | null } {
   const { timeline, consumed, delayedMinutes, now, targetEndTime } = input;
   const consumedIds = new Set(consumed.map((snapshot) => snapshot.entryId));
-  const keptSources = new Set(input.keptSourceIds ?? []);
   const nowMs = now.getTime();
 
   const delayMsOf = (entryId: string): number => {
@@ -432,15 +424,11 @@ export function rescheduleTimeline(input: {
   const durationMsOf = (entry: TimelineEntry): number =>
     entry.kind === "break" ? entry.durationMinutes * 60000 : entry.intervalMinutes * 60000;
 
-  // Classify each entry as immovable or flexible. A consumed entry never
-  // moves. A kept, unconsumed entry whose delayed time is strictly after
-  // `now` is an absolute anchor. Anything else unconsumed — including a kept
-  // entry scheduled at or before `now` — is remaining work that reflows.
+  // Consumed entries are immovable. Every other entry remains flexible,
+  // regardless of whether its source drink is locked against regeneration.
   const fixedTimeMs: (number | null)[] = timeline.map((entry) => {
     if (consumedIds.has(entry.entryId)) return entry.time.getTime();
-    if (entry.kind !== "alcohol" || !keptSources.has(entry.drinkId)) return null;
-    const anchored = entry.time.getTime() + delayMsOf(entry.entryId);
-    return anchored > nowMs ? anchored : null;
+    return null;
   });
 
   const rescheduled: TimelineEntry[] = [];

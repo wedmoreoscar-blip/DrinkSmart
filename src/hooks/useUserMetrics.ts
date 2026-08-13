@@ -54,10 +54,7 @@ const emptySnapshot: ProfileQueryData = {
 const profileQueryKey = (userId: string | null) => ["profile", userId] as const;
 
 function metricsToColumns(metrics: UserMetricsData) {
-  const hasFFMData = metrics.bodyFat && parseFloat(metrics.bodyFat) > 0;
-  const hasBMIData = metrics.weight && metrics.age && metrics.sex;
-  const effectiveMetricType =
-    hasFFMData && hasBMIData ? "ffmi" : metrics.metricType;
+  const effectiveMetricType = metrics.metricType;
 
   return {
     columns: {
@@ -67,7 +64,10 @@ function metricsToColumns(metrics: UserMetricsData) {
       height_unit: metrics.heightUnit,
       weight: metrics.weight ? parseFloat(metrics.weight) : null,
       weight_unit: metrics.weightUnit,
-      body_fat: metrics.bodyFat ? parseFloat(metrics.bodyFat) : null,
+      body_fat:
+        effectiveMetricType === "ffmi" && metrics.bodyFat
+          ? parseFloat(metrics.bodyFat)
+          : null,
       age: metrics.age ? parseInt(metrics.age) : null,
       sex: metrics.sex || null,
       metric_type: effectiveMetricType,
@@ -110,6 +110,7 @@ async function generateUsername(): Promise<string> {
 
 export const useUserMetrics = () => {
   const [userId, setUserId] = useState<string | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -117,11 +118,13 @@ export const useUserMetrics = () => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUserId(session?.user?.id || null);
+      setAuthResolved(true);
     };
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUserId(session?.user?.id || null);
+      setAuthResolved(true);
     });
 
     return () => subscription.unsubscribe();
@@ -363,7 +366,7 @@ export const useUserMetrics = () => {
 
   return {
     isLoggedIn: !!userId,
-    loading: query.isLoading,
+    loading: !authResolved || query.isLoading,
     savedMetrics: data.metrics,
     preferences: data.preferences,
     theme: data.theme,
