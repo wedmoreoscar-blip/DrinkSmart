@@ -17,7 +17,14 @@ export const ONBOARD2_COPY = {
   title: "What you drink",
   body: "Only so the picker opens somewhere sensible. Nothing in the timeline depends on it.",
   categoriesLabel: "Usually",
+  // One heading over BOTH rails — they are one kind of thing; Sweetness and
+  // Strength are 15px row labels, not sections of their own.
+  tasteLabel: "Taste",
   sweetnessLabel: "Sweetness",
+  strengthLabel: "Strength",
+  // Exactly one line. It never describes the deterministic fewer/stronger
+  // outcome and never says how drunk the user gets — that is the band's job.
+  strengthNote: "Which drinks get picked, not how many.",
   cta: "Start",
   skip: "I have no preferences",
 };

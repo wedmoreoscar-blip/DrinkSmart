@@ -9,6 +9,7 @@ import {
   type PreferenceFamily,
 } from "./preferenceFamilies";
 import { ONBOARD2_COPY, ONBOARD2_STOPS } from "./onboardingCopy";
+import { STRONG_WORDS } from "@/components/profile/tasteWords";
 import { cn } from "@/lib/utils";
 
 type PreferencesPickerProps = {
@@ -30,50 +31,57 @@ const SWEET_LABELS: Record<number, string> = {
   1: ONBOARD2_STOPS[4],
 };
 
+// Compact rail (5f): the chosen word sits right-aligned on the 15px label line,
+// and the end words flank the track inline instead of taking a row of their own.
 const WordStopRail = ({
   value,
   labels,
+  label,
   startWord,
   endWord,
   onSelect,
 }: {
   value: number;
   labels: Record<number, string>;
+  label: string;
   startWord: string;
   endWord: string;
   onSelect: (value: number) => void;
 }) => (
-  <div className="space-y-2">
-    <div className="text-lead font-medium text-foreground">{labels[value] ?? "Balanced"}</div>
-    <div className="relative flex h-tap items-center">
-      <div className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_30px,rgba(233,233,237,.16)_calc(100%-30px),transparent)]" />
-      <div className="relative flex w-full items-center">
-        {SWEET_STOPS.map((stop) => {
-          const selected = value === stop;
-          return (
-            <button
-              key={stop}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onSelect(stop)}
-              className="flex h-tap flex-1 items-center justify-center"
-            >
-              <span
-                className={cn(
-                  "rounded-full",
-                  selected
-                    ? "h-5 w-5 bg-primary shadow-[0_0_0_5px_rgba(145,132,217,.22)]"
-                    : "h-[11px] w-[11px] bg-muted",
-                )}
-              />
-            </button>
-          );
-        })}
-      </div>
+  <div>
+    <div className="flex items-baseline justify-between gap-3">
+      <div className="text-[15px] leading-[1.2] text-muted-foreground">{label}</div>
+      <div className="text-lead font-medium text-foreground">{labels[value] ?? "Balanced"}</div>
     </div>
-    <div className="flex justify-between text-micro text-[#75798c]">
-      <span>{startWord}</span>
-      <span>{endWord}</span>
+    <div className="flex h-tap items-center gap-2.5">
+      <div className="flex-none text-micro text-[#75798c]">{startWord}</div>
+      <div className="relative flex flex-1 items-center">
+        <div className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_30px,rgba(233,233,237,.16)_calc(100%-30px),transparent)]" />
+        <div className="relative flex w-full items-center">
+          {SWEET_STOPS.map((stop) => {
+            const selected = value === stop;
+            return (
+              <button
+                key={stop}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onSelect(stop)}
+                className="flex h-tap flex-1 items-center justify-center"
+              >
+                <span
+                  className={cn(
+                    "rounded-full",
+                    selected
+                      ? "h-5 w-5 bg-primary shadow-[0_0_0_5px_rgba(145,132,217,.22)]"
+                      : "h-[11px] w-[11px] bg-muted",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="flex-none text-micro text-[#75798c]">{endWord}</div>
     </div>
   </div>
 );
@@ -178,14 +186,26 @@ export const PreferencesPicker = ({
       </div>
 
       <div className="mt-[22px]">
-        <SectionLabel>{ONBOARD2_COPY.sweetnessLabel}</SectionLabel>
-        <WordStopRail
-          value={prefs.sweet}
-          labels={SWEET_LABELS}
-          startWord="dry"
-          endWord="sweet"
-          onSelect={(value) => update({ sweet: value })}
-        />
+        <SectionLabel>{ONBOARD2_COPY.tasteLabel}</SectionLabel>
+        <div className="mt-3 space-y-2">
+          <WordStopRail
+            value={prefs.sweet}
+            labels={SWEET_LABELS}
+            label={ONBOARD2_COPY.sweetnessLabel}
+            startWord="dry"
+            endWord="sweet"
+            onSelect={(value) => update({ sweet: value })}
+          />
+          <WordStopRail
+            value={prefs.strong}
+            labels={STRONG_WORDS}
+            label={ONBOARD2_COPY.strengthLabel}
+            startWord="Light"
+            endWord="Very strong"
+            onSelect={(value) => update({ strong: value })}
+          />
+        </div>
+        <p className="mt-1.5 text-micro text-[#75798c]">{ONBOARD2_COPY.strengthNote}</p>
       </div>
 
       {onSubmit && (
