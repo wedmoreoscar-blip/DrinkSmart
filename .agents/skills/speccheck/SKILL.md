@@ -134,6 +134,21 @@ re-running proves nothing.
 
 ## 8. Integrate by fast-forward, and leave the worktree warm
 
+**Before the fast-forward, append the batch's spend rows to
+`docs/delegation_spend.md`** — the single source of delegation token history,
+one row per delegated leg:
+
+```
+| YYYY-MM-DD | <delegation label> | ~<tokens> | <where they went> |
+```
+
+Tokens are your orchestrator-context spend for that leg, spec-start to
+integration done, estimated from the session transcript or usage display. An
+estimate is fine; a missing row is not. `tools/spend-guard` denies the merge
+of an `integration*` branch until the rows exist, so this is enforced rather
+than advisory; the literal marker `[no-ledger]` in the merge command bypasses
+it only for a merge that integrates no delegation.
+
 Fast-forward the integration target from `integration`. Commit locally; never
 push without explicit authorization. Delete the scratch branch afterwards — it
 has served its purpose and a stale one invites the next check to merge into
@@ -177,11 +192,10 @@ under-specified or the implementer is underperforming, and without the notes
 that pattern is invisible: inline repair silently absorbs the signal it should
 be raising.
 
-**Add one line to the same acceptance record estimating the checker's context
-spend for the delegation** — the orchestrator-context tokens consumed from
-spec-start to integration done, read from the session transcript or usage
-display. One number, not a breakdown; an estimate is fine, a missing line is
-not. It exists to answer, over accumulated records, whether tasks of a given
-size are cheaper delegated than done inline — the evidence that will correct
-the working threshold in `docs/workflows/delegation.md` ("When to delegate at
-all"), which is currently a reasoned guess.
+The spend rows written in step 8 live in `docs/delegation_spend.md`, not
+here — the ledger is the single source of delegation token history, and the
+acceptance record does not duplicate its numbers. Over accumulated rows the
+ledger answers whether tasks of a given size are cheaper delegated than done
+inline — the evidence that will correct the working threshold in
+`docs/workflows/delegation.md` ("When to delegate at all"), which is currently
+a reasoned guess.

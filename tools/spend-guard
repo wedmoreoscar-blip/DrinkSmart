@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""PreToolUse guard: no delegation integrates without a spend-ledger entry.
+
+The ledger `docs/delegation_spend.md` is the single source of delegation token
+history: one row per delegated leg, stating the orchestrator-context tokens the
+delegation cost and a short label for where they went. Those rows are the
+evidence that will correct the inline-vs-delegate threshold in
+docs/workflows/delegation.md ("When to delegate at all").
+
+Enforcement point: the fast-forward of `main` from an `integration*` branch —
+the one command every delegation must pass through (delegation.md step 14,
+speccheck step 8). This guard reads a Claude Code PreToolUse hook payload on
+stdin and denies a `git merge` whose argument is an `integration*` ref unless
+a well-formed ledger row is new — in the working tree or index relative to
+HEAD, or carried by the merged ref itself.
+
+Only an actual merge invocation is governed; the ref name appearing in a
+heredoc, a commit message, or a grep pattern is a mention, not a merge (same
+false-denial class writespec-guard fixed on 2026-08-11). Merging a handback
+INTO an integration branch is not matched either — only a merge OF one.
+
+Messages carrying the literal marker [no-ledger] pass through. Deliberately
+bypassable, like writespec-guard's [no-spec]: this guard exists to stop a
+ledger row being forgotten, not to defeat an adversary, and some merges of an
+integration-named ref genuinely integrate no delegation.
+
+SPEND_GUARD_REPO overrides the repository root, for hermetic regression cases
+in tools/check-agent-setup.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+
+REPO = os.environ.get("SPEND_GUARD_REPO") or os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))
+LEDGER_REL = "docs/delegation_spend.md"
+
+# | 2026-08-13 | W4-5 keypad | ~38k | spec 6k, clause map+tests 22k, repairs 10k |
+ENTRY_RE = re.compile(
+    r"\|\s*\d{4}-\d{2}-\d{2}\s*\|[^|\n]+\|\s*~?\d+(?:\.\d+)?\s*[kKmM]?\s*\|[^|\n]+\|"
+)
+
+# A heredoc body is data, not shell (see writespec-guard).
+HEREDOC_RE = re.compile(
+    r"<<-?\s*(['\"]?)([A-Za-z_]\w*)\1.*?^\s*\2\s*$",
+    re.DOTALL | re.MULTILINE,
+)
+
+_WRAPPER = (
+    r"(?:\w+=\S*\s+|nohup\s+|setsid\s+|command\s+|time\s+|"
+    r"env\s+(?:-[iu]\s+\S+\s+|\w+=\S*\s+)*)*"
+)
+
+# A merge OF an integration ref, at a command-start position. The captured group
+# is the ref, so `git checkout integration/w4 && git merge deepseek_agent_2`
+# (merging a handback INTO integration) does not match.
+MERGE_RE = re.compile(
+    r"""(?:\A|[;&|()\n]|\|\||&&|-l?c\s*["'])\s*""" + _WRAPPER
+    + r"git\s+(?:-C\s+\S+\s+)?merge\s+(?:--?[\w=-]+\s+)*['\"]?(integration[\w./-]*)"
+)
+
+
+def allow():
+    sys.exit(0)
+
+
+def deny(reason):
+    json.dump({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    }}, sys.stdout)
+    sys.exit(0)
+
+
+def added_ledger_lines(diff_args):
+    """Lines added to the ledger by the given `git diff` range."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", REPO, "diff", "--unified=0", *diff_args, "--", LEDGER_REL],
+            capture_output=True, text=True, check=False,
+        ).stdout
+    except OSError:
+        return ""
+    return "\n".join(line[1:] for line in out.splitlines()
+                     if line.startswith("+") and not line.startswith("+++"))
+
+
+def main():
+    try:
+        payload = json.load(sys.stdin)
+    except Exception:
+        allow()  # never break the session on a malformed payload
+
+    if payload.get("tool_name") != "Bash":
+        allow()
+
+    cmd = payload.get("tool_input", {}).get("command", "")
+    match = MERGE_RE.search(HEREDOC_RE.sub(" ", cmd))
+    if not match:
+        allow()
+    if "[no-ledger]" in cmd:
+        allow()  # sender explicitly asserts this merge integrates no delegation
+
+    ref = match.group(1)
+    candidates = added_ledger_lines(["HEAD"])  # working tree + index vs HEAD
+
+    # First-ever entry: the ledger may not be in HEAD yet.
+    in_head = subprocess.run(
+        ["git", "-C", REPO, "cat-file", "-e", f"HEAD:{LEDGER_REL}"],
+        capture_output=True, check=False,
+    ).returncode == 0
+    ledger_path = os.path.join(REPO, LEDGER_REL)
+    if not in_head and os.path.isfile(ledger_path):
+        try:
+            with open(ledger_path) as f:
+                candidates += "\n" + f.read()
+        except OSError:
+            pass
+
+    # The rows may have been committed on the integration branch itself.
+    candidates += "\n" + added_ledger_lines(["HEAD", ref])
+
+    if ENTRY_RE.search(candidates):
+        allow()
+
+    deny(
+        "Blocked by spend-guard: this merge integrates an `integration*` branch "
+        f"but {LEDGER_REL} has no new spend row.\n\n"
+        "The ledger is the single source of delegation token history. Before the "
+        "fast-forward, append one row per delegated leg in this batch:\n\n"
+        "    | YYYY-MM-DD | <delegation label> | ~<tokens> | <where they went> |\n\n"
+        "Tokens are your orchestrator-context spend for that leg, spec-start to "
+        "integration, estimated from the session transcript or usage display. An "
+        "estimate is fine; a missing row is not (speccheck step 8).\n\n"
+        "If this merge genuinely integrates no delegation, add the literal marker "
+        "[no-ledger] to the command."
+    )
+
+
+if __name__ == "__main__":
+    main()
