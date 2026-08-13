@@ -809,8 +809,9 @@ past full. Bands, measured as percentage over target:
 | Over target | Tray fill |
 | --- | --- |
 | at or under | accent, as now |
-| 0 – 7.5% | yellow |
-| 7.5 – 15% | orange |
+| 0 – 5% | accent, as now — a small overshoot is not worth colouring |
+| 5 – 10% | yellow |
+| 10 – 15% | orange |
 | 15 – 20% | red |
 | above 20% | **unreachable — hard bound** |
 
