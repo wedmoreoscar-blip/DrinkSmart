@@ -173,6 +173,12 @@
     --destructive: 35 58% 57%;
     --destructive-foreground: 233 27% 12%;
 
+    /* Tray over-target shade bands, in written order: --over-1 precedes
+       --warning, and --over-3 is the product's only permitted red, used by
+       the tray fill alone. */
+    --over-1: 45 55% 64%;               /* #d3bd72 */
+    --over-3: 1 52% 58%;                /* #c8605e */
+
     /* Finishing a plan is not an achievement. Completed states desaturate
        rather than turn green; there is no celebratory colour in the system. */
     --success: 230 13% 62%;             /* #9397ab */
