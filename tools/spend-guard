@@ -24,8 +24,10 @@ bypassable, like writespec-guard's [no-spec]: this guard exists to stop a
 ledger row being forgotten, not to defeat an adversary, and some merges of an
 integration-named ref genuinely integrate no delegation.
 
-SPEND_GUARD_REPO overrides the repository root, for hermetic regression cases
-in tools/check-agent-setup.
+The repository root is the one the merge lands in: `git -C`'s directory if the
+command gives one, else the caller's cwd, else this script's own checkout.
+SPEND_GUARD_REPO overrides all of them, for hermetic regression cases in
+tools/check-agent-setup.
 """
 import json
 import os
@@ -53,12 +55,13 @@ _WRAPPER = (
     r"env\s+(?:-[iu]\s+\S+\s+|\w+=\S*\s+)*)*"
 )
 
-# A merge OF an integration ref, at a command-start position. The captured group
-# is the ref, so `git checkout integration/w4 && git merge deepseek_agent_2`
+# A merge OF an integration ref, at a command-start position. The captured groups
+# are `git -C`'s directory (if given) and the ref, so
+# `git checkout integration/w4 && git merge deepseek_agent_2`
 # (merging a handback INTO integration) does not match.
 MERGE_RE = re.compile(
     r"""(?:\A|[;&|()\n]|\|\||&&|-l?c\s*["'])\s*""" + _WRAPPER
-    + r"git\s+(?:-C\s+\S+\s+)?merge\s+(?:--?[\w=-]+\s+)*['\"]?(integration[\w./-]*)"
+    + r"git\s+(?:-C\s+(\S+)\s+)?merge\s+(?:--?[\w=-]+\s+)*['\"]?(integration[\w./-]*)"
 )
 
 
@@ -75,6 +78,20 @@ def deny(reason):
     sys.exit(0)
 
 
+def _toplevel(path):
+    """The repository root containing `path`, or None."""
+    if not path or not os.path.isdir(path):
+        return None
+    try:
+        out = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return None
+    return out.stdout.strip() or None
+
+
 def added_ledger_lines(diff_args):
     """Lines added to the ledger by the given `git diff` range."""
     try:
@@ -89,6 +106,7 @@ def added_ledger_lines(diff_args):
 
 
 def main():
+    global REPO
     try:
         payload = json.load(sys.stdin)
     except Exception:
@@ -104,7 +122,22 @@ def main():
     if "[no-ledger]" in cmd:
         allow()  # sender explicitly asserts this merge integrates no delegation
 
-    ref = match.group(1)
+    cdir, ref = match.group(1), match.group(2)
+
+    # Evaluate the worktree the merge lands in, not the one this script sits in.
+    # A checkout and its worktrees share a repository but not a HEAD, so running
+    # from a worktree whose HEAD is already the integration branch made both
+    # "new rows vs HEAD" and "rows carried by the ref" compare that branch
+    # against itself and find nothing — denying a merge whose rows were present
+    # and committed (2026-08-13).
+    if not os.environ.get("SPEND_GUARD_REPO"):
+        cwd = payload.get("cwd")
+        if cdir:
+            cdir = cdir.strip("'\"")
+            if not os.path.isabs(cdir):
+                cdir = os.path.join(cwd or "", cdir)
+        REPO = _toplevel(cdir) or _toplevel(cwd) or REPO
+
     candidates = added_ledger_lines(["HEAD"])  # working tree + index vs HEAD
 
     # First-ever entry: the ledger may not be in HEAD yet.
