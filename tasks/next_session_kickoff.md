@@ -1,210 +1,167 @@
-# Session Handoff / Kickoff — Wave 4 complete, halted at the visual check
+# Session Handoff / Kickoff — Wave 4 COMPLETE, visually checked and integrated
 
-Written 2026-08-13 15:57 BST. Normal-mode handoff. The canonical continuation was replaced.
+Written 2026-08-13 18:10 BST. Normal-mode handoff. The canonical continuation was replaced.
 
 ## Outcome of this session
 
-**All seven Wave 4 legs are implemented, reviewed, repaired and integrated.** `main` is at
-`081b209`. W4-5 (drink picker) and W4-6 (menu scanner) were the last two; they were delegated by a
-Codex TUI orchestrator that **died mid-repair**, and this session took the delegation over at step
-12 and finished it.
+**Wave 4 is finished.** All seven legs were already implemented and integrated at kickoff; this
+session ran the **final visual check** end to end and integrated it. `main` is at `1c73f78`.
+Nothing was pushed.
 
-Everything is committed. All eight remaining worktrees are clean and level with `main`. Nothing was
-pushed. `nproc` now reports **3** — the WSL restart the previous kickoff was waiting on did happen.
-
-The wave is **not visually verified**. No part of Wave 4 has been rendered in a browser.
-
-## What actually happened to the Codex orchestrator
-
-Oscar reported it "bugged". It was not hung — it was dead, and two things made that hard to see.
-
-1. **`traycer agent transcript` is lossy.** It rendered 8 of the session's 40 assistant messages and
-   no tool calls, so three consecutive prompts *appeared* unanswered when all had been answered. The
-   real record is the harness rollout file, `~/.codex/sessions/2026/08/12/rollout-*-019ff81c-*.jsonl`
-   — every tool call, argument, output, `turn_context` and `<turn_aborted>` marker is there.
-2. **`capabilities.sendMessage: false` on that agent is by design, not a fault.** Codex TUI is
-   orchestrator-only under `AGENTS.md`; that is precisely why the artifact-ledger relay exists.
-
-The sequence: a `<turn_aborted>` at 15:18 part-way through the repair pass, a Step-12 status answer
-at 15:22, then nothing. The rollout stopped growing. Oscar relaunched the TUI at 15:23 (PID 40731,
-attached to the app-server on `:32927`); it sat alive and `S (sleeping)` and produced no further
-turns. **Its uncommitted repair work survived intact in the integration worktree** — every patch had
-landed before the abort. Nothing was lost or redone.
-
-Diagnostic rule worth keeping: cross-check liveness three ways — `ps` for the process, the rollout
-file's **mtime** for the last real turn, `traycer agent list --json` for `active`. They disagree, and
-the mtime is the honest one.
-
-## The takeover, against `docs/workflows/delegation.md`
-
-Resumed at **step 12** because the checker's independent tests were already on disk and runnable.
-
-- **Steps 9–11 were already done** by Codex: both handbacks committed on their own branches, merged
-  into one `integration/w4b` (disjoint specs, so batched), clause map written **before** tests, and
-  three clause-derived test files added. The clause map and the eleven findings are in the
-  `wave-4-w4b-speccheck` artifact, now updated to final acceptance.
-- **Step 12.** Verified all eleven recorded findings were genuinely repaired, then found a twelfth
-  the green suite was hiding (below). All twelve repaired inline; **zero handbacks**, no `speccheck`
-  redelegation exception met.
-- **Step 13.** One full baseline on the merged tree, after the repairs.
-- **Step 14.** Spend rows appended, then `main` fast-forwarded. `tools/spend-guard` **denied the
-  merge**; that was a real guard bug, fixed (below).
-- **Step 15.** All eight worktrees fast-forwarded to `081b209`.
-- **Step 16.** Every worktree and agent left warm. The scratch `integration/w4b` branch and its
-  worktree were deleted at Oscar's instruction, once `main` was an exact copy.
-
-### The twelfth finding — a checker's tests are part of the diff
-
-`nextGapTarget` in `scanner-model.ts` was exported and covered by a passing W4-6-C4 case
-("advances … including across drinks"), but **no production code called it**.
-`ScannerReview.advanceFrom` reimplemented a narrower scan, so the helper was dead and the shipped
-cross-drink path had **no coverage at all**. The suite was green either way.
-
-This is the exact failure `speccheck` step 11 names — "a test named for a clause can contain nothing
-that exercises it" — except it caught the *checker*, not an implementer. Repaired by pointing
-`advanceFrom` at `nextGapTarget` (behaviourally identical: the group fires `onAdvance` only once its
-own fields are complete, so scanning from its last field lands on the next drink's first gap).
-Locked in `docs/decisions.md` as a 2026-08-13 amendment.
-
-Extracting logic to make it testable is right here — there is no jsdom or testing-library, so pure
-helpers plus `renderToStaticMarkup` is the only route — but **the extraction is only finished when
-the caller is switched over.**
-
-### `tools/spend-guard` had a worktree blind spot (`081b209`)
-
-It resolved its repository root from its own script path. A checkout and its worktrees share a
-repository but not a HEAD, so running the step-14 fast-forward from a worktree whose HEAD was
-already `integration/w4b` made both its checks — new rows vs HEAD, and rows carried by the merged ref
-— compare that branch against itself. Both empty, merge denied, **while the rows were present and
-committed**. Resolution order is now `git -C`'s directory, then the PreToolUse payload's `cwd`, then
-the script's checkout; `SPEND_GUARD_REPO` still overrides all three. Re-verified: still denies an
-integration branch that adds no row, still allows one that does, and the handback-into-integration,
-heredoc-mention and `[no-ledger]` paths are unchanged. `tools/check-agent-setup` passes.
-
-Oscar chose this over the `[no-ledger]` bypass, whose stated meaning ("integrates no delegation")
-would have been false here.
+The wave had never been rendered in a browser. It has now been: every drawn frame `4a`–`4o`
+captured at 402×874 with `getComputedStyle` read-backs, by one recon agent and three fixers in a
+single shared worktree, plus an independent orchestrator pass.
 
 ## Verification baseline — derived live on the merged tree, 2026-08-13
 
 | Command | Result |
 | --- | --- |
-| `npm test` | **PASS — 128 tests across 14 files** (was 119/11; the checker added 9) |
+| `npm test` | **PASS — 131 tests across 14 files** (was 128; +3 from the keypad primitive) |
 | `npm run typecheck` | **PASS — 0 errors** |
-| `npm run lint` | **KNOWN FAIL — exactly `20 problems (10 errors, 10 warnings)`** |
-| `npm run build` | **PASS — ~21s** |
+| `npm run lint` | **KNOWN FAIL — exactly `20 problems (10 errors, 10 warnings)`**, unchanged |
+| `npm run build` | **PASS — ~36s** |
 | `git diff --check` | clean |
 
-**The lint count moved: it is now 10 errors / 10 warnings, not 10/11.** One warning was removed by
-Wave 4's own changes. `CLAUDE.md` and `tasks/todo.md` still say 9 errors and are still wrong. Derive
-the number by running the command; quote no file, including this one.
+Derive these by running the commands. Do not quote this file, or any other.
 
-Browser, Supabase, edge-function, notification and native checks remain **BLOCKED** on real
-infrastructure.
+Browser checks are no longer blocked and were exercised. Supabase, edge-function, notification and
+native checks remain **BLOCKED** on real infrastructure.
 
-## Delegation spend
+## What the visual check actually found
 
-`docs/delegation_spend.md` has its **first two rows**: W4-5 `~260k`, W4-6 `~250k`, estimated from the
-Codex session's own usage record (~471k uncached input + ~39k output across a session that spans
-exactly this batch). Both rows carry a caveat: **they count the Codex half only.** The batch was
-checked twice because of the handover, so the true cost is higher than recorded. Those rows exist to
-correct the inline-vs-delegate threshold, so a silent handover cost would bias the very number they
-are meant to fix.
+Recon produced a measured finding list across `4a`–`4o`. The four authority conflicts it correctly
+**held** rather than guessed were adjudicated against the precedence ladder in `docs/decisions.md`
+(rank 2 `screens/*.html` beats rank 3 `*.png` beats rank 4 prose, outright):
 
-The largest single line in both is **repairs**, not the spec — the shape `delegation.md` predicts,
-and the half the checker pays regardless of who implements.
+| Ruling | Outcome |
+| --- | --- |
+| `4e` drink order | **Dismissed** — the drawing shows the sort chip *unselected*; the app was measured with it on |
+| `4d` category order | **Real** — a curated order, not alphabetical; names and venue header also wrong |
+| `4k` establishment order | **Dismissed** — the `4k` script says seeded-alphabetical, so the `4l` PNG contradicts its own script |
+| `4k` preview line | **Held out** — two rank-2 sources contradict each other inside one file; the ladder cannot resolve that, and picking a winner would be rank-6 invention |
+| `4m` nights | **Real** — the script's own drop-at-zero rule, not a hardcoded omission |
+| `4m` username | **Removed**, with the submit path checked first |
+| Auth bottom chrome | **Real, deferred** — see below |
+
+Fixed: picker geometry and curated order; custom sheet height, `DialogTitle` and initial state;
+scanner skeleton rows on `4g`/`4h`/`4j`; `4i` per-gap keypads removed; profile stat cells, taste
+semantics and admin copy; onboarding scrim opacity; the shared keypad primitive, the 57→58px tab
+items, `ScannerHeader` and `EstablishmentsScreen` header geometry, and Profile's container padding.
+
+**Five recon claims did not survive checking**, all misattributions of *cause* rather than false
+sightings — the `4e` and `4k` orders above, a double padding blamed on a file containing no such
+padding, "one shared header" that was the same defect written three times, and a "NO TOOLBAR"
+finding that misread a rule about filter chips. Recon has the browser; diagnosis needs the files.
+
+## Deferred to the next wave — both compositional, neither a styling defect
+
+1. **Auth screens lack the bottom chrome `4m` draws.** Fixing it means extracting the nav out of
+   Dashboard's Radix `Tabs` into a shared component. That is a composition refactor, and §5 exists
+   to keep exactly that out of a visual pass.
+2. **`1c` and `4d` are drawn as two screens; the app stacks them on one scrolling surface.** The
+   Regenerate control that surfaced this belongs to an undrawn state of `1c`, so it is out of scope
+   per §0.
+
+Also observed, not a defect: every `4d` category reads `from £3.60`. The per-category minimum logic
+is correct; the uniformity is live Supabase data. The drawing's varied prices are sample data for a
+fictional venue. **Do not "fix" this in code** — it nearly happened here.
+
+## Workflow changes this session made
+
+`docs/workflows/visual_check.md` gained three revisions, all earned by this pass:
+
+- **Recon parallelises above ~8 drawn frames.** The workflow had the shape inverted — repair, which
+  carries the hazards, ran parallel; discovery, which parallelises safely, ran serial. The
+  disjoint-file constraint does not bind recon, which writes no product code. Luna-0 stays sole
+  author of the finding list, headcount and ownership split.
+- **Notes are load-bearing.** Two agents compacted mid-pass. `notes.md` written as each capture is
+  assessed is the only part of an agent's observation that survives its own compaction; after one,
+  treat the agent's memory as inadmissible.
+- **Recon and repair measure to different depths.** Recon measures to prove a defect is real; the
+  fixer measures to know it is gone. And recon is the worst place to diagnose a cause.
+- **A fixer that only edits will compact.** Capture after each finding, not at the end of a cluster.
+
+Also fixed: `tools/writespec-guard` denied `traycer agent send --help`; a send carrying no
+`--message` now passes through, and the `[visual-check]` marker finally has a regression case.
+`docs/workflows/visual_check.md` now documents that a worktree needs an `.env` symlink and that you
+confirm the app **boots**, not that the port answers.
 
 ## Agent and worktree inventory
 
-All eight worktrees clean at `081b209`. The dead Codex orchestrator has left the epic and **its
-children are now reparented to this Claude Code session** — the hub, all seven implementers and Luna.
+All nine worktrees clean and level with `main` at `1c73f78`. All agents warm; none deleted.
 
-| Agent | Worktree / branch | State |
+| Agent | Worktree | State |
 | --- | --- | --- |
-| `deepseek_imp_0` | `drinksmart_worktree_0` / `deepseek_agent_0` | warm; delivered W4-5 |
-| `deepseek_imp_1` | `drinksmart_worktree_1` / `deepseek_agent_1` | warm, idle |
-| `deepseek_imp_2` | `drinksmart_worktree_2` / `deepseek_agent_2` | warm, idle |
-| `deepseek_imp_3` | `drinksmart_worktree_3` / `deepseek_agent_3` | warm, idle |
-| `deepseek_imp_4` | `drinksmart_worktree_4` / `deepseek_agent_4` | warm; delivered W4-6 |
-| `deepseek_imp_5` | `drinksmart_worktree_5` / `deepseek_agent_5` | warm, unused |
-| `deepseek_imp_6` | `drinksmart_worktree_6` / `deepseek_agent_6` | warm, unused |
-| `visual_luna_0` | `visual_check_worktree` / `visual_check_branch` | **the next task, after Oscar's go** |
-| `codex-tui-a2a-hub` + `a2a-hub-waker` | `/home/oscar/DrinkSmart` | relay idle; ledger fully settled |
+| `visual_luna_0` | `visual_check_worktree` | warm; recon + Cluster C. **Stood down** |
+| `visual_luna_1` | `visual_check_worktree` (shared) | warm; Cluster A. **Stood down** |
+| `visual_luna_2` | `visual_check_worktree` (shared) | warm; Cluster B. **Stood down** |
+| `deepseek_imp_0`–`_6` | `drinksmart_worktree_0`–`_6` | warm, idle |
+| `codex-tui-a2a-hub` + `a2a-hub-waker` | `/home/oscar/DrinkSmart` | idle; inert under a Claude orchestrator |
 
-The relay ledger has **no pending, claimed, ambiguous or unread events**. The relay is only needed
-while a Codex TUI orchestrates; under a Claude Code orchestrator it is inert and Traycer's agent CLI
-is used directly.
+The dev server was stopped. `visual_check_worktree/.env` is a **symlink** to the root `.env` — keep
+it; a worktree ships with only `.env.example` and Vite reads env from its own root.
 
 ## Read first
 
-1. `AGENTS.md`, then `docs/decisions.md` — especially the **two 2026-08-13 LOCKED sections**
-2. `docs/workflows/visual_check.md` — the next task, in full
-3. `ORCHESTRATION.md` — the judgment layer over the workflow contracts
-4. `docs/workflows/delegation.md` and `agent_selection.md`
-5. The `wave-4-w4b-speccheck` Traycer artifact — clause map, twelve findings, final acceptance
-6. `design_handoffs/design_handoff_drinksmart/README.md` §B–§G and `screens/4a`–`4o` — **read the
-   trailing `<script>` blocks**, they carry the literal copy and the arithmetic
+1. `AGENTS.md`, then `docs/decisions.md`
+2. `docs/workflows/visual_check.md` — substantially revised this session
+3. `ORCHESTRATION.md`
+4. `tasks/todo.md` — the queued parallel-recon entry is now **implemented**; the rest still stands
 
 ## Explicit exclusions and boundaries
 
 - Never use `design_handoff_drinksmart_depreciated/` as authority.
-- Do not instruct an implementer to run `npm run lint` or `npm run build` — the guard denies it.
 - Do not alter the deterministic BAC/pacing formulas in `AppContext.tsx`.
 - Do not re-enable the light theme, add a dependency, or weaken RLS.
 - Do not push, deploy functions, apply remote migrations, rotate secrets, or publish a mobile build.
-- **The migration `20260813000000_allow_missing_establishment_drink_abv.sql` is written and committed
-  but has NOT been applied to any database.** It drops `NOT NULL` on `establishment_drinks.abv` so an
-  unread strength stays missing rather than being guessed. Applying it remotely needs Oscar.
-- The visual check does not run on the delegation path, and Luna is not contacted before Oscar's go.
+- **`supabase/migrations/20260813000000_allow_missing_establishment_drink_abv.sql` is committed but
+  applied to no database.** Applying it remotely is Oscar's call and needs his explicit request.
 
 ## PROMPT
 
 ```text
-Continue DrinkSmart from /home/oscar/DrinkSmart on main, at 081b209.
+Continue DrinkSmart from /home/oscar/DrinkSmart on main, at 1c73f78.
 
-Wave 4 is COMPLETE: all seven legs implemented, reviewed, repaired and integrated. The last two
-(W4-5 drink picker, W4-6 menu scanner) were finished this session after the Codex TUI orchestrator
-running them died mid-repair; the delegation was taken over at step 12 of delegation.md and carried
-through step 16. Nothing is outstanding on the delegation path. All eight worktrees are clean and
-level with main. nproc is 3.
+WAVE 4 IS COMPLETE. All seven legs were implemented, reviewed, repaired and integrated in an
+earlier session; this session ran the final visual check (docs/workflows/visual_check.md) end to
+end and integrated it. Every drawn frame 4a-4o has now been rendered and measured in a browser at
+402x874. There is nothing outstanding on either the delegation path or the visual-check path.
 
-THE NEXT TASK IS THE WAVE 4 VISUAL CHECK, AND IT NEEDS OSCAR'S EXPLICIT GO BEFORE IT STARTS.
-No part of Wave 4 has been rendered in a browser. Do not contact visual_luna_0 until Oscar says go.
+Derive the baseline by RUNNING the commands, never by quoting a file. As of 1c73f78 it is: 131
+tests across 14 files, typecheck 0 errors, lint known-failing at exactly 20 problems (10 errors,
+10 warnings), build ~36s, git diff --check clean.
 
-Once authorized, follow docs/workflows/visual_check.md in full. It is NOT the delegation path and
-must not be run as one: it is commissioned by a rough brief rather than a spec, runs several
-coordinating agents in one shared worktree (visual_check_worktree / visual_check_branch) under
-disjoint file ownership, and treats self-verification by screenshot as the mechanism rather than a
-smell. Checking is casual; integration is not. The orchestrator's own section 9 pass is capped:
-numeric-first via getComputedStyle and bounding-box read-backs BEFORE any image, exactly one capture
-per drawn screen, once, with no re-shoot loop. Findings are fixed inline and confirmed by read-backs.
-Luna indexes from 0, so the primary agent is visual_luna_0.
+THERE IS NO WAVE 5 PLANNED. Ask Oscar what he wants next before starting anything. The two
+candidates already on record are both DEFERRED FINDINGS from the visual check, and both are
+compositional rather than styling work:
 
-Derive the verification baseline by RUNNING the commands, never by quoting a file. As of 081b209 it
-is: 128 tests across 14 files, typecheck 0 errors, lint known-failing at exactly 20 problems
-(10 errors, 10 warnings), build ~21s, git diff --check clean. Note the lint warning count CHANGED
-this wave, from 11 to 10 — CLAUDE.md and tasks/todo.md both still say 9 errors and are wrong.
+  1. The auth screens lack the 58px bottom chrome that 4m draws. Fixing it means extracting the
+     nav out of Dashboard's Radix Tabs into a shared component used by both Dashboard and Auth.
+  2. 1c (Plan) and 4d (picker root) are drawn as two full screens, but the app stacks the buzz
+     picker, the generate controls and the embedded DrinksTab on one scrolling surface.
 
-Two things this session locked in docs/decisions.md that bear on how you work:
+Neither belongs in a visual check -- section 5 exists to keep composition refactors out of one --
+so if Oscar wants them, they are ordinary work: scope them, and delegate or do them inline against
+the threshold in docs/workflows/delegation.md.
 
-- A checker's own tests are part of the diff under review. W4-B shipped a passing clause test
-  against nextGapTarget while no production code called it, so the real path had zero coverage and
-  the suite was green anyway. When you extract logic to make it testable, the extraction is only
-  finished once the caller is switched over.
-- tools/spend-guard now resolves its repo root from the merge target, not its own script path. If a
-  future integration is denied while the ledger rows plainly exist, check which worktree the guard
-  is inspecting before reaching for the [no-ledger] bypass — and do not assert [no-ledger] for a
-  merge that genuinely integrates delegation.
+Other standing candidates, unchanged: the follow-ups list at the end of CLAUDE.md, the 18 npm audit
+vulnerabilities, and the 10 lint errors.
 
-One piece of unapplied work: supabase/migrations/20260813000000_allow_missing_establishment_drink_abv.sql
-is committed but has been applied to no database. It drops NOT NULL on establishment_drinks.abv so a
-menu scan can persist "strength unread" as null instead of guessing a default. The client, generated
-types and the parse-menu prompt all already treat abv as nullable. Applying it remotely is Oscar's
-call and needs his explicit request.
+WHAT NOT TO REDO. Five recon claims in this wave did not survive checking, and all five were
+misattributions of cause rather than false sightings. If you find yourself about to "fix" something
+because a report says it is broken, verify it against the files and the drawings first. Two
+specific traps that nearly caught this session:
 
-If you need to diagnose a stalled agent: traycer agent transcript is lossy and shows no tool calls.
-Read the harness rollout file instead (~/.codex/sessions/<yyyy>/<mm>/<dd>/rollout-*.jsonl for Codex,
-~/.claude/projects/<escaped-cwd>/<session-id>.jsonl for Claude Code) and trust its mtime over
-traycer's "active" flag.
+  - Every 4d category reads "from £3.60". The per-category minimum logic is CORRECT; the uniformity
+    is live Supabase data, and the drawing's varied prices are sample data for a fictional venue.
+  - The 4e drink order looks wrong only if you compare the app with "Cheapest first" ON against a
+    drawing that shows that chip UNSELECTED.
+
+When drawings and code disagree, the precedence ladder in docs/decisions.md settles it: tokens,
+then screens/*.html literal values, then screens/*.png appearance, then README prose, then
+tasks/todo.md, then implementer judgement. Higher rank wins outright -- no reconciliation, no
+averaging. It cannot resolve a conflict WITHIN one rank; that is a design clarification, not a
+judgement call for you.
 
 OPERATING INSTRUCTIONS FROM OSCAR, which have carried through several sessions and still apply:
 
