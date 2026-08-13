@@ -41,13 +41,35 @@ describe("KeypadFieldGroup (W4-1 / design 4o)", () => {
     for (const unit of ["%", "ml", "£"]) expect(html).toContain(unit);
   });
 
+  // The keypad belongs to the ACTIVE field, not to the group. 4i draws its resting
+  // state as wells and unit labels only, and 4f's initial frame draws no keypad
+  // either. These tests previously rendered with no focus and asserted the keys and
+  // the action were present, which locked in an always-open keypad that contradicts
+  // both screens -- and put one 64px action on every gap card, so a two-gap review
+  // showed three 64px primaries against the locked one-per-screen rule.
+  it("draws no keypad and no action until a field is focused", () => {
+    const html = render();
+    expect(html).not.toContain("⌫");
+    expect(html).not.toContain("Next gap");
+    expect(html).not.toContain("Done");
+  });
+
+  it("still draws its wells and unit labels while closed", () => {
+    const html = render();
+    expect(html).toContain("—");
+    expect(html).toMatch(/aria-label="[^"]*price[^"]*"/i);
+  });
+
   // Clause 4 + 4o's actionLabel: "Next gap" while a gap remains, "Done" when none does.
   it("reads 'Next gap' while any field is still null", () => {
-    expect(render()).toContain("Next gap");
+    expect(render({ focusKey: "price" })).toContain("Next gap");
   });
 
   it("reads 'Done' once no field is null", () => {
-    const html = render({ fields: fields([{ value: 4.6 }, { value: 568 }, { value: 7.2 }]) });
+    const html = render({
+      fields: fields([{ value: 4.6 }, { value: 568 }, { value: 7.2 }]),
+      focusKey: "price",
+    });
     expect(html).toContain("Done");
     expect(html).not.toContain("Next gap");
   });
@@ -61,7 +83,7 @@ describe("KeypadFieldGroup (W4-1 / design 4o)", () => {
   });
 
   it("renders the ten digits and a backspace, and no letter keys", () => {
-    const html = render();
+    const html = render({ focusKey: "price" });
     for (const d of ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]) expect(html).toContain(`>${d}<`);
     expect(html).toContain("⌫");
   });
@@ -69,7 +91,7 @@ describe("KeypadFieldGroup (W4-1 / design 4o)", () => {
   // Clause 3: keys are 64px on purpose -- above the 56px floor, because a mis-tap
   // writes a wrong number into a venue's catalog.
   it("sizes keypad keys at the 64px action height, not the 56px minimum", () => {
-    expect(render()).toContain("min-h-act");
+    expect(render({ focusKey: "price" })).toContain("min-h-act");
   });
 
   // Clause 5.
@@ -87,7 +109,7 @@ describe("KeypadFieldGroup (W4-1 / design 4o)", () => {
 
   // Clause 4: emptyIsAllowed is the consumer's business; the group never blocks.
   it("still offers its action when emptyIsAllowed is false and a gap remains", () => {
-    const html = render({ emptyIsAllowed: false });
+    const html = render({ emptyIsAllowed: false, focusKey: "price" });
     expect(html).toContain("Next gap");
   });
 });

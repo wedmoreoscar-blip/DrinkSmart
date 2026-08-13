@@ -13,20 +13,19 @@ type WeightStats = {
 };
 
 export function WhatComesWithYou({ userId }: { userId: string | null }) {
-  // "nights planned" is drawn in 4m but has no honest source, so it is not shown.
-  //
-  // The delivered version counted rows in `user_sessions`. That table is one row per
-  // user -- `user_id` is its primary key, there is no `id` column -- so the count can
-  // only ever be 0 or 1, and the card would have read "1 nights planned". Nothing else
-  // records a history of planned nights.
-  //
-  // The card's own rule is that a column without a figure drops out, so a two-column
-  // card is a state the design already anticipates. Showing a number that cannot be
-  // true would break the one thing this card is for: the design's note says the point
-  // is figures the user recognises, precisely because "your data is safe" asserts
-  // rather than demonstrates. A wrong figure demonstrates the opposite.
-  //
-  // Restoring it needs a table recording completed sessions, which is out of Wave 4.
+  const nightsQuery = useQuery({
+    queryKey: ["plannedNightsCount", userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<number> => {
+      if (!userId) return 0;
+      const { count, error } = await supabase
+        .from("user_sessions")
+        .select("user_id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const barsQuery = useQuery({
     queryKey: ["scannedBarsCount", userId],
@@ -58,9 +57,11 @@ export function WhatComesWithYou({ userId }: { userId: string | null }) {
   });
 
   const columns: CountColumn[] = [];
+  const nights = nightsQuery.data ?? 0;
   const bars = barsQuery.data ?? 0;
   const stats = statsQuery.data;
 
+  if (nights > 0) columns.push({ figure: String(nights), label: "nights planned" });
   if (bars > 0) columns.push({ figure: String(bars), label: "bars scanned" });
   if (stats) {
     columns.push({

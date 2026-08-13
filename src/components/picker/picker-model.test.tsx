@@ -6,6 +6,7 @@ import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { CategoryScreen } from "./CategoryScreen";
 import { DrinkRow } from "./DrinkRow";
 import { entryQuantity, perUnitVolumeMl } from "./picker-model";
+import { pickerCategoryFor } from "./picker-copy";
 
 const drink = (
   id: string,
@@ -32,6 +33,16 @@ const filters: DrinkFilters = {
 };
 
 describe("W4-5 picker contract", () => {
+  it("groups venue labels in the fixed picker order and omits custom rows", () => {
+    expect(pickerCategoryFor("beer_pint", "Beer (Pint)")).toBe("Beer & cider");
+    expect(pickerCategoryFor("cider_pint", "Cider (Pint)")).toBe("Beer & cider");
+    expect(pickerCategoryFor("wine_red", "Red Wine")).toBe("Wine");
+    expect(pickerCategoryFor("vodka", "Vodka")).toBe("Spirits & mixers");
+    expect(pickerCategoryFor("cocktails", "Cocktails")).toBe("Cocktails");
+    expect(pickerCategoryFor("alcopops", "Alcopops/RTD")).toBe("Soft & low-alcohol");
+    expect(pickerCategoryFor("custom", "Other")).toBeNull();
+  });
+
   it("recomputes a half from half the pint volume and commits one fractional-pint entry", () => {
     const pint = drink("pint", "Pint", 4, 568, "pint");
 

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 
 import { SCAN_CAPTURE_COPY, SCAN_WAIT_COPY } from "./copy";
 import { ScannerHeader } from "./ScannerHeader";
+import { ScannerSkeletonRows } from "./ScannerSkeletonRows";
 
 type ScannerWaitingProps = {
   onLeave: () => void;
@@ -21,7 +22,8 @@ export const ScannerWaiting = ({ onLeave, onCancel, onClose }: ScannerWaitingPro
   return (
     <div className="flex h-full min-h-0 flex-col bg-background px-5 pt-[22px] text-foreground">
       <ScannerHeader title={SCAN_CAPTURE_COPY.title} onClose={onClose} />
-      <div className="mt-2 flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-lg bg-field px-6 py-6">
+      <div className="relative mt-2 flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-lg bg-field px-6 py-6">
+        <ScannerSkeletonRows variant="waiting" />
         <div className="relative h-[52px] w-[52px] rounded-full shadow-[0_0_0_2px_#292b31]">
           <svg
             className="absolute inset-0 h-[52px] w-[52px] animate-[spin_1.8s_linear_infinite]"

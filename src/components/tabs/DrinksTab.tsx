@@ -8,7 +8,12 @@ import type { DrinkFilters } from "@/components/DrinkFilterPopover";
 import { CategoryScreen } from "@/components/picker/CategoryScreen";
 import { CustomDrinkSheet, type CustomDrinkDraft } from "@/components/picker/CustomDrinkSheet";
 import { PickerTray } from "@/components/picker/PickerTray";
-import { CATEGORY_COPY, PICKER_COPY } from "@/components/picker/picker-copy";
+import {
+  CATEGORY_COPY,
+  PICKER_CATEGORY_ORDER,
+  PICKER_COPY,
+  pickerCategoryFor,
+} from "@/components/picker/picker-copy";
 import {
   entryQuantity,
   entryUnit,
@@ -69,7 +74,8 @@ const DrinksTab = ({ onNext, onOpenVenues, selectedVenueId }: DrinksTabProps) =>
   const categories = useMemo(() => {
     const map = new Map<string, { count: number; minPrice: number | null }>();
     for (const drink of venueDrinks) {
-      const label = drink.category_label || "Other";
+      const label = pickerCategoryFor(drink.category, drink.category_label);
+      if (!label) continue;
       const entry = map.get(label) ?? { count: 0, minPrice: null };
       entry.count += 1;
       if (drink.price != null) {
@@ -77,19 +83,18 @@ const DrinksTab = ({ onNext, onOpenVenues, selectedVenueId }: DrinksTabProps) =>
       }
       map.set(label, entry);
     }
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([label, entry]) => ({
-        label,
-        count: entry.count,
-        minPrice: entry.minPrice ?? 0,
-      }));
+    return PICKER_CATEGORY_ORDER.flatMap((label) => {
+      const entry = map.get(label);
+      return entry
+        ? [{ label, count: entry.count, minPrice: entry.minPrice ?? 0 }]
+        : [];
+    });
   }, [venueDrinks]);
 
   const categoryDrinks = useMemo(
     () =>
       category
-        ? venueDrinks.filter((d) => (d.category_label || "Other") === category)
+        ? venueDrinks.filter((d) => pickerCategoryFor(d.category, d.category_label) === category)
         : [],
     [category, venueDrinks],
   );
@@ -229,7 +234,7 @@ const DrinksTab = ({ onNext, onOpenVenues, selectedVenueId }: DrinksTabProps) =>
 
   return (
     <div>
-      <div className="px-5 pb-5 pt-[22px]">
+      <div className="pb-5 pt-[22px]">
         {category ? (
           <CategoryScreen
             categoryLabel={category}

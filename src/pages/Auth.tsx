@@ -98,7 +98,6 @@ const Auth = () => {
   const [errors, setErrors] = useState<{ email?: string; password?: string; username?: string }>({});
   const [session, setSession] = useState<Session | null>(null);
   const [emailFocused, setEmailFocused] = useState(false);
-  const [usernameFocused, setUsernameFocused] = useState(false);
   const [waiting, setWaiting] = useState<UpgradeWaiting | null>(() => loadUpgradeWaiting());
   const [now, setNow] = useState(() => Date.now());
   const [resending, setResending] = useState(false);
@@ -276,7 +275,7 @@ const Auth = () => {
       const validation = authSchema.safeParse({
         email,
         password: isUpgrade ? "placeholder-not-used" : password,
-        username: isSignUp ? username : undefined,
+        username: isSignUp && !isUpgrade ? username : undefined,
       });
 
       if (!validation.success) {
@@ -321,10 +320,24 @@ const Auth = () => {
               avatarUrl = await uploadAvatar(userId);
             }
 
+            // The upgrade step only asks for an email. Preserve an existing
+            // profile username, and retain the old create-row behavior for a
+            // user who reaches this route before onboarding has created one.
+            const { data: existingProfile, error: existingProfileError } = await supabase
+              .from("profiles")
+              .select("username")
+              .eq("user_id", userId)
+              .maybeSingle();
+            if (existingProfileError) {
+              console.error("Profile lookup error:", existingProfileError);
+            }
+            const fallbackUsername =
+              session?.user?.email?.split("@")[0] || `user_${Date.now()}`;
+
             const { error: profileError } = await supabase.from("profiles").upsert(
               {
                 user_id: userId,
-                username,
+                username: existingProfile?.username ?? fallbackUsername,
                 ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
               },
               { onConflict: "user_id" }
@@ -542,29 +555,7 @@ const Auth = () => {
             <StepStrip steps={AUTH_COPY.steps} marks={["pending", "pending", "pending"] as StepMark[]} />
           </div>
           <p className="mb-1 mt-1 text-micro text-[#75798c]">{AUTH_COPY.why}</p>
-          <div className="space-y-4">
-            <div>
-              <Label
-                htmlFor="upgrade-username"
-                className={cn(
-                  usernameFocused && !errors.username && "text-primary-hover",
-                  errors.username ? "text-warning" : ""
-                )}
-              >
-                Username
-              </Label>
-              <Input
-                id="upgrade-username"
-                className="placeholder:text-[#75798c]"
-                placeholder="Choose a username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                onFocus={() => setUsernameFocused(true)}
-                onBlur={() => setUsernameFocused(false)}
-                aria-invalid={!!errors.username}
-              />
-              {errors.username && fieldError(errors.username)}
-            </div>
+          <div>
             <div>
               <Label
                 htmlFor="upgrade-email"

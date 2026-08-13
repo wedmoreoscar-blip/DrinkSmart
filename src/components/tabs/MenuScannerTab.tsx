@@ -118,22 +118,25 @@ const MenuScannerTab = ({
           }
           setParsedDrinks(drinks);
           if (data?.suggestedName) setEstablishmentName(data.suggestedName);
-          if (screenRef.current === "waiting") showScreen("review");
+          const wasWaiting = screenRef.current === "waiting";
+          if (wasWaiting) showScreen("review");
           onTaskChange?.("ready");
-          toast({
-            title: SCAN_WAIT_COPY.doneToast(drinks.length),
-            action: (
-              <ToastAction
-                altText="Check"
-                onClick={() => {
-                  showScreen("review");
-                  onReviewReady?.();
-                }}
-              >
-                Check
-              </ToastAction>
-            ),
-          });
+          if (!wasWaiting) {
+            toast({
+              title: SCAN_WAIT_COPY.doneToast(drinks.length),
+              action: (
+                <ToastAction
+                  altText="Check"
+                  onClick={() => {
+                    showScreen("review");
+                    onReviewReady?.();
+                  }}
+                >
+                  Check
+                </ToastAction>
+              ),
+            });
+          }
         })
         .catch((err) => {
           if (scanIdRef.current !== id) return;
@@ -208,6 +211,15 @@ const MenuScannerTab = ({
     scanIdRef.current += 1;
     setPhoto(null);
     showScreen("capture");
+  };
+
+  const handleLeave = () => {
+    // Keep the request alive while the user returns to planning. If it resolves
+    // after this point, the result is delivered through the global toast rather
+    // than navigating a hidden scanner back to review.
+    showScreen("capture");
+    if (onLeave) onLeave();
+    else onNext();
   };
 
   const commitDrink = (index: number, key: ReviewField, value: number | null) => {
@@ -304,7 +316,7 @@ const MenuScannerTab = ({
         <ScannerCapture onShutter={handleShutter} onPick={handlePick} onClose={handleClose} />
       )}
       {screen === "waiting" && (
-        <ScannerWaiting onLeave={onLeave ?? onNext} onCancel={handleCancel} onClose={handleClose} />
+        <ScannerWaiting onLeave={handleLeave} onCancel={handleCancel} onClose={handleClose} />
       )}
       {screen === "review" && (
         <ScannerReview

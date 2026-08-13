@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,13 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
   const [submitting, setSubmitting] = useState(false);
   const { completeOnboarding, isLoggedIn } = useUserMetrics();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!open) return;
+    const className = "onboarding-modal-open";
+    document.body.classList.add(className);
+    return () => document.body.classList.remove(className);
+  }, [open]);
 
   const handleStatsChange = useCallback(
     (metrics: UserMetricsData, valid: boolean) => {
@@ -100,7 +107,13 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
   const handleSkipClick = () => handleFinishClick(defaultPreferences);
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <>
+      <style>{`
+        body.onboarding-modal-open [data-state="open"].fixed.inset-0 {
+          background: #0a0b12 !important;
+        }
+      `}</style>
+      <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         className="left-4 right-4 top-auto bottom-4 mx-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-sheet bg-popover p-6 shadow-lg [&>button.absolute]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -155,6 +168,7 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
           </>
         )}
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 };

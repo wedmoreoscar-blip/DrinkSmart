@@ -46,6 +46,8 @@ export const PreferencesCard = ({ preferences, onChange }: PreferencesCardProps)
     window.localStorage.setItem(REMINDERS_KEY, enabled ? "true" : "false");
   };
 
+  const tasteStop = Math.round(preferences.sweet * 4) / 4;
+
   return (
     <div className="rounded-lg bg-card p-4">
       <div className="mb-0.5 text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
@@ -53,7 +55,7 @@ export const PreferencesCard = ({ preferences, onChange }: PreferencesCardProps)
       </div>
       <Row
         label="Taste"
-        value={TASTE_WORDS[Math.round(preferences.sweet * 4)] ?? "middling"}
+        value={TASTE_WORDS[tasteStop] ?? "middling"}
         onClick={() => setTasteOpen(true)}
       />
       <div className="h-px bg-secondary" />

@@ -27,7 +27,10 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex flex-col items-center justify-center gap-[5px] whitespace-nowrap text-[13px] font-normal text-[#75798c] transition-all data-[state=active]:font-medium data-[state=active]:text-[#b5abfc] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+      // 58px belongs to the item, not the bar. The drawings put min-height:58px on
+      // each tab and the 1px rule on the container, so a bar sized to 58 with a
+      // border inside it leaves every item 57 -- which is what measured.
+      "flex min-h-[58px] flex-col items-center justify-center gap-[5px] whitespace-nowrap text-[13px] font-normal text-[#75798c] transition-all data-[state=active]:font-medium data-[state=active]:text-[#b5abfc] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
       className,
     )}
     {...props}

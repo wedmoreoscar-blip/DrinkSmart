@@ -55,7 +55,7 @@ const StatCell = ({
     onClick={onClick}
     className="flex min-h-[60px] flex-col justify-center gap-[3px] rounded-ctl bg-field px-[14px] py-2 text-left"
   >
-    <span className="text-micro font-medium uppercase tracking-[0.09em] text-[#75798c]">
+    <span className="text-micro font-medium uppercase leading-none tracking-[0.09em] text-[#75798c]">
       {label}
     </span>
     <span className="flex items-baseline gap-[5px]">

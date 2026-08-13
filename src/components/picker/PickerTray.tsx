@@ -34,7 +34,7 @@ export const PickerTray = ({
     hasPending && target > 0 ? `of ${fmtMl(target)} ml tonight` : PICKER_COPY.traySub(committedCount);
 
   return (
-    <div className="sticky bottom-0 z-10 flex flex-none items-center gap-3.5 border-t border-[#292b31] bg-[#1c1e2c] px-5 py-3">
+    <div className="sticky bottom-0 z-10 -mx-5 flex flex-none items-center gap-3.5 border-t border-[#292b31] bg-[#1c1e2c] px-5 py-3">
       <VesselMeter
         targetMl={target}
         entries={[{ label: "committed", ml: committedMl }]}

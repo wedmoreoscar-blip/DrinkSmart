@@ -42,8 +42,16 @@ export function KeypadFieldGroup({
   fieldLayout = "row",
   className,
 }: KeypadFieldGroupProps) {
-  const [focusedKey, setFocusedKey] = React.useState<string | null>(null);
-  const [working, setWorking] = React.useState<Record<string, string>>({});
+  // Seeded from focusKey rather than left null and corrected by the effect below:
+  // the effect cannot run before first paint, so a group asked to open on a field
+  // would otherwise render closed for a frame and then pop its keypad open.
+  const [focusedKey, setFocusedKey] = React.useState<string | null>(focusKey ?? null);
+  const [working, setWorking] = React.useState<Record<string, string>>(() => {
+    if (!focusKey) return {};
+    const field = fields.find((candidate) => candidate.key === focusKey);
+    if (!field) return {};
+    return { [focusKey]: field.value === null ? "" : String(field.value) };
+  });
   const fieldRefs = React.useRef<Record<string, HTMLButtonElement | null>>({});
 
   const focusedField = fields.find((field) => field.key === focusedKey) ?? null;
@@ -178,26 +186,36 @@ export function KeypadFieldGroup({
           </div>
         ))}
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {KEYS.map((key) => (
+      {/* The keypad and its submit belong to the ACTIVE field, not to the group.
+          4i draws its resting state as wells and unit labels only — no keys, no
+          "Next gap" — and 4f's initial frame likewise draws none. Rendering them
+          unconditionally also put one 64px action on every gap card, so a review
+          with two gaps showed three 64px primaries against the locked rule of
+          exactly one per screen (the screen's own is "Save 59 to The Eagle"). */}
+      {focusedField ? (
+        <>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {KEYS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                disabled={key === "." && (focusedField.integer ?? false)}
+                onClick={() => pressKey(key)}
+                className="flex min-h-act items-center justify-center rounded-ctl bg-field text-title leading-none tabular-nums shadow-[0_0_0_1px_#383a46] disabled:pointer-events-none disabled:opacity-50"
+              >
+                <span className={key === "⌫" ? "text-muted-foreground" : "text-foreground"}>{key}</span>
+              </button>
+            ))}
+          </div>
           <button
-            key={key}
             type="button"
-            disabled={key === "." && (focusedField?.integer ?? false)}
-            onClick={() => pressKey(key)}
-            className="flex min-h-act items-center justify-center rounded-ctl bg-field text-title leading-none tabular-nums shadow-[0_0_0_1px_#383a46] disabled:pointer-events-none disabled:opacity-50"
+            onClick={submit}
+            className="mt-2.5 flex min-h-act w-full items-center justify-center rounded-lg border border-primary text-lead font-medium text-[#b5abfc]"
           >
-            <span className={key === "⌫" ? "text-muted-foreground" : "text-foreground"}>{key}</span>
+            {gapsLeft > 0 ? "Next gap" : "Done"}
           </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={submit}
-        className="mt-2.5 flex min-h-act w-full items-center justify-center rounded-lg border border-primary text-lead font-medium text-[#b5abfc]"
-      >
-        {gapsLeft > 0 ? "Next gap" : "Done"}
-      </button>
+        </>
+      ) : null}
     </div>
   );
 }

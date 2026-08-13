@@ -26,7 +26,7 @@ export const AdminGroup = ({ isAdmin, onNavigate }: AdminGroupProps) => {
         onClick={() => onNavigate("/admin/feedback")}
         className="flex h-tap w-full items-center justify-between text-left"
       >
-        <span className="text-body text-foreground">Manage feedback</span>
+        <span className="text-body text-foreground">Seeded establishments</span>
         <ChevronRight className="h-[18px] w-[18px] text-[#75798c]" strokeWidth={1.8} />
       </button>
     </>

@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 
 import { SCAN_CAPTURE_COPY } from "./copy";
 import { ScannerHeader } from "./ScannerHeader";
+import { ScannerSkeletonRows } from "./ScannerSkeletonRows";
 
 type ScannerCaptureProps = {
   onShutter: () => void;
@@ -19,6 +20,7 @@ export const ScannerCapture = ({ onShutter, onPick, onClose }: ScannerCapturePro
         <span className="absolute bottom-0 left-0 h-[34px] w-[34px] rounded-bl-md border-b-2 border-l-2 border-[#e9e9ed]" />
         <span className="absolute bottom-0 right-0 h-[34px] w-[34px] rounded-br-md border-b-2 border-r-2 border-[#e9e9ed]" />
       </div>
+      <ScannerSkeletonRows variant="capture" />
       <div className="relative rounded-lg bg-[rgba(10,11,18,.72)] px-4 py-3.5">
         <p className="text-note text-[#e9e9ed]">{SCAN_CAPTURE_COPY.guidance}</p>
       </div>

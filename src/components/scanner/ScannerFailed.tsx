@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 
 import { SCAN_CAPTURE_COPY, SCAN_FAIL_COPY } from "./copy";
 import { ScannerHeader } from "./ScannerHeader";
+import { ScannerSkeletonRows } from "./ScannerSkeletonRows";
 import type { ScanFailure } from "./types";
 
 type ScannerFailedProps = {
@@ -28,11 +29,9 @@ export const ScannerFailed = ({
       <ScannerHeader title={SCAN_CAPTURE_COPY.title} onClose={onClose} />
       <div className="min-h-0 flex-1 overflow-y-auto pt-2">
         <div className="relative flex-none">
-          <img
-            src={photoThumbnail}
-            alt="Your menu photo"
-            className="h-[150px] w-full rounded-lg bg-field object-cover"
-          />
+          <div className="relative h-[150px] overflow-hidden rounded-lg bg-field">
+            <ScannerSkeletonRows variant="failed" />
+          </div>
           <span className="absolute bottom-3.5 left-3.5 flex-none rounded-md bg-[rgba(10,11,18,.72)] px-[9px] py-[5px] text-micro font-medium tracking-[0.04em] text-muted-foreground">
             your photo
           </span>

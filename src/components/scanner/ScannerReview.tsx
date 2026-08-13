@@ -90,7 +90,7 @@ export const ScannerReview = ({
             </span>
           )}
         </div>
-        <p className="mb-3 mt-1.5 text-note text-muted-foreground">{SCAN_REVIEW_COPY.lead(gapCount)}</p>
+        <p className="mb-3 mt-1.5 whitespace-nowrap text-note text-muted-foreground">{SCAN_REVIEW_COPY.lead(gapCount)}</p>
 
         {gapped.length > 0 && (
           <div className="flex flex-col gap-2.5">
