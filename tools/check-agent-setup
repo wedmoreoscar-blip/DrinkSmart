@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import re
 import stat
@@ -50,6 +51,8 @@ REQUIRED = {
     "tools/waker-daemon-start",
     "tools/test-project",
     "tools/writespec-guard",
+    "tools/spend-guard",
+    "docs/delegation_spend.md",
 }
 # Traycer serves the selection guide from this machine-global path; the repo copy is canonical.
 TRAYCER_SELECTION_GUIDE = Path.home() / ".traycer/agent-selection-guide.md"
@@ -134,6 +137,58 @@ def check_writespec_guard_detection(failures: list[str]) -> None:
         if denied != should_deny:
             verb = "did not deny" if should_deny else "wrongly denied"
             fail(f"writespec-guard {verb}: {command!r}", failures)
+
+
+def check_spend_guard_detection(failures: list[str]) -> None:
+    """The guard must govern real merges of integration refs and nothing else.
+
+    Hermetic: cases run against a temp git repo via SPEND_GUARD_REPO, so the
+    result never depends on whether the real ledger happens to be dirty.
+    """
+    guard = ROOT / "tools/spend-guard"
+
+    def run_case(command: str, repo: str, should_deny: bool) -> None:
+        result = subprocess.run(
+            [str(guard)],
+            input=json.dumps({"tool_name": "Bash", "tool_input": {"command": command}}),
+            capture_output=True,
+            text=True,
+            check=False,
+            env={**os.environ, "SPEND_GUARD_REPO": repo},
+        )
+        denied = "permissionDecision" in result.stdout
+        if denied != should_deny:
+            verb = "did not deny" if should_deny else "wrongly denied"
+            fail(f"spend-guard {verb}: {command!r}", failures)
+
+    with tempfile.TemporaryDirectory(prefix="drinksmart-spend-check-") as directory:
+        repo = Path(directory)
+        ledger = repo / "docs/delegation_spend.md"
+        ledger.parent.mkdir(parents=True)
+        header = "# ledger\n\n| date | delegation | tokens | where |\n| --- | --- | --- | --- |\n"
+        ledger.write_text(header)
+        for cmd in (
+            ["git", "init", "-q"],
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A"],
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
+        ):
+            subprocess.run(cmd, cwd=repo, capture_output=True, check=True)
+
+        merge = "git merge --ff-only integration/w4"
+        # Mentions and non-integration merges pass through.
+        run_case("git commit -F - <<'EOF'\nnote: git merge integration/w4 later\nEOF",
+                 str(repo), False)
+        run_case("git merge deepseek_agent_2", str(repo), False)
+        run_case("git checkout integration/w4 && git merge deepseek_agent_2", str(repo), False)
+        run_case(f"{merge}  # [no-ledger]", str(repo), False)
+        # A real merge of an integration ref with a clean ledger is denied...
+        run_case(merge, str(repo), True)
+        # ...a malformed row does not satisfy it...
+        ledger.write_text(header + "| soon | W4-5 | lots | stuff |\n")
+        run_case(merge, str(repo), True)
+        # ...and a well-formed uncommitted row allows it.
+        ledger.write_text(header + "| 2026-08-13 | W4-5 keypad | ~38k | spec 6k, tests 22k |\n")
+        run_case(merge, str(repo), False)
 
 
 def main() -> int:
@@ -222,6 +277,7 @@ def main() -> int:
         "tools/waker-daemon-start",
         "tools/test-project",
         "tools/writespec-guard",
+        "tools/spend-guard",
     ):
         mode = (ROOT / relative).stat().st_mode
         if not mode & stat.S_IXUSR:
@@ -229,6 +285,7 @@ def main() -> int:
 
     check_relay_empty_content(failures)
     check_writespec_guard_detection(failures)
+    check_spend_guard_detection(failures)
 
     # The selection guide lives in two places. Absent is fine (fresh machine); divergent is not.
     canonical = (ROOT / "docs/workflows/agent_selection.md").read_bytes()

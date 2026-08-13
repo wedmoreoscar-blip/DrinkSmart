@@ -53,8 +53,8 @@ dispatch time:
 
 "Keep tiny context-cached changes inline" (`AGENTS.md`) is this rule's summary; the lines above
 are its operating definition. The line-count figure is a working estimate, not a measured one —
-the per-delegation context-spend note that `speccheck` records in each acceptance record is what
-will eventually correct it.
+the spend ledger at `docs/delegation_spend.md`, whose rows `tools/spend-guard` enforces at every
+integration, is what will eventually correct it.
 
 ## The path
 
@@ -216,6 +216,13 @@ role skips to step 6.
 14. **Fast-forward `main` from `integration`,** then delete the scratch branch. Commit locally.
     Never push. Keep unrelated work off `integration` — it may be discarded wholesale, and
     unrelated commits pollute the diff under review.
+
+    **The fast-forward is gated on the spend ledger.** Before the merge, append one row per
+    delegated leg to `docs/delegation_spend.md` — date, label, the orchestrator-context tokens the
+    leg cost, and a short note on where they went. `tools/spend-guard` denies the merge of an
+    `integration*` branch until the rows exist; `[no-ledger]` in the merge command bypasses it
+    only when the merge genuinely integrates no delegation. Format and rationale live in the
+    ledger's own header and speccheck step 8.
 15. **Re-merge `main` into every worktree that is idle and clean,** including the one that just
     delivered. Skipping this is what makes the second and third integrations of a batch conflict.
 
