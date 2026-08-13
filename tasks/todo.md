@@ -169,3 +169,45 @@ Acceptance:
 Runtime receiver creation and the no-code end-to-end smoke test are intentionally deferred until the
 first real `$codex-tui-relay` activation; this documentation implementation did not provision a live
 Traycer agent.
+
+## Queued — parallelise the visual check's recon stage (approved 2026-08-13)
+
+Approved by Oscar during the Wave 4 visual check, to be written **as soon as that pass closes** and
+before the next wave's check. Deliberately not written mid-flight: changing the contract under a
+running agent produces a recon that half-follows two versions of the rules.
+
+**The defect in `docs/workflows/visual_check.md`:** recon is serial and single-agent while repair is
+parallel and multi-agent. That is inverted. Discovery is the stage that scales cleanly; repair is the
+stage carrying the hazards. The doc parallelises the hazardous half and serialises the safe one.
+
+**Why the constraint does not transfer.** Fixers must own disjoint *files* because a shared worktree
+has no isolation and last-write-wins silently. Recon writes no product code — its only writes are
+per-screen `notes.md`, already disjoint by screen. The safety rationale simply does not apply, and
+the doc never noticed because one agent was enough when a wave was eight frames.
+
+**The change:** allow n recon agents on disjoint screen sets above a threshold of roughly eight drawn
+frames. **Luna-0 remains sole author of the headcount and the file-ownership split** — that synthesis
+genuinely needs whole-wave context, which is the real reason recon was single-agent, and it survives
+the change intact.
+
+**Second change, same edit:** split "Measure, do not only look" into two standards. Recon measures
+enough to **prove a defect is real**; the fixer measures enough to **know it is gone**. Today every
+number is measured three times — recon, fixer, then the orchestrator's §9 pass. A recon finding still
+may not be "looks off to me": it must still carry a number that contradicts a stated one.
+
+**Third and strongest argument — a long serial recon compacts its own context.** Luna-0 hit context
+compaction partway through the Wave 4 recon (Oscar, 2026-08-13). A scout that compacts has silently
+lost the measured detail behind its earlier findings, and the later half of its finding list is
+therefore derived from a summary of its own observations rather than the observations. That is a
+**quality** failure, not a speed one, and it is the real case for splitting recon: n agents over
+disjoint screen sets each stay inside their window, where one agent over fifteen frames cannot.
+
+It also raises the value of the notes discipline from bookkeeping to load-bearing. Per-screen
+`notes.md` written *as each capture is assessed* is the only part of a scout's observation that
+survives its own compaction. Wave 4 nearly lost this: Luna-0 was shooting with empty notes files
+until it was told to backfill, which happened to be before the compaction. Make the revision say
+plainly that notes are the durable record and a compaction makes memory inadmissible.
+
+Evidence to fold in when writing: Wave 3 ran 8 frames / 3 agents / ~87 min recon-to-milestone; Wave 4
+ran 15 frames / 1 recon agent and compacted. Ask Luna-0 in its handback where recon actually lost
+time — driving into hard states, measuring, or writing — since it is the only one that knows.

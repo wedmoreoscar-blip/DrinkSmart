@@ -122,8 +122,12 @@ def check_writespec_guard_detection(failures: list[str]) -> None:
         ("git commit -F - <<'EOF'\nnote: traycer agent send routing\nEOF", False),
         ('grep -rn "traycer agent send" docs/', False),
         ('traycer agent send --to a --message "[no-spec] ping"', False),
+        ('traycer agent send --to a --message "[visual-check] go look"', False),
+        ("traycer agent send --help", False),
         ('traycer agent send --to a --message "build the thing"', True),
         ('cd /tmp && traycer agent send --to a --message "build it"', True),
+        # A send whose body merely contains a bare -h is still a commission.
+        ('traycer agent send --to a --message "run it with -h and report"', True),
     )
     for command, should_deny in cases:
         result = subprocess.run(

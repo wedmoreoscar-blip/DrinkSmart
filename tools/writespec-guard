@@ -122,6 +122,15 @@ def main():
     cmd = payload.get("tool_input", {}).get("command", "")
     if not commissions_a_send(cmd):
         allow()
+    if "--message" not in cmd:
+        # `--message` is the only way `traycer agent send` carries a prompt, so a send
+        # without one delivers nothing and commissions nothing. Chiefly this is
+        # `traycer agent send --help`, which the guard denied on 2026-08-13 while the
+        # orchestrator was merely reading the flag list - a denial with nothing to deny.
+        # Keyed on the absence of a payload rather than on --help/-h, because a lone
+        # `-h` is too easy to hit inside a real message body and would punch a hole in
+        # the rule this guard exists to enforce.
+        allow()
     if "--response-id" in cmd:
         allow()  # a reply, not a commission
     if "[no-spec]" in cmd:
