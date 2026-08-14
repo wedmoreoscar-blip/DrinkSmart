@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/select";
 import { defaultMetrics, type UserMetricsData } from "@/hooks/useUserMetrics";
 import { ONBOARD1_ERRORS } from "./onboardingCopy";
+import {
+  BODY_WATER_METHOD_OPTIONS,
+  bodyFatIsValidForMethod,
+} from "./onboardingStats";
 import { cn } from "@/lib/utils";
 
 type StatsFormProps = {
@@ -105,13 +109,18 @@ export const StatsForm = ({
   const ageValid = !Number.isNaN(age) && age >= 18;
 
   const sexValid = metrics.sex === "male" || metrics.sex === "female";
+  const bodyFatValid = bodyFatIsValidForMethod(metrics);
 
-  const isValid = weightValid && heightValid && ageValid && sexValid;
+  const isValid = weightValid && heightValid && ageValid && sexValid && bodyFatValid;
 
   const errors = {
     weight: showErrors && !weightValid ? ONBOARD1_ERRORS.weight : null,
     height: showErrors && !heightValid ? ONBOARD1_ERRORS.height : null,
     age: showErrors && !ageValid ? ONBOARD1_ERRORS.age : null,
+    bodyFat:
+      showErrors && metrics.metricType === "ffmi" && !bodyFatValid
+        ? ONBOARD1_ERRORS.bodyFat
+        : null,
   };
 
   useEffect(() => {
@@ -234,6 +243,51 @@ export const StatsForm = ({
           </Select>
         </div>
       </div>
+
+      <div>
+        <label className="mb-2 block text-label font-medium uppercase text-muted-foreground">
+          Method
+        </label>
+        <Select
+          value={metrics.metricType}
+          onValueChange={(value: "bmi" | "ffmi") => update({ metricType: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a method" />
+          </SelectTrigger>
+          <SelectContent className="bg-popover z-50">
+            {BODY_WATER_METHOD_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {metrics.metricType === "ffmi" && (
+        <div>
+          <label
+            className={cn(
+              "mb-2 block text-label font-medium uppercase text-muted-foreground",
+              errors.bodyFat && "text-warning"
+            )}
+          >
+            Body fat
+          </label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            value={metrics.bodyFat}
+            onChange={(e) => update({ bodyFat: e.target.value })}
+            className={cn(
+              "text-lead tabular-nums",
+              errors.bodyFat && "border-warning"
+            )}
+          />
+          <FieldError error={errors.bodyFat} />
+        </div>
+      )}
 
       {!hideSubmit && onSubmit && (
         <Button
