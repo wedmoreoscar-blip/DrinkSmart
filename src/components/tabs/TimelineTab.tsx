@@ -25,6 +25,7 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableTimelineItem } from "./SortableTimelineItem";
 import { replanRemaining, sortableIdFor } from "./timeline-replan";
@@ -77,13 +78,15 @@ const getVolumeLabel = (entry: TimelineEntry) => {
 const getUnitLabel = (entry: TimelineEntry) =>
   getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit).replace(/glasss$/, "glass");
 
-// Rows stay in place while a drink is in the air — the 5e move mode shows the
-// vacated slot and a drop line instead of live-shifting the list.
-const stationarySortingStrategy = () => null;
-
 const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
-  const { state, reorderTimelineEntries, toggleLockedDrink, applyRegeneratedRemainingDrinks } =
-    useAppContext();
+  const {
+    state,
+    reorderTimelineEntries,
+    toggleLockedDrink,
+    markTimelineEntryHadIt,
+    delayTimelineEntry,
+    applyRegeneratedRemainingDrinks,
+  } = useAppContext();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [webRemindersEnabled, setWebRemindersEnabled] = useState(() => {
@@ -269,31 +272,32 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
-      {movingEntry ? (
-        <section className="flex shrink-0 items-center gap-3 border-b border-secondary px-5 pb-3.5 pt-2">
-          <div className="min-w-0 flex-1">
-            <div className="text-label font-medium uppercase tracking-[0.09em] text-primary-hover">
-              Moving
+      <section className="relative shrink-0 border-b border-secondary px-5 pb-5 pt-2">
+        {movingEntry && (
+          <div className="absolute inset-0 z-[1] flex items-center gap-3 bg-background px-5 pb-5 pt-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-label font-medium uppercase tracking-[0.09em] text-primary-hover">
+                Moving
+              </div>
+              <div className="mt-1.5 truncate text-[25px] font-medium leading-[1.2] tracking-[-0.015em]">
+                {getDisplayName(movingEntry)}
+              </div>
+              <div className="mt-0.5 text-[15px] leading-[1.35] text-muted-foreground">
+                drop it anywhere later tonight
+              </div>
             </div>
-            <div className="mt-1.5 truncate text-[25px] font-medium leading-[1.2] tracking-[-0.015em]">
-              {getDisplayName(movingEntry)}
-            </div>
-            <div className="mt-0.5 text-[15px] leading-[1.35] text-muted-foreground">
-              drop it anywhere later tonight
-            </div>
+            <button
+              type="button"
+              onClick={handleDragCancel}
+              className="flex min-h-tap flex-none items-center justify-center rounded-lg border border-border px-[22px] text-body"
+            >
+              Done
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setMovingEntryId(null)}
-            className="flex min-h-tap flex-none items-center justify-center rounded-lg border border-border px-[22px] text-body"
-          >
-            Done
-          </button>
-        </section>
-      ) : (
-        <section className="shrink-0 border-b border-secondary px-5 pb-5 pt-2">
-          <div className="flex items-baseline justify-between">
-            <div className="text-label font-medium uppercase tracking-[0.09em] text-primary-hover">Next</div>
+        )}
+
+        <div className={movingEntry ? "invisible" : undefined} aria-hidden={movingEntry ? true : undefined}>
+          <div className="flex items-baseline justify-end">
             <div className="text-label tabular-nums tracking-normal text-muted-foreground">
               now {formatClock(currentTime)}
             </div>
@@ -320,24 +324,22 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
             <button
               type="button"
               className="flex h-16 flex-1 items-center justify-center rounded-lg border border-primary text-lead font-medium text-primary-hover"
-              disabled
-              aria-disabled="true"
-              title="Had it is blocked until timeline engine support is available"
+              disabled={!nextEntry || movingEntry !== null}
+              onClick={() => nextEntry && markTimelineEntryHadIt(nextEntry.entryId, currentTime)}
             >
               Had it
             </button>
             <button
               type="button"
               className="flex h-16 w-[104px] items-center justify-center rounded-lg border border-border text-body text-foreground"
-              disabled
-              aria-disabled="true"
-              title="+15 replanning is blocked until timeline engine support is available"
+              disabled={!nextEntry || movingEntry !== null}
+              onClick={() => nextEntry && delayTimelineEntry(nextEntry.entryId, 15)}
             >
               +15
             </button>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       <section className="relative min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-[18px]">
         <div
@@ -358,7 +360,7 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
         >
           <SortableContext
             items={state.drinkTimeline.map(sortableIdFor)}
-            strategy={stationarySortingStrategy}
+            strategy={verticalListSortingStrategy}
           >
             <div className="relative z-[1]">
               {dropLineY !== null && (
@@ -436,33 +438,6 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
                 </div>
               )}
 
-              <div className="mb-4 space-y-3">
-                <Card className="border border-border bg-card p-4 shadow-none">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 items-center gap-3">
-                      {(isNative ? notificationsEnabled : webRemindersEnabled) ? (
-                        <Bell className="h-5 w-5 shrink-0 text-primary" />
-                      ) : (
-                        <BellOff className="h-5 w-5 shrink-0 text-muted-foreground" />
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-body">Drink Reminders</div>
-                        <div className="mt-1 text-[15px] leading-[1.3] text-muted-foreground">
-                          {isNative
-                            ? "Get notified when it’s time for your next drink"
-                            : "Get toast alerts when it’s time for your next drink"}
-                        </div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={isNative ? notificationsEnabled : webRemindersEnabled}
-                      onCheckedChange={isNative ? handleNotificationToggle : handleWebRemindersToggle}
-                      disabled={isNative && notificationsLoading}
-                    />
-                  </div>
-                </Card>
-              </div>
-
               {state.drinkingTargetTime && (
                 <div className="grid min-h-[76px] grid-cols-[56px_34px_minmax(0,1fr)] items-start pt-1.5">
                   <div className="pt-1.5 text-body tabular-nums text-muted-foreground">
@@ -477,24 +452,49 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
                 </div>
               )}
 
-              <div className="flex flex-col gap-2 px-0 pt-1 pb-[18px]">
-                <div className="text-micro text-[#75798c]">
-                  Press and hold a grip to move that drink.
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="tap"
-                  className="w-full"
-                  disabled={replanning}
-                  onClick={handleReplan}
-                >
-                  Re-plan the rest
-                </Button>
-              </div>
             </div>
           </SortableContext>
         </DndContext>
+
+        <div className="relative z-[1] flex flex-col gap-3 pb-[18px] pt-1">
+          <Card className="border border-border bg-card p-4 shadow-none">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                {(isNative ? notificationsEnabled : webRemindersEnabled) ? (
+                  <Bell className="h-5 w-5 shrink-0 text-primary" />
+                ) : (
+                  <BellOff className="h-5 w-5 shrink-0 text-muted-foreground" />
+                )}
+                <div className="min-w-0">
+                  <div className="text-body">Drink Reminders</div>
+                  <div className="mt-1 text-[15px] leading-[1.3] text-muted-foreground">
+                    {isNative
+                      ? "Get notified when it’s time for your next drink"
+                      : "Get toast alerts when it’s time for your next drink"}
+                  </div>
+                </div>
+              </div>
+              <Switch
+                checked={isNative ? notificationsEnabled : webRemindersEnabled}
+                onCheckedChange={isNative ? handleNotificationToggle : handleWebRemindersToggle}
+                disabled={isNative && notificationsLoading}
+              />
+            </div>
+          </Card>
+          <div className="text-micro text-[#75798c]">
+            Press and hold a grip to move that drink.
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="tap"
+            className="w-full"
+            disabled={replanning}
+            onClick={handleReplan}
+          >
+            Re-plan the rest
+          </Button>
+        </div>
       </section>
     </div>
   );

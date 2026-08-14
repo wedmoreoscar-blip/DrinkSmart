@@ -7,8 +7,8 @@ describe("Wave 5 picker boundaries", () => {
   });
 
   it("shows higher-band advice only inside the red interval, with ordered boundaries", () => {
-    expect(overTargetAdvice(115, 100, 3)).toBeNull();
-    expect(overTargetAdvice(115.01, 100, 3)).toContain("Loose");
+    expect(overTargetAdvice(114.99, 100, 3)).toBeNull();
+    expect(overTargetAdvice(115, 100, 3)).toContain("Loose");
     expect(overTargetAdvice(120, 100, 3)).toContain("Loose");
     expect(overTargetAdvice(120.01, 100, 3)).toBeNull();
     expect(overTargetAdvice(119, 100, 7)).toBeNull();

@@ -61,7 +61,12 @@ export const VesselMeter = ({
       targetMl > 0 ? Math.min(100 - committedPct, (Math.max(0, pendingMl) / targetMl) * 100) : 0;
     const totalMl = plannedMl + Math.max(0, pendingMl);
     const overPct = targetMl > 0 ? ((totalMl - targetMl) / targetMl) * 100 : 0;
-    const shade = TRAY_SHADES.find((band) => overPct <= band.maxOverPct) ?? TRAY_SHADES[TRAY_SHADES.length - 1];
+    const shade =
+      TRAY_SHADES.find((band, index) =>
+        // The final warning interval starts at exactly 15%; earlier exact
+        // boundaries retain their established lower-band ownership.
+        index === 2 ? overPct < band.maxOverPct : overPct <= band.maxOverPct
+      ) ?? TRAY_SHADES[TRAY_SHADES.length - 1];
 
     return (
       <div

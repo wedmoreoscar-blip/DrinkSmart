@@ -28,8 +28,8 @@ const WordStopRail = ({
         {labels[value] ?? labels[0.5]}
       </span>
     </div>
-    <div className="flex min-h-tap items-center gap-2.5">
-      <span className="flex-none text-micro text-muted-foreground">{startWord}</span>
+    <div className="grid min-h-tap grid-cols-[72px_minmax(0,1fr)_72px] items-center gap-2.5">
+      <span className="text-left text-micro text-muted-foreground">{startWord}</span>
       <div className="relative flex flex-1 items-center">
         <div className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_30px,rgba(233,233,237,.16)_calc(100%-30px),transparent)]" />
         <div className="relative flex w-full items-center">
@@ -56,7 +56,7 @@ const WordStopRail = ({
           })}
         </div>
       </div>
-      <span className="flex-none whitespace-nowrap text-micro text-muted-foreground">
+      <span className="whitespace-nowrap text-right text-micro text-muted-foreground">
         {endWord}
       </span>
     </div>

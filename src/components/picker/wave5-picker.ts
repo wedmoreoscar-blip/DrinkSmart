@@ -64,7 +64,7 @@ export function overTargetAdvice(
 ): string | null {
   if (!targetMl || targetMl <= 0 || !Number.isFinite(totalMl)) return null;
   const ratio = totalMl / targetMl;
-  if (ratio <= 1.15 || ratio > 1.2) return null;
+  if (ratio < 1.15 || ratio > 1.2) return null;
   const bandIndex = BAND_LEVELS.findIndex(
     (band) => inebriationLevel >= band.minLevel && inebriationLevel <= band.maxLevel
   );

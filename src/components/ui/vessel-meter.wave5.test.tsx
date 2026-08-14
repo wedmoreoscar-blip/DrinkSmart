@@ -16,8 +16,8 @@ describe("Wave 5 tray meter shades", () => {
   it("uses ordered exact boundaries without changing vessel geometry", () => {
     expect(renderTray(105)).toContain("bg-primary");
     expect(renderTray(110)).toContain("bg-[hsl(var(--over-1))]");
-    expect(renderTray(115)).toContain("bg-warning");
-    expect(renderTray(115.01)).toContain("bg-[hsl(var(--over-3))]");
+    expect(renderTray(114.99)).toContain("bg-warning");
+    expect(renderTray(115)).toContain("bg-[hsl(var(--over-3))]");
     expect(renderTray(120)).toContain("h-[60px] w-[26px]");
   });
 

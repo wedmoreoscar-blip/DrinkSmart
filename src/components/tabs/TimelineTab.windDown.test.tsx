@@ -12,7 +12,7 @@ const timeline = vi.hoisted(() => [
     drinkName: "Lager",
     unitNumber: 1,
     totalUnits: 1,
-    time: new Date(Date.now() + 60_000),
+    time: new Date(Date.now() + 3_600_000),
     pureAlcoholMl: 12,
     percentageOfTarget: 25,
     icon: "",
@@ -30,11 +30,15 @@ vi.mock("@/contexts/AppContext", () => ({
       consumedTimelineEntries: consumed,
       effectivePlanEndTime: effectiveEnd,
       drinkingStartTime: new Date(),
+      drinkingTargetTime: new Date(Date.now() + 7_200_000),
       drinks: [],
+      lockedDrinkIds: [],
     },
     reorderTimelineEntries: vi.fn(),
     toggleLockedDrink: vi.fn(),
-    updateDrinks: vi.fn(),
+    markTimelineEntryHadIt: vi.fn(),
+    delayTimelineEntry: vi.fn(),
+    applyRegeneratedRemainingDrinks: vi.fn(),
   }),
 }));
 
@@ -68,6 +72,9 @@ vi.mock("@/components/tabs/WindDownScreen", () => ({
     return React.createElement("div", null, "wind-down-marker");
   },
 }));
+vi.mock("@/components/tabs/SortableTimelineItem", () => ({
+  SortableTimelineItem: () => React.createElement("div", null, "timeline-row"),
+}));
 
 import TimelineTab from "@/components/tabs/TimelineTab";
 
@@ -80,5 +87,17 @@ describe("TimelineTab wind-down routing", () => {
     expect(phaseMock).toHaveBeenCalledWith(timeline, consumed, effectiveEnd, expect.any(Date));
     expect(windDownProps.current?.onNext).toBe(onNext);
     expect(windDownProps.current?.currentTime).toEqual(expect.any(Date));
+  });
+
+  it("keeps reminders out of the timeline and exposes the settled hero actions", () => {
+    phaseMock.mockReturnValueOnce("active");
+    const html = renderToStaticMarkup(<TimelineTab onNext={vi.fn()} />);
+
+    expect(html).not.toContain(">Next</div>");
+    expect(html).toContain(">Had it</button>");
+    expect(html).toContain(">+15</button>");
+    expect(html).not.toMatch(/<button[^>]*disabled[^>]*>Had it<\/button>/);
+    expect(html.indexOf("Plan ends")).toBeLessThan(html.indexOf("Drink Reminders"));
+    expect(html.indexOf("Drink Reminders")).toBeLessThan(html.indexOf("Re-plan the rest"));
   });
 });

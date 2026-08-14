@@ -128,6 +128,7 @@ export const SortableTimelineItem = ({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: sortableIdFor(entry),
     disabled: !isDraggable,
+    transition: { duration: 180, easing: "cubic-bezier(0.2, 0, 0, 1)" },
   });
 
   const displayName = getDisplayName(entry);

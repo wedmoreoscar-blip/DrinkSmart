@@ -6,7 +6,6 @@ import {
   accumulateDelay,
   applyRegenerationToDrinks,
   calculateSessionTimeline,
-  markEntryConsumed,
   pruneStaleActionState,
   reorderRemainingTimeline,
   rescheduleTimeline,
@@ -16,6 +15,7 @@ import {
   type DrinkCalculation,
   type TimelineEntry,
 } from "@/lib/sessionEngine";
+import { recordTimelineConsumption } from "@/lib/timelineConsumption";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -368,17 +368,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const markTimelineEntryHadIt = (entryId: string, consumedAt?: Date) => {
     setState((prev) => {
-      const consumedTimelineEntries = markEntryConsumed(
-        prev.drinkTimeline,
-        prev.consumedTimelineEntries,
-        entryId,
-        consumedAt ?? new Date()
-      );
-      if (consumedTimelineEntries === prev.consumedTimelineEntries) return prev;
-      return computeSessionTimeline(
-        { ...prev, consumedTimelineEntries },
-        new Date()
-      );
+      // Consumption changes presentation and BAC accounting, not the night's
+      // agreed clock. Re-planning and +15 are the only actions that retime it.
+      return recordTimelineConsumption(prev, entryId, consumedAt ?? new Date());
     });
   };
 
