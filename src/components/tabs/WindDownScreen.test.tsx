@@ -45,7 +45,7 @@ describe("wind-down terminal screen", () => {
     );
     expect(html).toContain("Water, 500 ml");
     expect(html).toContain("Before bed. Set a reminder for 07:30 if you have somewhere to be.");
-    expect(html).toContain("Get home");
+    expect(html).not.toContain("Get home");
     expect(html).toContain("End session");
     expect(html).not.toMatch(/score|streak|congrat|great job/i);
   });

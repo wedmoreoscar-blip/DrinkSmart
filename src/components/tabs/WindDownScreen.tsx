@@ -87,12 +87,6 @@ const WindDownScreen = ({ currentTime, onNext }: WindDownScreenProps) => {
       <div className="mt-auto flex flex-col gap-2.5 pb-[22px]">
         <button
           type="button"
-          className="flex h-16 items-center justify-center rounded-lg border border-border text-lead text-foreground"
-        >
-          Get home
-        </button>
-        <button
-          type="button"
           onClick={() => onNext?.()}
           className="flex h-14 items-center justify-center text-body text-muted-foreground"
         >
