@@ -84,8 +84,8 @@ describe("calculateSessionTimeline — literal alcohol-only characterization", (
       drinkingStartTime: START,
     });
 
-    expect(result.isTargetAdjusted).toBe(true);
-    expect(Math.abs((result.adjustedTargetMl as number) - 77.8)).toBeLessThan(1e-9);
+    expect(result.isTargetAdjusted).toBe(false);
+    expect(result.adjustedTargetMl).toBeNull();
 
     expect(result.drinkCalculations).toHaveLength(2);
     const beerCalc = result.drinkCalculations[0];
@@ -93,9 +93,9 @@ describe("calculateSessionTimeline — literal alcohol-only characterization", (
     expect(beerCalc.drinkName).toBe("Custom Beer");
     expect(Math.abs(beerCalc.totalVolumeMl - 1136)).toBeLessThan(1e-9);
     expect(Math.abs(beerCalc.pureAlcoholMl - 56.8)).toBeLessThan(1e-9);
-    expect(Math.abs(beerCalc.percentageOfTarget - 73.0077120822622)).toBeLessThan(1e-9);
-    expect(Math.abs(beerCalc.timeAllocatedMinutes - 87.60925449871466)).toBeLessThan(1e-9);
-    expect(Math.abs(beerCalc.intervalMinutes - 43.80462724935733)).toBeLessThan(1e-9);
+    expect(Math.abs(beerCalc.percentageOfTarget - 70.66414380321665)).toBeLessThan(1e-9);
+    expect(Math.abs(beerCalc.timeAllocatedMinutes - 84.79697256385998)).toBeLessThan(1e-9);
+    expect(Math.abs(beerCalc.intervalMinutes - 42.39848628192999)).toBeLessThan(1e-9);
     expect(beerCalc.quantity).toBe(2);
     expect(beerCalc.unit).toBe("pints");
 
@@ -103,9 +103,9 @@ describe("calculateSessionTimeline — literal alcohol-only characterization", (
     expect(wineCalc.drinkId).toBe("wine-1");
     expect(Math.abs(wineCalc.totalVolumeMl - 175)).toBeLessThan(1e-9);
     expect(Math.abs(wineCalc.pureAlcoholMl - 21)).toBeLessThan(1e-9);
-    expect(Math.abs(wineCalc.percentageOfTarget - 26.9922879177378)).toBeLessThan(1e-9);
-    expect(Math.abs(wineCalc.timeAllocatedMinutes - 32.3907455012853)).toBeLessThan(1e-9);
-    expect(Math.abs(wineCalc.intervalMinutes - 32.3907455012853)).toBeLessThan(1e-9);
+    expect(Math.abs(wineCalc.percentageOfTarget - 26.125827814569536)).toBeLessThan(1e-9);
+    expect(Math.abs(wineCalc.timeAllocatedMinutes - 31.35099337748344)).toBeLessThan(1e-9);
+    expect(Math.abs(wineCalc.intervalMinutes - 31.35099337748344)).toBeLessThan(1e-9);
     expect(wineCalc.quantity).toBe(1);
     expect(wineCalc.unit).toBe("glass");
 
@@ -120,18 +120,18 @@ describe("calculateSessionTimeline — literal alcohol-only characterization", (
     expect(first.totalUnits).toBe(2);
     expect(first.time.getTime()).toBe(0);
     expect(Math.abs(first.pureAlcoholMl - 28.4)).toBeLessThan(1e-9);
-    expect(Math.abs(first.percentageOfTarget - 36.5038560411311)).toBeLessThan(1e-9);
+    expect(Math.abs(first.percentageOfTarget - 35.3320719016083)).toBeLessThan(1e-9);
     expect(first.icon).toBe("🍹");
     expect(first.unit).toBe("pints");
-    expect(Math.abs(first.intervalMinutes - 43.80462724935733)).toBeLessThan(1e-9);
+    expect(Math.abs(first.intervalMinutes - 42.39848628192999)).toBeLessThan(1e-9);
 
     const second = asAlcohol(result.drinkTimeline[1]);
     expect(second.kind).toBe("alcohol");
     expect(second.entryId).toBe("beer-1:unit:2");
     expect(second.unitNumber).toBe(2);
-    expect(second.time.getTime()).toBe(2628277);
+    expect(second.time.getTime()).toBe(2543909);
     expect(Math.abs(second.pureAlcoholMl - 28.4)).toBeLessThan(1e-9);
-    expect(Math.abs(second.percentageOfTarget - 36.5038560411311)).toBeLessThan(1e-9);
+    expect(Math.abs(second.percentageOfTarget - 35.3320719016083)).toBeLessThan(1e-9);
 
     const third = asAlcohol(result.drinkTimeline[2]);
     expect(third.kind).toBe("alcohol");
@@ -139,13 +139,13 @@ describe("calculateSessionTimeline — literal alcohol-only characterization", (
     expect(third.drinkName).toBe("Custom Wine");
     expect(third.unitNumber).toBe(1);
     expect(third.totalUnits).toBe(1);
-    expect(third.time.getTime()).toBe(5256554);
+    expect(third.time.getTime()).toBe(5087818);
     expect(Math.abs(third.pureAlcoholMl - 21)).toBeLessThan(1e-9);
-    expect(Math.abs(third.percentageOfTarget - 26.9922879177378)).toBeLessThan(1e-9);
-    expect(Math.abs(third.intervalMinutes - 32.3907455012853)).toBeLessThan(1e-9);
+    expect(Math.abs(third.percentageOfTarget - 26.125827814569536)).toBeLessThan(1e-9);
+    expect(Math.abs(third.intervalMinutes - 31.35099337748344)).toBeLessThan(1e-9);
   });
 
-  it("derives the target ethanol from TBW, BAC midpoint and density", () => {
+  it("derives target ethanol from TBW, blood-water fraction, BAC midpoint and density", () => {
     const result = calculateSessionTimeline({
       entries: [BEER, WINE],
       userMetrics: METRICS,
@@ -154,10 +154,10 @@ describe("calculateSessionTimeline — literal alcohol-only characterization", (
       drinkingStartTime: START,
     });
     const tbwGrams = 48320;
-    const grams = (0.075 / 100 + 0.00015 * 2) * tbwGrams;
-    expect(Math.abs((grams / 0.789 - 64.3041825095057) / 64.3041825095057)).toBeLessThan(1e-12);
-    expect(result.isTargetAdjusted).toBe(true);
-    expect(result.adjustedTargetMl).toBeCloseTo(77.8, 9);
+    const grams = ((0.075 / 100 + 0.00015 * 2) * tbwGrams) / 0.8;
+    expect(Math.abs((grams / 0.789 - 80.38022813688212) / 80.38022813688212)).toBeLessThan(1e-12);
+    expect(result.isTargetAdjusted).toBe(false);
+    expect(result.adjustedTargetMl).toBeNull();
   });
 });
 
@@ -184,8 +184,7 @@ describe("breaks", () => {
     const third = result.drinkTimeline[3];
 
     expectMsClose(first.time.getTime(), 0);
-    const interval = 36.5038560411311;
-    expect(second.time.getTime()).toBe(2190231);
+    expect(second.time.getTime()).toBe(2119924);
     const breakEntryOut = asBreak(result.drinkTimeline[2]);
     expect(breakEntryOut.entryId).toBe("break-1");
     expect(breakEntryOut.drinkName).toBe("Water");
@@ -193,15 +192,15 @@ describe("breaks", () => {
     expect(breakEntryOut.volumeMl).toBe(330);
     expect(breakEntryOut.pureAlcoholMl).toBe(0);
     expect(breakEntryOut.percentageOfTarget).toBe(0);
-    expect(breakEntryOut.time.getTime()).toBe(4380462);
-    expect(third.time.getTime()).toBe(5580462);
+    expect(breakEntryOut.time.getTime()).toBe(4239848);
+    expect(third.time.getTime()).toBe(5439848);
 
     expect(result.drinkCalculations).toHaveLength(2);
-    expect(result.isTargetAdjusted).toBe(true);
-    expect(result.adjustedTargetMl).toBeCloseTo(77.8, 9);
+    expect(result.isTargetAdjusted).toBe(false);
+    expect(result.adjustedTargetMl).toBeNull();
 
     const alcoholTimes = result.drinkTimeline.filter((entry) => entry.kind === "alcohol");
-    expect(alcoholTimes[1].time.getTime()).toBe(2190231);
+    expect(alcoholTimes[1].time.getTime()).toBe(2119924);
   });
 
   it("represents multiple consecutive breaks and reserves all their minutes", () => {
@@ -225,18 +224,17 @@ describe("breaks", () => {
       drinkingStartTime: START,
     });
 
-    const interval = (36.5038560411311 / 100) * 95;
     const firstBreakOut = asBreak(result.drinkTimeline[2]);
     const secondBreakOut = asBreak(result.drinkTimeline[3]);
     const third = result.drinkTimeline[4];
 
-    expect(firstBreakOut.time.getTime()).toBe(4161438);
-    expect(secondBreakOut.time.getTime()).toBe(4761438);
-    expect(third.time.getTime()).toBe(5661438);
+    expect(firstBreakOut.time.getTime()).toBe(4027856);
+    expect(secondBreakOut.time.getTime()).toBe(4627856);
+    expect(third.time.getTime()).toBe(5527856);
 
     const alcoholTimes = result.drinkTimeline.filter((entry) => entry.kind === "alcohol");
-    expect(alcoholTimes[1].time.getTime()).toBe(2080719);
-    expect(alcoholTimes[2].time.getTime()).toBe(5661438);
+    expect(alcoholTimes[1].time.getTime()).toBe(2013928);
+    expect(alcoholTimes[2].time.getTime()).toBe(5527856);
   });
 
   it("ignores breaks whose duration is non-finite or not positive", () => {
@@ -383,9 +381,8 @@ describe("rescheduleTimeline", () => {
     });
 
     const last = result.timeline[2];
-    expect(last.time.getTime()).toBe(6156554);
-    const lastInterval = 32.3907455012853 * 60000;
-    expect(result.effectivePlanEndTime!.getTime()).toBe(8099998);
+    expect(last.time.getTime()).toBe(5987818);
+    expect(result.effectivePlanEndTime!.getTime()).toBe(7868877);
   });
 
   it("never moves consumed entries and ignores delays on them", () => {
@@ -697,8 +694,8 @@ describe("deriveSessionPhase", () => {
     );
   });
 
-  it("is winding-down once the effective plan end has passed", () => {
-    expect(deriveSessionPhase(timeline, [], new Date(6000), new Date(10000))).toBe("winding-down");
+  it("keeps overdue unconsumed alcohol active after the effective plan end", () => {
+    expect(deriveSessionPhase(timeline, [], new Date(6000), new Date(10000))).toBe("active");
   });
 });
 
@@ -734,10 +731,10 @@ describe("deriveWindDownSummary", () => {
     expect(summary.consumedEthanolMl).toBeCloseTo(77.8, 9);
     expect(summary.plannedEthanolMl).toBeCloseTo(77.8, 9);
     expect(summary.lastDrinkAt!.getTime()).toBe(Date.parse("2026-01-11T00:30:00Z"));
-    expect(Math.abs(summary.peakBAC! - 0.08953683774834437)).toBeLessThan(1e-12);
-    expectMsClose(summary.under008At!.getTime(), 1768093688841, 0.1);
-    expectMsClose(summary.soberAt!.getTime(), 1768112888841, 0.1);
-    expect(summary.under008At!.getTime()).toBeGreaterThan(summary.lastDrinkAt!.getTime());
+    expect(Math.abs(summary.peakBAC! - 0.06412947019867551)).toBeLessThan(1e-12);
+    expectMsClose(summary.under008At!.getTime(), Date.parse("2026-01-11T00:30:00Z"), 0.1);
+    expectMsClose(summary.soberAt!.getTime(), 1768106791072, 0.1);
+    expect(summary.under008At!.getTime()).toBe(summary.lastDrinkAt!.getTime());
     expect(summary.soberAt!.getTime()).toBeGreaterThan(summary.under008At!.getTime());
   });
 

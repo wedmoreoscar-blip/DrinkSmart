@@ -2,13 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAppContext } from "@/contexts/AppContext";
 import { deriveSessionPhase } from "@/lib/sessionEngine";
 import { Bell, BellOff, Clock } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWebDrinkReminders } from "@/hooks/useWebDrinkReminders";
 import { useToast } from "@/hooks/use-toast";
-import { getUnitDisplayText } from "@/lib/timelineHelpers";
+import {
+  findNextUnconsumedAlcoholIndex,
+  getUnitDisplayText,
+  requiresEarlyConsumptionConfirmation,
+} from "@/lib/timelineHelpers";
 import WindDownScreen from "./WindDownScreen";
 import { OZ_ML, PINT_ML, SHOT_ML, GLASS_ML } from "@/lib/drinkConstants";
 import {
@@ -96,6 +110,7 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
   const [movingEntryId, setMovingEntryId] = useState<string | null>(null);
   const [dropLineY, setDropLineY] = useState<number | null>(null);
   const [replanning, setReplanning] = useState(false);
+  const [earlyEntryId, setEarlyEntryId] = useState<string | null>(null);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
 
   const {
@@ -136,9 +151,9 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
   const consumedEntryIds = new Set(
     state.consumedTimelineEntries.map((snapshot) => snapshot.entryId)
   );
-  const nextEntryIndex = state.drinkTimeline.findIndex(
-    (entry) =>
-      entry.time.getTime() > currentTime.getTime() && !consumedEntryIds.has(entry.entryId),
+  const nextEntryIndex = findNextUnconsumedAlcoholIndex(
+    state.drinkTimeline,
+    consumedEntryIds,
   );
   const firstMovableIndex = Math.max(0, nextEntryIndex);
 
@@ -159,6 +174,27 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
   const minutesAway = nextEntry
     ? Math.max(0, Math.ceil((nextEntry.time.getTime() - currentTime.getTime()) / 60000))
     : null;
+  const earlyEntry = earlyEntryId
+    ? state.drinkTimeline.find(
+        (entry) => entry.entryId === earlyEntryId && entry.kind !== "break",
+      ) ?? null
+    : null;
+
+  const handleHadIt = () => {
+    if (!nextEntry) return;
+    const consumedAt = new Date();
+    if (requiresEarlyConsumptionConfirmation(nextEntry, consumedAt)) {
+      setEarlyEntryId(nextEntry.entryId);
+      return;
+    }
+    markTimelineEntryHadIt(nextEntry.entryId, consumedAt);
+  };
+
+  const handleConfirmEarlyConsumption = () => {
+    if (!earlyEntry) return;
+    markTimelineEntryHadIt(earlyEntry.entryId, new Date());
+    setEarlyEntryId(null);
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setMovingEntryId(String(event.active.id));
@@ -325,7 +361,7 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
               type="button"
               className="flex h-16 flex-1 items-center justify-center rounded-lg border border-primary text-lead font-medium text-primary-hover"
               disabled={!nextEntry || movingEntry !== null}
-              onClick={() => nextEntry && markTimelineEntryHadIt(nextEntry.entryId, currentTime)}
+              onClick={handleHadIt}
             >
               Had it
             </button>
@@ -340,6 +376,30 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
           </div>
         </div>
       </section>
+
+      <AlertDialog
+        open={earlyEntry !== null}
+        onOpenChange={(open) => {
+          if (!open) setEarlyEntryId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log this drink early?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {earlyEntry
+                ? `${getDisplayName(earlyEntry)} is scheduled for ${formatClock(earlyEntry.time)}. Log it as consumed now?`
+                : "This drink is scheduled for later."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmEarlyConsumption}>
+              Log it early
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <section className="relative min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-[18px]">
         <div
@@ -373,7 +433,8 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
               {state.drinkTimeline.map((entry, index) => {
                 const id = sortableIdFor(entry);
                 const isPast =
-                  entry.time.getTime() <= currentTime.getTime() || consumedEntryIds.has(entry.entryId);
+                  consumedEntryIds.has(entry.entryId) ||
+                  (entry.kind === "break" && entry.time.getTime() <= currentTime.getTime());
                 const isCurrent = index === nextEntryIndex;
                 const isMovingOrigin = movingEntryId === id;
                 const actionSourceId = entry.kind === "break" ? entry.entryId : entry.drinkId;

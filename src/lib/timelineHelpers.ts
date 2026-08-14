@@ -52,6 +52,27 @@ export const calculateTimeWithMidnight = (startTime: Date, minutesToAdd: number)
   return new Date(startTime.getTime() + millisecondsToAdd);
 };
 
+type TimelineActionEntry = {
+  kind?: "alcohol" | "break";
+  entryId: string;
+  time: Date;
+};
+
+/** Earliest alcoholic entry the user has not actually logged, including overdue drinks. */
+export const findNextUnconsumedAlcoholIndex = (
+  timeline: TimelineActionEntry[],
+  consumedEntryIds: ReadonlySet<string>,
+): number =>
+  timeline.findIndex(
+    (entry) => entry.kind !== "break" && !consumedEntryIds.has(entry.entryId),
+  );
+
+/** Early logging needs confirmation; due and overdue drinks remain one-tap actions. */
+export const requiresEarlyConsumptionConfirmation = (
+  entry: TimelineActionEntry,
+  now: Date,
+): boolean => entry.time.getTime() > now.getTime();
+
 /**
  * Get unit display text
  */

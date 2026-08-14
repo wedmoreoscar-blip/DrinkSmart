@@ -123,7 +123,7 @@ export const getWeightInGrams = (
  * Returns TBW in grams (for use in BAC calculations)
  * 
  * Watson formulas:
- * Male: TBW (L) = 2.447 - (0.09156 × age) + (0.1074 × height_cm) + (0.3362 × weight_kg)
+ * Male: TBW (L) = 2.447 - (0.09516 × age) + (0.1074 × height_cm) + (0.3362 × weight_kg)
  * Female: TBW (L) = -2.097 + (0.1069 × height_cm) + (0.2466 × weight_kg)
  * 
  * @param age - Age in years
@@ -141,7 +141,7 @@ export const calculateWatsonTBW = (
   let tbwLiters: number;
   
   if (sex === "male") {
-    tbwLiters = 2.447 - (0.09156 * age) + (0.1074 * heightCm) + (0.3362 * weightKg);
+    tbwLiters = 2.447 - (0.09516 * age) + (0.1074 * heightCm) + (0.3362 * weightKg);
   } else {
     tbwLiters = -2.097 + (0.1069 * heightCm) + (0.2466 * weightKg);
   }

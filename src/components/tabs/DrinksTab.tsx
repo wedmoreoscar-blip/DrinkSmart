@@ -31,6 +31,7 @@ import {
   SWAP_COPY,
 } from "@/components/picker/wave5-picker";
 import { cn } from "@/lib/utils";
+import { BLOOD_WATER_FRACTION } from "@/lib/drinkConstants";
 
 type DrinksTabProps = {
   onNext: () => void;
@@ -198,7 +199,8 @@ const DrinksTab = ({
     if (!tbwGrams) return null;
 
     const BAC = (targetBAC.min + targetBAC.max) / 2;
-    const pureAlcoholGrams = (BAC / 100 + 0.00015 * timeDelta) * tbwGrams;
+    const pureAlcoholGrams =
+      ((BAC / 100 + 0.00015 * timeDelta) * tbwGrams) / BLOOD_WATER_FRACTION;
     return pureAlcoholGrams / 0.789;
   };
 

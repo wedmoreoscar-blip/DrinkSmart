@@ -8,7 +8,7 @@ import {
   type DrinkUnit,
 } from "@/lib/planCatalog";
 import { convertToMl } from "@/lib/timelineHelpers";
-import { OZ_ML } from "@/lib/drinkConstants";
+import { BLOOD_WATER_FRACTION, OZ_ML } from "@/lib/drinkConstants";
 import type { PreferenceData } from "@/lib/preferences";
 import { greedyPlanFallback } from "@/lib/greedyPlanFallback";
 
@@ -96,7 +96,8 @@ export function computeTargetEthanolMl(
   if (!tbwGrams) return null;
 
   const BAC = (targetBAC.min + targetBAC.max) / 2;
-  const pureAlcoholGrams = (BAC / 100 + 0.00015 * timeDeltaHours) * tbwGrams;
+  const pureAlcoholGrams =
+    ((BAC / 100 + 0.00015 * timeDeltaHours) * tbwGrams) / BLOOD_WATER_FRACTION;
   return pureAlcoholGrams / 0.789;
 }
 

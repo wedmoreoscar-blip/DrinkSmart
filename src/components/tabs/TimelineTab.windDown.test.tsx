@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const phaseMock = vi.hoisted(() => vi.fn(() => "winding-down"));
 const windDownProps = vi.hoisted(() => ({ current: null as null | Record<string, unknown> }));
+const sortableProps = vi.hoisted(() => ({ current: null as null | Record<string, unknown> }));
 const timeline = vi.hoisted(() => [
   {
     kind: "alcohol" as const,
@@ -73,7 +74,10 @@ vi.mock("@/components/tabs/WindDownScreen", () => ({
   },
 }));
 vi.mock("@/components/tabs/SortableTimelineItem", () => ({
-  SortableTimelineItem: () => React.createElement("div", null, "timeline-row"),
+  SortableTimelineItem: (props: Record<string, unknown>) => {
+    sortableProps.current = props;
+    return React.createElement("div", null, "timeline-row");
+  },
 }));
 
 import TimelineTab from "@/components/tabs/TimelineTab";
@@ -99,5 +103,19 @@ describe("TimelineTab wind-down routing", () => {
     expect(html).not.toMatch(/<button[^>]*disabled[^>]*>Had it<\/button>/);
     expect(html.indexOf("Plan ends")).toBeLessThan(html.indexOf("Drink Reminders"));
     expect(html.indexOf("Drink Reminders")).toBeLessThan(html.indexOf("Re-plan the rest"));
+  });
+
+  it("keeps an overdue unconsumed drink selected and out of the past state", () => {
+    const originalTime = timeline[0].time;
+    timeline[0].time = new Date(Date.now() - 60_000);
+    phaseMock.mockReturnValueOnce("active");
+
+    const html = renderToStaticMarkup(<TimelineTab onNext={vi.fn()} />);
+
+    expect(html).toContain("Lager");
+    expect(html).not.toMatch(/<button[^>]*disabled[^>]*>Had it<\/button>/);
+    expect(sortableProps.current?.isCurrent).toBe(true);
+    expect(sortableProps.current?.isPast).toBe(false);
+    timeline[0].time = originalTime;
   });
 });

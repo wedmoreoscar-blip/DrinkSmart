@@ -9,6 +9,7 @@
  */
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { convertToMl, getDrinkIcon, calculateTimeWithMidnight } from "@/lib/timelineHelpers";
+import { BLOOD_WATER_FRACTION } from "@/lib/drinkConstants";
 import { drinkCategories } from "@/data/drinksData";
 
 export type EngineUserMetrics = {
@@ -180,7 +181,8 @@ export function calculateSessionTimeline(
   );
 
   const BAC = (targetBAC.min + targetBAC.max) / 2;
-  const pureAlcoholGrams = (BAC / 100 + 0.00015 * timeDeltaHours) * tbwGrams;
+  const pureAlcoholGrams =
+    ((BAC / 100 + 0.00015 * timeDeltaHours) * tbwGrams) / BLOOD_WATER_FRACTION;
   const targetEthanolMl = pureAlcoholGrams / 0.789;
 
   const totalTimeDeltaMinutes = timeDeltaHours * 60;
@@ -680,29 +682,21 @@ export function deriveRegenerationContext(
 export type SessionPhase = "planning" | "active" | "winding-down";
 
 /**
- * Planning without a usable timeline/start; active while unconsumed alcoholic
- * entries remain and the effective plan end is in the future; winding-down
- * once every alcoholic entry is consumed or the effective plan end has
- * passed. Breaks do not block wind-down.
+ * Planning without an alcoholic timeline; active while any alcoholic entry
+ * remains unconsumed, including overdue drinks; winding-down once every
+ * alcoholic entry is consumed. Breaks do not block wind-down.
  */
 export function deriveSessionPhase(
   timeline: TimelineEntry[],
   consumedSnapshots: ConsumedSnapshot[],
-  effectivePlanEndTime: Date | null,
-  now: Date
+  _effectivePlanEndTime: Date | null,
+  _now: Date
 ): SessionPhase {
   const alcoholEntries = timeline.filter((entry) => entry.kind === "alcohol");
   if (alcoholEntries.length === 0) return "planning";
   const consumedIds = new Set(consumedSnapshots.map((snapshot) => snapshot.entryId));
   const unconsumed = alcoholEntries.filter((entry) => !consumedIds.has(entry.entryId));
-  if (
-    unconsumed.length > 0 &&
-    effectivePlanEndTime &&
-    effectivePlanEndTime.getTime() > now.getTime()
-  ) {
-    return "active";
-  }
-  return "winding-down";
+  return unconsumed.length > 0 ? "active" : "winding-down";
 }
 
 export type WindDownSummary = {
@@ -782,7 +776,7 @@ export function deriveWindDownSummary(input: WindDownSummaryInput): WindDownSumm
       : 0;
     const hoursSinceFirst = (snapshot.consumedAt.getTime() - firstTimeMs) / 3600000;
     const bac =
-      ((cumulativeEthanolMl * ALCOHOL_DENSITY) / tbwGrams) * 100 -
+      ((cumulativeEthanolMl * ALCOHOL_DENSITY * BLOOD_WATER_FRACTION) / tbwGrams) * 100 -
       ELIMINATION_PER_HOUR * hoursSinceFirst;
     peakBAC = Math.max(peakBAC, bac);
   }
@@ -790,7 +784,7 @@ export function deriveWindDownSummary(input: WindDownSummaryInput): WindDownSumm
   const lastDrinkAt = ordered[ordered.length - 1].consumedAt;
   const hoursSinceFirst = (lastDrinkAt.getTime() - firstTimeMs) / 3600000;
   const bacAtLastDrink =
-    ((cumulativeEthanolMl * ALCOHOL_DENSITY) / tbwGrams) * 100 -
+    ((cumulativeEthanolMl * ALCOHOL_DENSITY * BLOOD_WATER_FRACTION) / tbwGrams) * 100 -
     ELIMINATION_PER_HOUR * hoursSinceFirst;
 
   const crossingFromLast = (threshold: number): Date => {
