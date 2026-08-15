@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   findNextUnconsumedAlcoholIndex,
   requiresEarlyConsumptionConfirmation,
+  shouldShowDelayWarning,
+  totalTimelineDelayMinutes,
 } from "./timelineHelpers";
 
 const drink = (entryId: string, time: number) => ({
@@ -29,5 +31,13 @@ describe("timeline consumption actions", () => {
     expect(requiresEarlyConsumptionConfirmation(entry, new Date(9_999))).toBe(true);
     expect(requiresEarlyConsumptionConfirmation(entry, new Date(10_000))).toBe(false);
     expect(requiresEarlyConsumptionConfirmation(entry, new Date(20_000))).toBe(false);
+  });
+
+  it("warns once when cumulative offsets first reach 45 minutes", () => {
+    expect(totalTimelineDelayMinutes({ a: 15, b: 15 })).toBe(30);
+    expect(totalTimelineDelayMinutes({ a: 30, b: 15, invalid: -5 })).toBe(45);
+    expect(shouldShowDelayWarning(44, false)).toBe(false);
+    expect(shouldShowDelayWarning(45, false)).toBe(true);
+    expect(shouldShowDelayWarning(60, true)).toBe(false);
   });
 });

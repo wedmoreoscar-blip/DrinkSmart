@@ -14,7 +14,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAppContext } from "@/contexts/AppContext";
 import { deriveSessionPhase } from "@/lib/sessionEngine";
-import { useSessionHistory, type SessionHistoryDrink } from "@/hooks/useSessionHistory";
+import { useSessionHistory } from "@/hooks/useSessionHistory";
+import {
+  completedSessionDurationMinutes,
+  realSessionDrinks,
+} from "@/lib/sessionHistory";
 import { Bell, BellOff, Clock } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWebDrinkReminders } from "@/hooks/useWebDrinkReminders";
@@ -23,6 +27,8 @@ import {
   findNextUnconsumedAlcoholIndex,
   getUnitDisplayText,
   requiresEarlyConsumptionConfirmation,
+  shouldShowDelayWarning,
+  totalTimelineDelayMinutes,
 } from "@/lib/timelineHelpers";
 import WindDownScreen from "./WindDownScreen";
 import { OZ_ML, PINT_ML, SHOT_ML, GLASS_ML } from "@/lib/drinkConstants";
@@ -122,6 +128,8 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
   const [earlyEntryId, setEarlyEntryId] = useState<string | null>(null);
   const [endingSession, setEndingSession] = useState(false);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
+  const totalDelayMinutes = totalTimelineDelayMinutes(state.delayedEntryMinutes);
+  const delayWarningShownRef = useRef(totalDelayMinutes >= 45);
 
   const { isAccount, saveSessionSnapshot } = useSessionHistory();
 
@@ -151,6 +159,15 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
       scheduleFromTimeline(state.drinkTimeline);
     }
   }, [notificationsEnabled, state.drinkTimeline, scheduleFromTimeline]);
+
+  useEffect(() => {
+    if (!shouldShowDelayWarning(totalDelayMinutes, delayWarningShownRef.current)) return;
+    delayWarningShownRef.current = true;
+    toast({
+      title: `${totalDelayMinutes} minutes behind plan`,
+      description: `With ${totalDelayMinutes} minutes of delay, you might not reach your target buzz.`,
+    });
+  }, [toast, totalDelayMinutes]);
 
   const handleNotificationToggle = async (enabled: boolean) => {
     await toggleNotifications(enabled);
@@ -218,43 +235,36 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
   // reset, so the reset can never erase the snapshot inputs. Anonymous users
   // skip the history request entirely. Whether saving succeeds or fails, the
   // existing reset, notification cancellation and return to Plan always run.
-  const snapshotDurationMinutes = (): number => {
-    const start = state.drinkingStartTime;
-    const target = state.drinkingTargetTime;
-    if (start && target) {
-      const diff = Math.round((target.getTime() - start.getTime()) / 60000);
-      if (diff > 0) return diff;
-    }
-    if (state.timeDelta !== null && Number.isFinite(state.timeDelta) && state.timeDelta > 0) {
-      return Math.round(state.timeDelta * 60);
-    }
-    return 180;
-  };
-
-  const snapshotDrinks = (): SessionHistoryDrink[] =>
-    state.drinks.filter((drink) => drink.drink || (drink.isCustom && drink.customName));
-
   const handleEndSession = async () => {
     if (endingSession) return;
     setEndingSession(true);
 
-    if (isAccount) {
-      const saved = await saveSessionSnapshot({
-        duration_minutes: snapshotDurationMinutes(),
-        buzz_level: Math.max(1, Math.min(state.inebriationLevel, 7)),
-        drinks: snapshotDrinks(),
-      });
+    let saved = true;
+    try {
+      if (isAccount) {
+        saved = await saveSessionSnapshot({
+          duration_minutes: completedSessionDurationMinutes(
+            state.drinkingStartTime,
+            state.drinkingTargetTime,
+            state.timeDelta,
+          ),
+          buzz_level: Math.max(1, Math.min(state.inebriationLevel, 7)),
+          drinks: realSessionDrinks(state.drinks),
+        });
+      }
+    } catch {
+      saved = false;
+    } finally {
       if (!saved) {
         toast({
           title: "Session ended",
           description: "We couldn't save it to your history.",
         });
       }
+      endSession(new Date());
+      void cancelAll();
+      onNext?.();
     }
-
-    endSession(new Date());
-    void cancelAll();
-    onNext?.();
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -552,10 +562,10 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
                 </div>
               )}
 
-              {state.drinkingTargetTime && (
+              {(state.effectivePlanEndTime ?? state.drinkingTargetTime) && (
                 <div className="grid min-h-[76px] grid-cols-[56px_34px_minmax(0,1fr)] items-start pt-1.5">
                   <div className="pt-1.5 text-body tabular-nums text-muted-foreground">
-                    {formatClock(state.drinkingTargetTime)}
+                    {formatClock(state.effectivePlanEndTime ?? state.drinkingTargetTime!)}
                   </div>
                   <div className="flex justify-center pt-3.5">
                     <div className="mt-0.5 h-px w-[23px] bg-[#75798c]" />

@@ -19,7 +19,7 @@ export function WhatComesWithYou({ userId }: { userId: string | null }) {
     queryFn: async (): Promise<number> => {
       if (!userId) return 0;
       const { count, error } = await supabase
-        .from("user_sessions")
+        .from("user_session_history")
         .select("user_id", { count: "exact", head: true })
         .eq("user_id", userId);
       if (error) throw error;
@@ -61,7 +61,7 @@ export function WhatComesWithYou({ userId }: { userId: string | null }) {
   const bars = barsQuery.data ?? 0;
   const stats = statsQuery.data;
 
-  if (nights > 0) columns.push({ figure: String(nights), label: "nights planned" });
+  if (nights > 0) columns.push({ figure: String(nights), label: "sessions completed" });
   if (bars > 0) columns.push({ figure: String(bars), label: "bars scanned" });
   if (stats) {
     columns.push({

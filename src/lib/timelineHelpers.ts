@@ -73,6 +73,20 @@ export const requiresEarlyConsumptionConfirmation = (
   now: Date,
 ): boolean => entry.time.getTime() > now.getTime();
 
+export const totalTimelineDelayMinutes = (
+  delayedEntryMinutes: Record<string, number>,
+): number =>
+  Object.values(delayedEntryMinutes).reduce(
+    (total, minutes) =>
+      Number.isFinite(minutes) && minutes > 0 ? total + minutes : total,
+    0,
+  );
+
+export const shouldShowDelayWarning = (
+  totalMinutes: number,
+  alreadyShown: boolean,
+): boolean => !alreadyShown && totalMinutes >= 45;
+
 /**
  * Get unit display text
  */

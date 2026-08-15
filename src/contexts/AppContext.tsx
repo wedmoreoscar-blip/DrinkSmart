@@ -16,7 +16,7 @@ import {
   type TimelineEntry,
 } from "@/lib/sessionEngine";
 import { recordTimelineConsumption } from "@/lib/timelineConsumption";
-import type { SessionSnapshot } from "@/hooks/useSessionHistory";
+import type { SessionSnapshot } from "@/lib/sessionHistory";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -127,7 +127,7 @@ const initialState: AppState = {
  * selected duration for the next plan. Absolute times belong to one session,
  * so the next window starts from the supplied current time.
  */
-export function resetActiveSessionState(prev: AppState, now: Date): AppState {
+function resetActiveSessionState(prev: AppState, now: Date): AppState {
   const durationHours =
     prev.timeDelta !== null && Number.isFinite(prev.timeDelta) && prev.timeDelta > 0
       ? prev.timeDelta
@@ -154,6 +154,53 @@ export function resetActiveSessionState(prev: AppState, now: Date): AppState {
     effectivePlanEndTime: null,
   };
 }
+
+function loadSessionSnapshotState(
+  prev: AppState,
+  snapshot: SessionSnapshot,
+  now: Date,
+): AppState {
+  const buzzLevel = Math.max(1, Math.min(snapshot.buzz_level, 7));
+  const bacRange = getBACForLevel(buzzLevel);
+  const durationMinutes =
+    Number.isFinite(snapshot.duration_minutes) && snapshot.duration_minutes > 0
+      ? snapshot.duration_minutes
+      : 180;
+  const clonedDrinks = snapshot.drinks.map((drink) => ({
+    ...drink,
+    id: crypto.randomUUID(),
+  }));
+
+  return {
+    ...prev,
+    inebriationLevel: buzzLevel,
+    targetBAC: { min: bacRange.min_bac, max: bacRange.max_bac },
+    drinks:
+      clonedDrinks.length > 0
+        ? clonedDrinks
+        : initialState.drinks.map((drink) => ({ ...drink })),
+    lockedDrinkIds: [],
+    startTime: 0,
+    isTimerRunning: false,
+    startDateTime: null,
+    drinkingStartTime: new Date(now),
+    drinkingTargetTime: new Date(now.getTime() + durationMinutes * 60_000),
+    timeDelta: durationMinutes / 60,
+    drinkTimeline: [],
+    drinkCalculations: [],
+    adjustedTargetMl: null,
+    isTargetAdjusted: false,
+    breaks: [],
+    consumedTimelineEntries: [],
+    delayedEntryMinutes: {},
+    effectivePlanEndTime: null,
+  };
+}
+
+export const appSessionStateTransitions = {
+  resetActiveSessionState,
+  loadSessionSnapshotState,
+};
 
 function hydrateInitialState(): AppState {
   const persisted = loadSession();
@@ -499,39 +546,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // replaced (never merged) with clones carrying collision-safe source ids,
     // and every consumption/lock/timing artifact of the previous session is
     // cleared. The saved duration is rebased from the supplied current time.
-    setState((prev) => {
-      const currentTime = now ?? new Date();
-      const buzzLevel = Math.max(1, Math.min(snapshot.buzz_level, 7));
-      const bacRange = getBACForLevel(buzzLevel);
-      const clonedDrinks = snapshot.drinks.map((drink) => ({
-        ...drink,
-        id: crypto.randomUUID(),
-      }));
-      return {
-        ...prev,
-        inebriationLevel: buzzLevel,
-        targetBAC: { min: bacRange.min_bac, max: bacRange.max_bac },
-        drinks:
-          clonedDrinks.length > 0
-            ? clonedDrinks
-            : initialState.drinks.map((drink) => ({ ...drink })),
-        lockedDrinkIds: [],
-        startTime: 0,
-        isTimerRunning: false,
-        startDateTime: null,
-        drinkingStartTime: currentTime,
-        drinkingTargetTime: new Date(currentTime.getTime() + snapshot.duration_minutes * 60_000),
-        timeDelta: snapshot.duration_minutes / 60,
-        drinkTimeline: [],
-        drinkCalculations: [],
-        adjustedTargetMl: null,
-        isTargetAdjusted: false,
-        breaks: [],
-        consumedTimelineEntries: [],
-        delayedEntryMinutes: {},
-        effectivePlanEndTime: null,
-      };
-    });
+    const currentTime = now ?? new Date();
+    setState((prev) => loadSessionSnapshotState(prev, snapshot, currentTime));
   };
 
   // Auto-recalculate timeline when dependencies change

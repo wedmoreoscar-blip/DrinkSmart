@@ -2,44 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { isAnonymousSession } from "@/lib/anonymousAuth";
 import type { Json, TablesInsert } from "@/integrations/supabase/types";
+import {
+  historyAccountUserId,
+  type SaveSessionSnapshotInput,
+  type SessionSnapshot,
+} from "@/lib/sessionHistory";
 
-/**
- * One chosen drink inside a saved session snapshot. Carries every serving and
- * portion field the live plan uses so a snapshot is a clean, editable prefill.
- */
-export type SessionHistoryDrink = {
-  id: string;
-  category: string;
-  drink: string;
-  customABV?: string;
-  quantity: string;
-  unit: "ml" | "oz" | "shots" | "pints" | "glass";
-  mixer?: string;
-  mixerQuantity?: string;
-  mixerUnit?: "ml" | "oz" | "shots" | "pints" | "glass";
-  isCustom?: boolean;
-  customName?: string;
-  pricePerUnit?: number | null;
-  portions?: number;
-};
-
-/** One immutable, account-owned completed session row. */
-export type SessionSnapshot = {
-  id: string;
-  user_id: string;
-  duration_minutes: number;
-  buzz_level: number;
-  drinks: SessionHistoryDrink[];
-  completed_at: string;
-};
-
-export type SaveSessionSnapshotInput = {
-  duration_minutes: number;
-  buzz_level: number;
-  drinks: SessionHistoryDrink[];
-};
+export type {
+  SaveSessionSnapshotInput,
+  SessionHistoryDrink,
+  SessionSnapshot,
+} from "@/lib/sessionHistory";
 
 const sessionHistoryKey = (userId: string | null) => ["sessionHistory", userId] as const;
 
@@ -66,8 +40,8 @@ export const useSessionHistory = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const isAccount = session !== null && !isAnonymousSession(session);
-  const userId = isAccount ? (session?.user.id ?? null) : null;
+  const userId = historyAccountUserId(session);
+  const isAccount = userId !== null;
 
   const queryKey = sessionHistoryKey(userId);
 

@@ -22,9 +22,10 @@ const timeline = vi.hoisted(() => [
   },
 ]);
 const consumed = vi.hoisted(() => []);
-const effectiveEnd = vi.hoisted(() => new Date(Date.now() - 1_000));
+const effectiveEnd = vi.hoisted(() => new Date(2026, 7, 15, 23, 15));
 const endSessionMock = vi.hoisted(() => vi.fn());
 const cancelAllMock = vi.hoisted(() => vi.fn());
+const saveSessionSnapshotMock = vi.hoisted(() => vi.fn(async () => true));
 
 vi.mock("@/contexts/AppContext", () => ({
   useAppContext: () => ({
@@ -32,10 +33,13 @@ vi.mock("@/contexts/AppContext", () => ({
       drinkTimeline: timeline,
       consumedTimelineEntries: consumed,
       effectivePlanEndTime: effectiveEnd,
-      drinkingStartTime: new Date(),
-      drinkingTargetTime: new Date(Date.now() + 7_200_000),
-      drinks: [],
+      drinkingStartTime: new Date(2026, 7, 15, 19, 0),
+      drinkingTargetTime: new Date(2026, 7, 15, 23, 0),
+      timeDelta: 4,
+      inebriationLevel: 4,
+      drinks: [{ id: "lager", category: "Beer & cider", drink: "Lager", quantity: "25", unit: "ml" }],
       lockedDrinkIds: [],
+      delayedEntryMinutes: {},
     },
     reorderTimelineEntries: vi.fn(),
     toggleLockedDrink: vi.fn(),
@@ -43,6 +47,13 @@ vi.mock("@/contexts/AppContext", () => ({
     delayTimelineEntry: vi.fn(),
     applyRegeneratedRemainingDrinks: vi.fn(),
     endSession: endSessionMock,
+  }),
+}));
+
+vi.mock("@/hooks/useSessionHistory", () => ({
+  useSessionHistory: () => ({
+    isAccount: true,
+    saveSessionSnapshot: saveSessionSnapshotMock,
   }),
 }));
 
@@ -87,7 +98,7 @@ vi.mock("@/components/tabs/SortableTimelineItem", () => ({
 import TimelineTab from "@/components/tabs/TimelineTab";
 
 describe("TimelineTab wind-down routing", () => {
-  it("uses the authoritative phase inputs and ends the active session before exiting", () => {
+  it("saves the live account snapshot before ending and exiting", async () => {
     const onNext = vi.fn();
     const html = renderToStaticMarkup(<TimelineTab onNext={onNext} />);
 
@@ -95,9 +106,17 @@ describe("TimelineTab wind-down routing", () => {
     expect(phaseMock).toHaveBeenCalledWith(timeline, consumed, effectiveEnd, expect.any(Date));
     expect(windDownProps.current?.currentTime).toEqual(expect.any(Date));
 
-    const endSession = windDownProps.current?.onNext as (() => void) | undefined;
-    endSession?.();
+    const endSession = windDownProps.current?.onNext as (() => Promise<void>) | undefined;
+    await endSession?.();
 
+    expect(saveSessionSnapshotMock).toHaveBeenCalledWith({
+      duration_minutes: 240,
+      buzz_level: 4,
+      drinks: [expect.objectContaining({ id: "lager", drink: "Lager" })],
+    });
+    expect(saveSessionSnapshotMock.mock.invocationCallOrder[0]).toBeLessThan(
+      endSessionMock.mock.invocationCallOrder[0],
+    );
     expect(endSessionMock).toHaveBeenCalledWith(expect.any(Date));
     expect(cancelAllMock).toHaveBeenCalledOnce();
     expect(onNext).toHaveBeenCalledOnce();
@@ -114,6 +133,8 @@ describe("TimelineTab wind-down routing", () => {
     expect(html.indexOf("Plan ends")).toBeLessThan(html.indexOf("Drink Reminders"));
     expect(html.indexOf("Drink Reminders")).toBeLessThan(html.indexOf("Re-plan the rest"));
     expect(html).toContain("25 ml · 10 ml ethanol");
+    expect(html).toContain("23:15");
+    expect(html).not.toContain("23:00");
   });
 
   it("keeps an overdue unconsumed drink selected and out of the past state", () => {

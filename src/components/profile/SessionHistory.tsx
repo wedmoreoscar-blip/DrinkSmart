@@ -1,9 +1,6 @@
 import { useAppContext } from "@/contexts/AppContext";
-import {
-  useSessionHistory,
-  type SessionHistoryDrink,
-  type SessionSnapshot,
-} from "@/hooks/useSessionHistory";
+import { useSessionHistory } from "@/hooks/useSessionHistory";
+import type { SessionHistoryDrink, SessionSnapshot } from "@/lib/sessionHistory";
 import { entryPortionWord } from "@/components/picker/wave5-picker";
 
 type SessionHistoryProps = {
