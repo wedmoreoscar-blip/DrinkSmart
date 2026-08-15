@@ -4,8 +4,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { KeypadFieldGroup } from "@/components/ui/keypad-field-group";
 import { cn } from "@/lib/utils";
+import type { SavedDrink } from "@/hooks/useSavedDrinks";
 import { CUSTOM_COPY, CUSTOM_ERRORS } from "./picker-copy";
 
 export type CustomDrinkDraft = {
@@ -26,9 +28,16 @@ type CustomDrinkSheetProps = {
   committedMl?: number;
   ceilingMl?: number | null;
   canSaveToAccount: boolean;
+  savedDrinks: SavedDrink[];
 };
 
-const INITIAL_VALUES: Record<string, number | null> = { abv: 5.6, serve: 330, price: 5.9 };
+const EMPTY_VALUES: Record<string, number | null> = { abv: null, serve: null, price: null };
+
+const ChevronIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="flex-none">
+    <path d="M6.5 4L12 9l-5.5 5" stroke="#75798c" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
 
 export const CustomDrinkSheet = ({
   open,
@@ -39,20 +48,23 @@ export const CustomDrinkSheet = ({
   committedMl = 0,
   ceilingMl = null,
   canSaveToAccount,
+  savedDrinks,
 }: CustomDrinkSheetProps) => {
   const [name, setName] = useState("");
-  const [values, setValues] = useState<Record<string, number | null>>(INITIAL_VALUES);
+  const [values, setValues] = useState<Record<string, number | null>>(EMPTY_VALUES);
   const [keepIt, setKeepIt] = useState(false);
   const [saveToAccount, setSaveToAccount] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [savedListOpen, setSavedListOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setName("Punk IPA");
-      setValues(INITIAL_VALUES);
-      setKeepIt(true);
+      setName("");
+      setValues(EMPTY_VALUES);
+      setKeepIt(false);
       setSaveToAccount(false);
       setErrors({});
+      setSavedListOpen(false);
     }
   }, [open]);
 
@@ -76,6 +88,13 @@ export const CustomDrinkSheet = ({
   const handleCommit = (key: string, value: number | null) => {
     setValues((current) => ({ ...current, [key]: value }));
     clearError(key);
+  };
+
+  const applySaved = (drink: SavedDrink) => {
+    setName(drink.drink_name);
+    setValues({ abv: drink.abv, serve: drink.serving_ml, price: null });
+    setErrors({});
+    setSavedListOpen(false);
   };
 
   const attemptAdd = () => {
@@ -103,15 +122,49 @@ export const CustomDrinkSheet = ({
         <div className="mt-4 flex flex-col gap-3.5">
           <div>
             <Label className={cn("block leading-[1.2]", errors.name && "text-warning")}>{CUSTOM_COPY.fields.name}</Label>
-            <Input
-              type="text"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                clearError("name");
-              }}
-              className={cn("mt-2", errors.name && "border-warning")}
-            />
+            <div className="relative mt-2">
+              <Input
+                type="text"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  clearError("name");
+                }}
+                className={cn("pr-14", errors.name && "border-warning")}
+              />
+              {savedDrinks.length > 0 && (
+                <Popover open={savedListOpen} onOpenChange={setSavedListOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Choose a saved drink"
+                      className="absolute right-0 top-0 flex h-tap w-14 items-center justify-center"
+                    >
+                      <ChevronIcon />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    sideOffset={4}
+                    className="max-h-72 w-80 overflow-y-auto p-1"
+                  >
+                    {savedDrinks.map((drink) => (
+                      <button
+                        key={drink.id}
+                        type="button"
+                        onClick={() => applySaved(drink)}
+                        className="flex min-h-14 w-full items-center justify-between gap-3 rounded-md px-3 text-left hover:bg-accent"
+                      >
+                        <span className="truncate text-body text-foreground">{drink.drink_name}</span>
+                        <span className="flex-none text-[15px] leading-[1.3] tabular-nums text-muted-foreground">
+                          {CUSTOM_COPY.savedRow(drink.abv, drink.serving_ml)}
+                        </span>
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
             {errors.name && <div className="mt-2 text-note text-warning">{errors.name}</div>}
           </div>
           <div className="relative">

@@ -74,6 +74,10 @@ export const CUSTOM_COPY = {
   fields: { name: "Name", abv: "Strength", serve: "Serve", price: "Price" },
   keepIt: (venue: string) => "Keep it on " + venue,
   saveToAccount: "Save drink to account",
+  savedRow: (abv: number, servingMl: number | null) =>
+    servingMl != null
+      ? abv.toFixed(1) + "% · " + fmtMl(servingMl) + " ml"
+      : abv.toFixed(1) + "% · serve not saved",
   computed: (ml: number, pct: number) =>
     fmtMl(ml) + " ml pure alcohol — " + Math.round(pct) + "% of tonight",
   cta: "Add to plan",
