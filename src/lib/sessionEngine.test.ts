@@ -859,6 +859,27 @@ describe("rescheduleTimeline lock-independent timing", () => {
 });
 
 describe("reorderRemainingTimeline", () => {
+  it("moves the current overdue drink later while keeping the remaining time slots", () => {
+    const timeline = [
+      { ...alcoholTimelineFixture()[0], time: new Date(0) },
+      { ...alcoholTimelineFixture()[1], time: new Date(30 * 60000) },
+      { ...alcoholTimelineFixture()[2], time: new Date(60 * 60000) },
+    ];
+
+    const result = reorderRemainingTimeline(timeline, 0, 2, new Date(20 * 60000), []);
+
+    expect(result.map((entry) => entry.entryId)).toEqual([
+      timeline[1].entryId,
+      timeline[2].entryId,
+      timeline[0].entryId,
+    ]);
+    expect(result.map((entry) => entry.time.getTime())).toEqual([
+      0,
+      30 * 60000,
+      60 * 60000,
+    ]);
+  });
+
   it("reorders only the current/future entries into the existing future time slots", () => {
     const timeline = [
       { ...alcoholTimelineFixture()[0], time: new Date(0) },

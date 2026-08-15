@@ -527,7 +527,8 @@ export function reorderRemainingTimeline(
   const consumedIds = new Set(consumed.map((snapshot) => snapshot.entryId));
   const fixedIndices = new Set<number>();
   timeline.forEach((entry, index) => {
-    if (entry.time.getTime() <= now.getTime() || consumedIds.has(entry.entryId)) {
+    const isElapsedBreak = entry.kind === "break" && entry.time.getTime() <= now.getTime();
+    if (isElapsedBreak || consumedIds.has(entry.entryId)) {
       fixedIndices.add(index);
     }
   });
