@@ -244,3 +244,13 @@ plainly that notes are the durable record and a compaction makes memory inadmiss
 Evidence to fold in when writing: Wave 3 ran 8 frames / 3 agents / ~87 min recon-to-milestone; Wave 4
 ran 15 frames / 1 recon agent and compacted. Ask Luna-0 in its handback where recon actually lost
 time — driving into hard states, measuring, or writing — since it is the only one that knows.
+
+## Wave 5 post-deployment hardening — in progress (2026-08-15)
+
+- [ ] W5-10 AI planner hardening: model-visible catalogue filtering; DeepSeek-native/no-thinking
+  OpenRouter routing; deterministic response admission; working online Timeline re-plan.
+- [ ] W5-11 active-session lifecycle: every Plan drink card remains actionable; past drinks stay in
+  engine/Timeline but leave Plan cards; abandoned sessions expire six hours after effective end.
+- [ ] Integrate both disjoint legs on one `integration` branch, run one `speccheck` repair pass, one
+  full baseline, append spend rows, and fast-forward `main` only after acceptance.
+- [ ] Visual verification is user-owned for this batch and is not commissioned.

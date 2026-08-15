@@ -25,7 +25,15 @@ workflow. Keep history: supersede an entry instead of deleting it.
 ## LOCKED — AI plan boundary
 
 - `generate-plan` currently uses `deepseek/deepseek-v4-flash-0731` through OpenRouter.
-- The server validates catalog identifiers and recomputes actual ethanol totals.
+- OpenRouter is restricted to DeepSeek's own provider endpoint with provider fallbacks disabled and
+  reasoning effort `none`. If that endpoint is unavailable, the client uses the deterministic local
+  fallback rather than silently changing provider or model.
+- Locked and explicitly excluded catalogue items are server-side filtering inputs only. They and
+  their identifiers are removed from the catalogue before the model prompt is assembled, and are
+  never described to the model. Manual selection still uses the complete catalogue.
+- The server rejects, rather than repairs, a model plan containing an unknown catalogue identifier,
+  a non-finite/zero/negative or malformed quantity, or a server-recomputed ethanol total more than
+  10% above or below the deterministic remaining target. Rejection activates the client fallback.
 - The client uses a deterministic greedy fallback and tops up material underfills.
 - API keys remain Supabase secrets and never enter the client bundle or repository.
 
@@ -1035,3 +1043,17 @@ application supplies a deterministic category fallback rather than asking the mo
 - The 15% cocktail fallback is intentionally below 25%. The checked-in Wetherspoons sources put
   generic cocktails around 13–14.4% on average; 25% is characteristic of stronger, spirit-forward
   exceptions rather than a safe general baseline.
+
+## LOCKED — Plan-card action invariant and abandoned-session expiry (2026-08-15)
+
+- A drink card rendered in the Plan tab always has working lock/unlock and delete actions. An
+  iconless Plan drink card is not a valid UI state.
+- Consumed/past drinks remain in the session engine and Timeline because their immutable snapshots
+  drive BAC and wind-down calculations, but they are not rendered as Plan-tab drink cards. Their
+  ethanol still counts against the session target; hiding a past card never creates new capacity.
+- Finishing every drink does not end the session automatically. Wind-down remains available until
+  the user presses `End session` or the abandoned-session deadline is reached.
+- An unended active session expires six hours after its effective plan-end time. The effective time
+  includes `+15` offsets and every other deterministic timeline displacement. Expiry clears active
+  Plan/Timeline state and rebases the next planning window from the current time, but does not write
+  an account history snapshot on behalf of the user.
