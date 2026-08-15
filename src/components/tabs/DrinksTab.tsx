@@ -3,6 +3,7 @@ import { useAppContext } from "@/contexts/AppContext";
 import type { AlcoholTimelineEntryInput } from "@/lib/sessionEngine";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { useEstablishments } from "@/hooks/useEstablishments";
+import { useSavedDrinks } from "@/hooks/useSavedDrinks";
 import type { DrinkFilters } from "@/components/DrinkFilterPopover";
 import { CategoryScreen } from "@/components/picker/CategoryScreen";
 import { CustomDrinkSheet, type CustomDrinkDraft } from "@/components/picker/CustomDrinkSheet";
@@ -109,6 +110,7 @@ const DrinksTab = ({
     getAllSearchableDrinks,
     addEstablishmentDrink,
   } = useEstablishments();
+  const { isLoggedIn: hasAccount, saveDrink } = useSavedDrinks();
 
   const drinks = state.drinks;
 
@@ -452,6 +454,9 @@ const DrinksTab = ({
         volume: draft.serve,
         volume_unit: "ml",
       });
+    }
+    if (draft.saveToAccount && draft.abv != null && hasAccount) {
+      await saveDrink(draft.name, draft.abv);
     }
     setCustomOpen(false);
   };
@@ -810,6 +815,7 @@ const DrinksTab = ({
         targetMl={targetMl}
         committedMl={committedMl}
         ceilingMl={targetMl != null ? targetMl * 1.2 : null}
+        canSaveToAccount={hasAccount}
         onAdd={handleAddCustom}
       />
     </div>

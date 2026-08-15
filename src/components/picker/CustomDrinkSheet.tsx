@@ -14,6 +14,7 @@ export type CustomDrinkDraft = {
   serve: number | null;
   price: number | null;
   keepIt: boolean;
+  saveToAccount: boolean;
 };
 
 type CustomDrinkSheetProps = {
@@ -24,6 +25,7 @@ type CustomDrinkSheetProps = {
   onAdd: (draft: CustomDrinkDraft) => void;
   committedMl?: number;
   ceilingMl?: number | null;
+  canSaveToAccount: boolean;
 };
 
 const INITIAL_VALUES: Record<string, number | null> = { abv: 5.6, serve: 330, price: 5.9 };
@@ -36,10 +38,12 @@ export const CustomDrinkSheet = ({
   onAdd,
   committedMl = 0,
   ceilingMl = null,
+  canSaveToAccount,
 }: CustomDrinkSheetProps) => {
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, number | null>>(INITIAL_VALUES);
   const [keepIt, setKeepIt] = useState(false);
+  const [saveToAccount, setSaveToAccount] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -47,6 +51,7 @@ export const CustomDrinkSheet = ({
       setName("Punk IPA");
       setValues(INITIAL_VALUES);
       setKeepIt(true);
+      setSaveToAccount(false);
       setErrors({});
     }
   }, [open]);
@@ -82,7 +87,7 @@ export const CustomDrinkSheet = ({
       setErrors(next);
       return;
     }
-    onAdd({ name: name.trim(), abv, serve, price, keepIt });
+    onAdd({ name: name.trim(), abv, serve, price, keepIt, saveToAccount });
   };
 
   return (
@@ -150,6 +155,23 @@ export const CustomDrinkSheet = ({
               className="text-body font-normal normal-case tracking-normal leading-[1.3] text-foreground"
             >
               {CUSTOM_COPY.keepIt(venueName ?? "this venue")}
+            </Label>
+          </div>
+          <div className="flex min-h-14 items-center gap-3.5">
+            <Checkbox
+              id="save-to-account"
+              checked={saveToAccount}
+              disabled={!canSaveToAccount}
+              onCheckedChange={(checked) => setSaveToAccount(!!checked)}
+            />
+            <Label
+              htmlFor="save-to-account"
+              className={cn(
+                "text-body font-normal normal-case tracking-normal leading-[1.3] text-foreground",
+                !canSaveToAccount && "text-muted-foreground",
+              )}
+            >
+              {CUSTOM_COPY.saveToAccount}
             </Label>
           </div>
           <div className="-mt-[10px] text-note text-muted-foreground">{CUSTOM_COPY.computed(ml, pct)}</div>

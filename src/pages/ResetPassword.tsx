@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { isAnonymousSession } from "@/lib/anonymousAuth";
 import { Lock, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { z } from "zod";
 
@@ -34,11 +35,11 @@ const ResetPassword = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth event:", event, "Session:", !!session);
       
-      if (event === "PASSWORD_RECOVERY") {
+      if (event === "PASSWORD_RECOVERY" && session && !isAnonymousSession(session)) {
         // User clicked the recovery link and was verified
         setIsValidSession(true);
         setIsCheckingSession(false);
-      } else if (event === "SIGNED_IN" && session) {
+      } else if (event === "SIGNED_IN" && session && !isAnonymousSession(session)) {
         // Also valid if user has a session (covers refresh after recovery)
         setIsValidSession(true);
         setIsCheckingSession(false);
@@ -49,8 +50,9 @@ const ResetPassword = () => {
     const checkExistingSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (session) {
+      if (session && !isAnonymousSession(session)) {
         setIsValidSession(true);
+        setIsCheckingSession(false);
       } else {
         // Give a moment for the auth state change to fire from URL hash
         setTimeout(() => {

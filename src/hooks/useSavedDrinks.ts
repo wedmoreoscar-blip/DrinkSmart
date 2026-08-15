@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { isAnonymousSession } from "@/lib/anonymousAuth";
 
 export type SavedDrink = {
   id: string;
@@ -22,12 +23,12 @@ export const useSavedDrinks = () => {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUserId(session?.user?.id || null);
+      setUserId(session && !isAnonymousSession(session) ? session.user.id : null);
     };
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUserId(session?.user?.id || null);
+      setUserId(session && !isAnonymousSession(session) ? session.user.id : null);
     });
 
     return () => subscription.unsubscribe();

@@ -23,7 +23,7 @@ export const pickerCategoryFor = (
 ): PickerCategoryLabel | null => {
   const source = `${category ?? ""} ${categoryLabel ?? ""}`.trim().toLowerCase();
 
-  // Custom entries are represented by the explicit "Something not listed"
+  // Custom entries are represented by the explicit "Custom drink"
   // row, not a second dynamically-created category card.
   if (!source || /custom|other|not listed/.test(source)) return null;
   if (/cocktail|spritz/.test(source)) return "Cocktails";
@@ -45,7 +45,7 @@ export const PICKER_COPY = {
   screenLabel: "Add a drink",
   venueSub: (n: number) => n + " drinks",
   categorySub: (n: number, minPrice: number) => n + " · from " + money(minPrice),
-  customCategory: { name: "Something not listed", sub: "added to this venue" },
+  customCategory: { name: "Custom drink", sub: "add your own drink" },
   trayReading: (ml: number, target: number) => fmtMl(ml) + " of " + fmtMl(target) + " ml",
   traySub: (n: number) => "pure alcohol · " + n + (n === 1 ? " drink" : " drinks") + " so far",
   trayIdle: "Done",
@@ -70,9 +70,10 @@ export const CATEGORY_COPY = {
 };
 
 export const CUSTOM_COPY = {
-  title: "Something not listed",
+  title: "Custom drink",
   fields: { name: "Name", abv: "Strength", serve: "Serve", price: "Price" },
   keepIt: (venue: string) => "Keep it on " + venue,
+  saveToAccount: "Save drink to account",
   computed: (ml: number, pct: number) =>
     fmtMl(ml) + " ml pure alcohol — " + Math.round(pct) + "% of tonight",
   cta: "Add to plan",

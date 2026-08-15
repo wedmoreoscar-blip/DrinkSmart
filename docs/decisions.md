@@ -1011,3 +1011,27 @@ Settled by Oscar, overriding the delivered frame on both counts.
   the same form reused in Profile's Taste sheet.
 - `PREFERENCE_FAMILIES` must keep every catalogue key in exactly one family — see the existing
   `alcopops` comment in `src/components/onboarding/preferenceFamilies.ts`.
+
+## LOCKED — Menu-scan missing-ABV fallbacks (2026-08-15)
+
+Settled by Oscar. The visual model extracts the printed ABV when it can; when it cannot, the
+application supplies a deterministic category fallback rather than asking the model to guess.
+
+| Scanner classification | Fallback ABV |
+| --- | ---: |
+| Beer or cider | 5% |
+| Wine | 13% |
+| Spirits or shots | 40% |
+| Cocktails | 15% |
+| Explicit soft or no-alcohol drink | 0% |
+| Low-alcohol drink | 1.2% |
+| Alcopop or ready-to-drink product | 4% |
+
+- `Soft & low-alcohol` may remain one displayed picker category, but it is not one scanner
+  classification. Soft/no-alcohol, low-alcohol and alcopop/RTD rows retain distinct internal
+  classifications so a 1.2% fallback cannot understate a typical 4% RTD.
+- A fallback ABV is marked as estimated during review; editing it makes it user-confirmed. A model
+  must never present a category fallback as an ABV read from the image.
+- The 15% cocktail fallback is intentionally below 25%. The checked-in Wetherspoons sources put
+  generic cocktails around 13–14.4% on average; 25% is characteristic of stronger, spirit-forward
+  exceptions rather than a safe general baseline.
