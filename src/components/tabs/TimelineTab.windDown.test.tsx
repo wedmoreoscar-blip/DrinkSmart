@@ -23,6 +23,8 @@ const timeline = vi.hoisted(() => [
 ]);
 const consumed = vi.hoisted(() => []);
 const effectiveEnd = vi.hoisted(() => new Date(Date.now() - 1_000));
+const endSessionMock = vi.hoisted(() => vi.fn());
+const cancelAllMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/contexts/AppContext", () => ({
   useAppContext: () => ({
@@ -40,6 +42,7 @@ vi.mock("@/contexts/AppContext", () => ({
     markTimelineEntryHadIt: vi.fn(),
     delayTimelineEntry: vi.fn(),
     applyRegeneratedRemainingDrinks: vi.fn(),
+    endSession: endSessionMock,
   }),
 }));
 
@@ -51,6 +54,7 @@ vi.mock("@/hooks/useNotifications", () => ({
     isLoading: false,
     toggleNotifications: vi.fn(),
     scheduleFromTimeline: vi.fn(),
+    cancelAll: cancelAllMock,
   }),
 }));
 vi.mock("@/hooks/useWebDrinkReminders", () => ({ useWebDrinkReminders: vi.fn() }));
@@ -83,14 +87,20 @@ vi.mock("@/components/tabs/SortableTimelineItem", () => ({
 import TimelineTab from "@/components/tabs/TimelineTab";
 
 describe("TimelineTab wind-down routing", () => {
-  it("uses the authoritative phase inputs and forwards the existing exit callback", () => {
+  it("uses the authoritative phase inputs and ends the active session before exiting", () => {
     const onNext = vi.fn();
     const html = renderToStaticMarkup(<TimelineTab onNext={onNext} />);
 
     expect(html).toContain("wind-down-marker");
     expect(phaseMock).toHaveBeenCalledWith(timeline, consumed, effectiveEnd, expect.any(Date));
-    expect(windDownProps.current?.onNext).toBe(onNext);
     expect(windDownProps.current?.currentTime).toEqual(expect.any(Date));
+
+    const endSession = windDownProps.current?.onNext as (() => void) | undefined;
+    endSession?.();
+
+    expect(endSessionMock).toHaveBeenCalledWith(expect.any(Date));
+    expect(cancelAllMock).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
   });
 
   it("keeps reminders out of the timeline and exposes the settled hero actions", () => {

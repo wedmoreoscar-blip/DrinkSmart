@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { getBACForLevel } from "@/data/buzzLevels";
-import { loadSession, saveSession } from "@/lib/sessionStore";
+import { clearSession, loadSession, saveSession } from "@/lib/sessionStore";
 import {
   accumulateDelay,
   applyRegenerationToDrinks,
@@ -82,6 +82,7 @@ type AppContextType = {
   rescheduleRemainingTimeline: (now?: Date) => void;
   applyRegeneratedRemainingDrinks: (generatedDrinks: DrinkEntry[], now?: Date) => void;
   replaceBreakWithDrink: (breakEntryId: string, drink: DrinkEntry, now?: Date) => void;
+  endSession: (now?: Date) => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -118,6 +119,39 @@ const initialState: AppState = {
   delayedEntryMinutes: {},
   effectivePlanEndTime: null,
 };
+
+/**
+ * Clear the completed night's data while retaining profile choices and the
+ * selected duration for the next plan. Absolute times belong to one session,
+ * so the next window starts from the supplied current time.
+ */
+export function resetActiveSessionState(prev: AppState, now: Date): AppState {
+  const durationHours =
+    prev.timeDelta !== null && Number.isFinite(prev.timeDelta) && prev.timeDelta > 0
+      ? prev.timeDelta
+      : null;
+
+  return {
+    ...prev,
+    drinks: initialState.drinks.map((drink) => ({ ...drink })),
+    lockedDrinkIds: [],
+    startTime: 0,
+    isTimerRunning: false,
+    startDateTime: null,
+    drinkingStartTime: new Date(now),
+    drinkingTargetTime:
+      durationHours === null ? null : new Date(now.getTime() + durationHours * 60 * 60 * 1000),
+    timeDelta: durationHours,
+    drinkTimeline: [],
+    drinkCalculations: [],
+    adjustedTargetMl: null,
+    isTargetAdjusted: false,
+    breaks: [],
+    consumedTimelineEntries: [],
+    delayedEntryMinutes: {},
+    effectivePlanEndTime: null,
+  };
+}
 
 function hydrateInitialState(): AppState {
   const persisted = loadSession();
@@ -450,6 +484,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const endSession = (now?: Date) => {
+    // Remove the completed session immediately so a reload cannot restore it
+    // during saveSession's debounce window. The state effect then persists the
+    // new blank session.
+    clearSession();
+    setState((prev) => resetActiveSessionState(prev, now ?? new Date()));
+  };
+
   // Auto-recalculate timeline when dependencies change
   useEffect(() => {
     calculateDrinkTimeline();
@@ -494,6 +536,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         rescheduleRemainingTimeline,
         applyRegeneratedRemainingDrinks,
         replaceBreakWithDrink,
+        endSession,
       }}
     >
       {children}

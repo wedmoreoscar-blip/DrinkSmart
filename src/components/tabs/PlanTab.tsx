@@ -485,7 +485,6 @@ const PlanTab = ({
             "linear-gradient(to right, transparent, rgba(233,233,237,.16) 48px, rgba(233,233,237,.16) calc(100% - 48px), transparent)",
         }}
       />
-      <div className="text-center text-micro text-[#75798c]">the scale ends here</div>
 
       {currentBand.maxLevel > currentBand.minLevel && (
         <div className="mt-[10px] flex gap-[10px]">

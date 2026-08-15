@@ -107,6 +107,7 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
     markTimelineEntryHadIt,
     delayTimelineEntry,
     applyRegeneratedRemainingDrinks,
+    endSession,
   } = useAppContext();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -126,6 +127,7 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
     isLoading: notificationsLoading,
     toggleNotifications,
     scheduleFromTimeline,
+    cancelAll,
   } = useNotifications();
 
   useWebDrinkReminders(state.drinkTimeline, !isNative && webRemindersEnabled);
@@ -206,6 +208,12 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
     if (!earlyEntry) return;
     markTimelineEntryHadIt(earlyEntry.entryId, new Date());
     setEarlyEntryId(null);
+  };
+
+  const handleEndSession = () => {
+    endSession(new Date());
+    void cancelAll();
+    onNext?.();
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -312,7 +320,7 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
   );
 
   if (phase === "winding-down") {
-    return <WindDownScreen currentTime={currentTime} onNext={onNext} />;
+    return <WindDownScreen currentTime={currentTime} onNext={handleEndSession} />;
   }
 
   const movingEntry = movingEntryId
