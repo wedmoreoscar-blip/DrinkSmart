@@ -1,6 +1,6 @@
 import { withSupabase } from "@supabase/server";
 
-const VISION_MODEL = "google/gemini-2.5-flash-preview";
+const VISION_MODEL = "google/gemini-3.1-flash-lite";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const corsHeaders = {
@@ -38,13 +38,13 @@ const SYSTEM_PROMPT = `You are a menu parsing assistant. Extract alcoholic drink
 For each drink, extract:
 - name: The drink name exactly as shown
 - abv: Alcohol percentage (0-100). null if it is not visible; never guess a default.
-- category: One of: beer, lager, ale, ipa, stout, cider, wine, red-wine, white-wine, rose-wine, spirits, vodka, gin, rum, whiskey, tequila, brandy, cocktails, shots, soft-drinks
+- category: One of: beer, lager, ale, ipa, stout, cider, wine, red-wine, white-wine, rose-wine, spirits, vodka, gin, rum, whiskey, tequila, brandy, cocktails, shots, soft-drinks, no-alcohol, low-alcohol, alcopops, rtd
 - categoryLabel: Human-readable category (e.g., "Lager", "Red Wine", "Vodka", "Cocktails")
 - price: The numeric price without currency symbol (e.g., 5.50). null if not visible.
 - volume: The volume/size as a number. null if not visible.
 - volumeUnit: The unit of volume (ml, oz, pint, half-pint, shot, glass, bottle, can). null if not visible.
 
-Focus only on alcoholic drinks. Skip non-alcoholic items unless they're clearly labeled as 0% alcohol options.
+Focus only on alcoholic drinks. Skip non-alcoholic items unless they're clearly labeled as low-alcohol, no-alcohol or 0% alcohol options.
 
 If you can see an establishment/venue name in the image, set suggestedName.
 
@@ -69,7 +69,7 @@ const EXTRACT_TOOL = {
             properties: {
               name: { type: 'string', description: 'Drink name' },
               abv: { type: ['number', 'null'], description: 'Alcohol percentage (0-100), or null when unread' },
-              category: { type: 'string', description: 'Category slug' },
+              category: { type: 'string', description: 'Category slug: beer, lager, ale, ipa, stout, cider, wine, red-wine, white-wine, rose-wine, spirits, vodka, gin, rum, whiskey, tequila, brandy, cocktails, shots, soft-drinks, no-alcohol, low-alcohol, alcopops, rtd' },
               categoryLabel: { type: 'string', description: 'Human-readable category' },
               price: { type: ['number', 'null'], description: 'Price as a number' },
               volume: { type: ['number', 'null'], description: 'Volume amount' },
@@ -91,6 +91,32 @@ function stripDataPrefix(base64: string): string {
   }
   return base64;
 }
+
+// Model output is not schema-guaranteed: keep only drink items that are
+// objects with a usable string name, coerce nothing, and treat any
+// non-number field as unread (null). Malformed items are skipped rather than
+// trusted into the response.
+const finiteOrNull = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+const stringOrNull = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() !== '' ? value : null;
+
+const sanitizeDrink = (raw: unknown): ParsedDrink | null => {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const item = raw as Record<string, unknown>;
+  const name = typeof item.name === 'string' ? item.name.trim() : '';
+  if (!name) return null;
+  return {
+    name,
+    abv: finiteOrNull(item.abv),
+    category: stringOrNull(item.category) ?? '',
+    categoryLabel: stringOrNull(item.categoryLabel) ?? '',
+    price: finiteOrNull(item.price),
+    volume: finiteOrNull(item.volume),
+    volumeUnit: stringOrNull(item.volumeUnit),
+  };
+};
 
 const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
   if (req.method === 'OPTIONS') {
@@ -205,7 +231,7 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
               t.function?.name === 'extract_menu_drinks'
           );
           if (tc?.function?.arguments) {
-            let parsed: { suggestedName?: string; drinks?: ParsedDrink[] };
+            let parsed: unknown;
             try {
               parsed = JSON.parse(tc.function.arguments);
             } catch {
@@ -214,11 +240,25 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
               continue;
             }
 
-            if (parsed.suggestedName && !suggestedName) {
-              suggestedName = parsed.suggestedName;
+            if (typeof parsed !== 'object' || parsed === null) {
+              console.error(`Malformed tool arguments for image ${i + 1}`);
+              errors.push(`Image ${i + 1}: Malformed response`);
+              continue;
             }
-            if (Array.isArray(parsed.drinks)) {
-              allDrinks.push(...parsed.drinks);
+
+            const record = parsed as Record<string, unknown>;
+            if (
+              typeof record.suggestedName === 'string' &&
+              record.suggestedName.trim() &&
+              !suggestedName
+            ) {
+              suggestedName = record.suggestedName.trim();
+            }
+            if (Array.isArray(record.drinks)) {
+              const sanitized = record.drinks
+                .map(sanitizeDrink)
+                .filter((drink): drink is ParsedDrink => drink !== null);
+              allDrinks.push(...sanitized);
             }
           }
         } else {
@@ -233,11 +273,16 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
       }
     }
 
-    const seenNames = new Set<string>();
+    // Dedupe on name plus serving and price: identical drinks extracted twice
+    // collapse, while same-name drinks with different volumes or prices stay
+    // separate rows for the client to dedupe exactly after normalization.
+    const dedupeKey = (drink: ParsedDrink): string =>
+      `${drink.name.toLowerCase().trim()}\u0000${drink.volume ?? ''}\u0000${drink.price ?? ''}`;
+    const seenKeys = new Set<string>();
     const deduplicatedDrinks = allDrinks.filter((drink) => {
-      const nameLower = drink.name.toLowerCase().trim();
-      if (seenNames.has(nameLower)) return false;
-      seenNames.add(nameLower);
+      const key = dedupeKey(drink);
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
       return true;
     });
 

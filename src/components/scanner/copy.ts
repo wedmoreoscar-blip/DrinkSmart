@@ -28,6 +28,7 @@ export const SCAN_REVIEW_COPY = {
       ? "Fill one number and the rest is already right."
       : "Fill " + (WORDS[n] ?? String(n)) + " numbers and the rest is already right.",
   reasons: { price: "price unread", abv: "strength unread", serve: "serve unread" },
+  estimated: { abv: "strength estimated", serve: "serve estimated" },
   cleanHeader: (n: number) => "Read cleanly · " + n,
   cta: (n: number, venue: string) => "Save " + n + " to " + venue,
   footnote: "Anything wrong can be fixed later, drink by drink.",

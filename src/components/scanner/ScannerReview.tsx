@@ -31,6 +31,16 @@ const gapReason = (d: ParsedDrink) => {
   return SCAN_REVIEW_COPY.reasons.price;
 };
 
+// An estimated value is usable and therefore not a gap, but it is still honest
+// provenance: the card note calls out each fallback before the gap reason.
+const cardNote = (d: ParsedDrink) => {
+  const parts: string[] = [];
+  if (d.abvEstimated) parts.push(SCAN_REVIEW_COPY.estimated.abv);
+  if (d.volumeEstimated) parts.push(SCAN_REVIEW_COPY.estimated.serve);
+  parts.push(gapReason(d));
+  return parts.join(" · ");
+};
+
 const fieldsFor = (d: ParsedDrink): KeypadField[] => [
   { key: "abv", unit: "%", value: d.abv },
   { key: "serve", unit: "ml", value: d.volume, integer: true },
@@ -104,7 +114,7 @@ export const ScannerReview = ({
                   focusKey={editingTarget?.index === index ? editingTarget.field : null}
                   focusRequest={focusRequest}
                   title={drinks[index].name}
-                  note={gapReason(drinks[index])}
+                  note={cardNote(drinks[index])}
                 />
               </div>
             ))}
@@ -131,7 +141,9 @@ export const ScannerReview = ({
                 >
                   <span className="flex-1 truncate text-body text-foreground">{drink.name}</span>
                   <span className="flex-none text-[15px] leading-[1.2] tabular-nums text-[#75798c]">
-                    {drink.abv != null && drink.volume != null ? `${drink.abv.toFixed(1)}% · ${drink.volume}` : ""}
+                    {drink.abv != null && drink.volume != null
+                      ? `${drink.abv.toFixed(1)}%${drink.abvEstimated ? " est." : ""} · ${drink.volume}${drink.volumeEstimated ? " est." : ""}`
+                      : ""}
                   </span>
                   <span className="min-w-14 flex-none text-right text-body tabular-nums text-muted-foreground">
                     {drink.price != null ? money(drink.price) : ""}
