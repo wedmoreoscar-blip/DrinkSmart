@@ -27,6 +27,8 @@ A merge that genuinely integrates no delegation bypasses the guard with the lite
 | 2026-08-15 | W5-7 account session history | ~65k | spec + commission 16k, handback 7k, clause map + independent tests 18k, lifecycle/delay/auth-count repairs 16k, baseline 8k |
 | 2026-08-15 | W5-8 menu scanner repair | ~70k | spec + commission 12k, handback 7k, clause map + independent tests 30k, false-zero/prompt repairs 13k, shared baseline 8k |
 | 2026-08-15 | W5-9 reusable saved custom drinks | ~45k | spec + commission 10k, handback 5k, clause map + migration/copy tests 20k, shared baseline 10k |
+| 2026-08-15 | W5-10 AI planner hardening | ~75k | spec + commission 15k, handback + clause map 25k, hidden-ID/re-plan contract tests and repair 27k, shared baseline 8k |
+| 2026-08-15 | W5-11 active-session lifecycle | ~55k | spec + commission 10k, handback + clause map 17k, stable-expiry/Plan-card tests and repair 20k, shared baseline 8k |
 
 Wave 5 rows are estimates split from one Codex TUI batch. The acceptance repair commit names the
 routine spec gaps that required checker-owned inline work: generation hint/state sync; consumed
