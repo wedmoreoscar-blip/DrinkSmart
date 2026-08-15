@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { appSessionStateTransitions } from "@/contexts/AppContext";
 
-const { loadSessionSnapshotState, resetActiveSessionState } = appSessionStateTransitions;
+const {
+  deriveAbandonedSessionExpiryAt,
+  loadSessionSnapshotState,
+  resetActiveSessionState,
+} = appSessionStateTransitions;
 
 describe("resetActiveSessionState", () => {
   it("destroys the completed night and rebases its chosen duration from now", () => {
@@ -52,6 +56,49 @@ describe("resetActiveSessionState", () => {
     expect(next.drinkingStartTime).not.toBe(now);
     expect(next.drinkingTargetTime).toEqual(new Date("2026-08-16T16:30:00Z"));
     expect(next.timeDelta).toBe(4);
+  });
+});
+
+describe("deriveAbandonedSessionExpiryAt", () => {
+  it("does not let a reload's now-shifted presentation timeline renew a stale session", () => {
+    const start = new Date("2026-08-15T18:00:00Z");
+    const target = new Date("2026-08-15T19:00:00Z");
+    const state = {
+      userMetrics: {
+        metricType: "bmi",
+        heightUnit: "cm",
+        weightUnit: "kg",
+        heightCm: "180",
+        heightFt: "",
+        heightIn: "",
+        weight: "80",
+        bodyFat: "",
+        age: "30",
+        sex: "male",
+      },
+      targetBAC: { min: 0.06, max: 0.09 },
+      drinks: [{
+        id: "strong",
+        category: "custom",
+        drink: "",
+        customName: "Strong custom",
+        customABV: "100",
+        quantity: "100",
+        unit: "ml",
+        isCustom: true,
+      }],
+      breaks: [],
+      consumedTimelineEntries: [],
+      delayedEntryMinutes: { "strong:unit:1": 15 },
+      drinkingStartTime: start,
+      drinkingTargetTime: target,
+      timeDelta: 1,
+      effectivePlanEndTime: new Date("2026-08-16T12:00:00Z"),
+    } as unknown as Parameters<typeof deriveAbandonedSessionExpiryAt>[0];
+
+    expect(deriveAbandonedSessionExpiryAt(state)).toEqual(
+      new Date("2026-08-16T01:15:00Z"),
+    );
   });
 });
 

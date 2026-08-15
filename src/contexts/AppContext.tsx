@@ -201,9 +201,46 @@ function loadSessionSnapshotState(
   };
 }
 
+/**
+ * Re-derive the abandonment deadline from the persisted plan inputs on the
+ * plan's original clock. The live presentation rescheduler floors flexible
+ * rows at `now`; using that now-shifted end after a reload would manufacture a
+ * fresh future deadline for an already-stale session.
+ */
+function deriveAbandonedSessionExpiryAt(state: AppState): Date | null {
+  const fallbackEnd = state.effectivePlanEndTime;
+  if (!fallbackEnd) return null;
+
+  let stableEnd = fallbackEnd;
+  if (
+    state.drinkingStartTime &&
+    state.timeDelta !== null &&
+    Number.isFinite(state.timeDelta)
+  ) {
+    const base = calculateSessionTimeline({
+      entries: [...state.drinks, ...state.breaks],
+      userMetrics: state.userMetrics,
+      targetBAC: state.targetBAC,
+      timeDeltaHours: state.timeDelta,
+      drinkingStartTime: state.drinkingStartTime,
+    });
+    stableEnd =
+      rescheduleTimeline({
+        timeline: base.drinkTimeline,
+        consumed: state.consumedTimelineEntries,
+        delayedMinutes: state.delayedEntryMinutes,
+        now: state.drinkingStartTime,
+        targetEndTime: state.drinkingTargetTime,
+      }).effectivePlanEndTime ?? fallbackEnd;
+  }
+
+  return new Date(stableEnd.getTime() + SESSION_ABANDON_GRACE_MS);
+}
+
 export const appSessionStateTransitions = {
   resetActiveSessionState,
   loadSessionSnapshotState,
+  deriveAbandonedSessionExpiryAt,
 };
 
 function hydrateInitialState(): AppState {
@@ -559,17 +596,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // right after a persisted abandoned session hydrates and its timeline is
   // recomputed — expires immediately. Consumption alone never triggers it.
   useEffect(() => {
-    const deadline = state.effectivePlanEndTime;
-    if (!deadline) return;
-    const expiryAt = deadline.getTime() + SESSION_ABANDON_GRACE_MS;
-    const delay = expiryAt - Date.now();
+    const expiryAt = deriveAbandonedSessionExpiryAt(state);
+    if (!expiryAt) return;
+    const delay = expiryAt.getTime() - Date.now();
     if (delay <= 0) {
       expireAbandonedSession();
       return;
     }
     const timer = setTimeout(expireAbandonedSession, delay);
     return () => clearTimeout(timer);
-  }, [state.effectivePlanEndTime, expireAbandonedSession]);
+  }, [state, expireAbandonedSession]);
 
   const loadSessionSnapshot = (snapshot: SessionSnapshot, now?: Date) => {
     // A saved snapshot becomes a clean, editable draft: the current drinks are

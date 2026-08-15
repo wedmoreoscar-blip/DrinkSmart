@@ -275,7 +275,9 @@ function handleCalculateEthanol(
   for (const d of args.drinks) {
     const item = catalogById.get(d.catalog_id);
     if (!item) {
-      breakdown.push(`${d.catalog_id}: UNKNOWN — not in the available catalog, do not include it in submit_plan`);
+      // Do not reflect an unknown identifier into a model-visible tool result.
+      // It could coincidentally be one of the server-hidden locked/excluded ids.
+      breakdown.push("UNKNOWN — not in the available catalog; omit this row from submit_plan");
       continue;
     }
     const ethanol = planDrinkEthanol(d, item);

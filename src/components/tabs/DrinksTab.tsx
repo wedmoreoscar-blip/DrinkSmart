@@ -51,6 +51,13 @@ type Selection = {
   servingId: string;
 };
 
+function filterActionablePlanEntries<T extends { id: string }>(
+  entries: T[],
+  consumedSourceIds: ReadonlySet<string>,
+): T[] {
+  return entries.filter((entry) => !consumedSourceIds.has(entry.id));
+}
+
 const LockIcon = ({ locked }: { locked: boolean }) => (
   <svg
     width="20"
@@ -227,7 +234,7 @@ const DrinksTab = ({
   // records stay in planEntries (committed ethanol, tray ceiling, target
   // accounting, BAC, timeline) but their source drinks no longer render here.
   const unconsumedEntries = useMemo(
-    () => planEntries.filter((entry) => !consumedSourceIds.has(entry.id)),
+    () => filterActionablePlanEntries(planEntries, consumedSourceIds),
     [planEntries, consumedSourceIds],
   );
 
