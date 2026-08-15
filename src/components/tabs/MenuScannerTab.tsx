@@ -15,9 +15,10 @@ import { ScannerWaiting } from "@/components/scanner/ScannerWaiting";
 import { ScannerReview, type ReviewField } from "@/components/scanner/ScannerReview";
 import { ScannerFailed } from "@/components/scanner/ScannerFailed";
 import { SCAN_WAIT_COPY } from "@/components/scanner/copy";
-import type { ParsedDrink, PhotoItem, ScanFailure } from "@/components/scanner/types";
+import type { ParsedDrink, PhotoItem, RawParsedDrink, ScanFailure } from "@/components/scanner/types";
 import {
   classifyScanError,
+  normalizeParsedDrinks,
   toEstablishmentDrinkInsert,
 } from "@/components/scanner/scanner-model";
 
@@ -25,7 +26,7 @@ type ScannerScreen = "capture" | "waiting" | "review" | "failed";
 
 type ParseMenuResponse = {
   suggestedName?: string | null;
-  drinks?: ParsedDrink[];
+  drinks?: RawParsedDrink[];
   error?: string;
 };
 
@@ -107,7 +108,9 @@ const MenuScannerTab = ({
           window.clearTimeout(timer);
           if (error) throw error;
           if (data?.error) throw new Error(data.error);
-          const drinks = data?.drinks ?? [];
+          // The Edge Function output is raw model output; normalize it to
+          // absolute ml with deterministic fallbacks before review state.
+          const drinks = normalizeParsedDrinks(data?.drinks ?? []);
           if (drinks.length === 0) {
             if (screenRef.current === "waiting") {
               setFailure("nothing");
@@ -226,9 +229,14 @@ const MenuScannerTab = ({
     setParsedDrinks((prev) =>
       prev.map((drink, i) => {
         if (i !== index) return drink;
-        if (key === "abv") return { ...drink, abv: value };
+        if (key === "abv") return { ...drink, abv: value, abvEstimated: false };
         if (key === "serve") {
-          return { ...drink, volume: value, volumeUnit: value === null ? drink.volumeUnit : "ml" };
+          return {
+            ...drink,
+            volume: value,
+            volumeUnit: value === null ? drink.volumeUnit : "ml",
+            volumeEstimated: false,
+          };
         }
         return { ...drink, price: value };
       }),

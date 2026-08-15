@@ -2,6 +2,7 @@ import { drinkCategories } from "@/data/drinksData";
 import type { Establishment, EstablishmentDrink } from "@/hooks/useEstablishments";
 import { pickerCategoryFor, type PickerCategoryLabel } from "@/components/picker/picker-copy";
 import { databaseVolumeMl } from "@/components/picker/picker-model";
+import { fallbackAbv, fallbackServeMl } from "@/lib/drinkFallbacks";
 
 export type DrinkUnit = "ml" | "oz" | "shots" | "pints" | "glass";
 
@@ -79,16 +80,17 @@ export function catalogCategoryKey(drink: EstablishmentDrink): string {
 
 /**
  * Build the generation catalogue from the active establishment's rows.
- * Ids are the stable row ids; serving volumes come from the database rows
- * (330 ml when no usable volume is stored). Custom-classified rows are
- * catalogued as cocktails.
+ * Ids are the stable row ids; serving volumes come from the database rows.
+ * Legacy rows stored without ABV or volume get the same deterministic
+ * fallbacks the scanner review shows, so AI generation agrees with the manual
+ * picker's serving assumptions for that category.
  */
 export function buildCatalogFromDrinks(drinks: EstablishmentDrink[]): CatalogItem[] {
   return drinks.map((drink) => ({
     id: drink.id,
     name: drink.drink_name,
-    abv: drink.abv ?? 0,
-    typical_ml: databaseVolumeMl(drink) ?? 330,
+    abv: drink.abv ?? fallbackAbv(drink.category, drink.category_label),
+    typical_ml: databaseVolumeMl(drink) ?? fallbackServeMl(drink.category, drink.category_label),
     category: catalogCategoryKey(drink),
   }));
 }
