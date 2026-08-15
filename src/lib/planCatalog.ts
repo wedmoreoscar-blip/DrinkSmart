@@ -1,4 +1,7 @@
 import { drinkCategories } from "@/data/drinksData";
+import type { EstablishmentDrink } from "@/hooks/useEstablishments";
+import { pickerCategoryFor, type PickerCategoryLabel } from "@/components/picker/picker-copy";
+import { databaseVolumeMl } from "@/components/picker/picker-model";
 
 export type DrinkUnit = "ml" | "oz" | "shots" | "pints" | "glass";
 
@@ -57,6 +60,38 @@ const CATEGORY_DEFAULT_UNIT: Record<string, DrinkUnit> = {
 };
 
 const CATALOG_ID_SEPARATOR = "::";
+
+// Static generation-category key per picker classification. These keys drive
+// preference axes, default units and icons exactly like the legacy static
+// catalogue categories.
+const CATEGORY_KEY_BY_PICKER_LABEL: Record<PickerCategoryLabel, string> = {
+  "Beer & cider": "beer_pint",
+  Wine: "wine_white",
+  Spirits: "vodka",
+  Cocktails: "cocktails",
+  "Soft & low-alcohol": "beer_bottle",
+};
+
+export function catalogCategoryKey(drink: EstablishmentDrink): string {
+  const label = pickerCategoryFor(drink.category, drink.category_label);
+  return label ? CATEGORY_KEY_BY_PICKER_LABEL[label] : "cocktails";
+}
+
+/**
+ * Build the generation catalogue from the active establishment's rows.
+ * Ids are the stable row ids; serving volumes come from the database rows
+ * (330 ml when no usable volume is stored). Custom-classified rows are
+ * catalogued as cocktails.
+ */
+export function buildCatalogFromDrinks(drinks: EstablishmentDrink[]): CatalogItem[] {
+  return drinks.map((drink) => ({
+    id: drink.id,
+    name: drink.drink_name,
+    abv: drink.abv ?? 0,
+    typical_ml: databaseVolumeMl(drink) ?? 330,
+    category: catalogCategoryKey(drink),
+  }));
+}
 
 export function buildStaticCatalog(): CatalogItem[] {
   return Object.entries(drinkCategories).flatMap(([categoryKey, category]) => {

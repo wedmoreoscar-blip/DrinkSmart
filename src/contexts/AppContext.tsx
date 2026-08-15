@@ -397,9 +397,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const next = {
         ...prev,
         drinks: [...prev.drinks, drink],
-        lockedDrinkIds: prev.lockedDrinkIds.includes(drink.id)
-          ? prev.lockedDrinkIds
-          : [...prev.lockedDrinkIds, drink.id],
       };
       return computeSessionTimeline(next, new Date());
     });

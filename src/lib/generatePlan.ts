@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import {
+  buildCatalogFromDrinks,
   buildStaticCatalog,
   getCategoryDefaultUnit,
   parseCatalogId,
@@ -10,6 +11,7 @@ import {
 import { convertToMl } from "@/lib/timelineHelpers";
 import { BLOOD_WATER_FRACTION, OZ_ML } from "@/lib/drinkConstants";
 import type { PreferenceData } from "@/lib/preferences";
+import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { greedyPlanFallback } from "@/lib/greedyPlanFallback";
 
 const EDGE_FUNCTION_TIMEOUT_MS = 15000;
@@ -290,7 +292,13 @@ export function generatedDrinkToEntry(
   };
 }
 
-export function buildCatalog(): CatalogItem[] {
+/**
+ * Build the generation catalogue. With the active establishment's rows, the
+ * catalogue is derived from those stable rows; without rows it is the static
+ * Wetherspoons catalogue (the seed's temporary-unavailable fallback).
+ */
+export function buildCatalog(drinks?: EstablishmentDrink[]): CatalogItem[] {
+  if (drinks && drinks.length > 0) return buildCatalogFromDrinks(drinks);
   return buildStaticCatalog();
 }
 

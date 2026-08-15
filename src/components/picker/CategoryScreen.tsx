@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DrinkFilterPopover, type DrinkFilters } from "@/components/DrinkFilterPopover";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { CATEGORY_COPY, pickerCategoryFor } from "./picker-copy";
-import type { Portion } from "./picker-model";
+import { defaultServingFor } from "./picker-model";
 import { DrinkRow } from "./DrinkRow";
 import { pureAlcoholMl } from "./picker-model";
 
@@ -18,10 +18,12 @@ type CategoryScreenProps = {
   onSortChange: (sort: string) => void;
   selectedId: string | null;
   quantity: number;
-  portion: Portion;
+  servingId: string;
+  customMl: number | null;
   onSelect: (drinkId: string) => void;
   onQuantityChange: (quantity: number) => void;
-  onPortionChange: (portion: Portion) => void;
+  onServingChange: (servingId: string) => void;
+  onCustomMlChange: (ml: number | null) => void;
   onBack: () => void;
 };
 
@@ -35,10 +37,12 @@ export const CategoryScreen = ({
   onSortChange,
   selectedId,
   quantity,
-  portion,
+  servingId,
+  customMl,
   onSelect,
   onQuantityChange,
-  onPortionChange,
+  onServingChange,
+  onCustomMlChange,
   onBack,
 }: CategoryScreenProps) => {
   const [sortOpen, setSortOpen] = useState(false);
@@ -59,7 +63,12 @@ export const CategoryScreen = ({
     });
     const sorted = [...filtered];
     if (sort === CATEGORY_COPY.sort[1]) sorted.sort((a, b) => (b.abv ?? -1) - (a.abv ?? -1));
-    else if (sort === CATEGORY_COPY.sort[2]) sorted.sort((a, b) => pureAlcoholMl(a) - pureAlcoholMl(b));
+    else if (sort === CATEGORY_COPY.sort[2])
+      sorted.sort(
+        (a, b) =>
+          pureAlcoholMl(a, defaultServingFor(a).id, null) -
+          pureAlcoholMl(b, defaultServingFor(b).id, null)
+      );
     else sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
     return sorted;
   }, [drinks, filters.abvRange, filters.selectedCategories, sort]);
@@ -145,10 +154,12 @@ export const CategoryScreen = ({
             drink={drink}
             selected={selectedId === drink.id}
             quantity={quantity}
-            portion={portion}
+            servingId={servingId}
+            customMl={customMl}
             onSelect={() => onSelect(drink.id)}
             onQuantityChange={onQuantityChange}
-            onPortionChange={onPortionChange}
+            onServingChange={onServingChange}
+            onCustomMlChange={onCustomMlChange}
           />
         ))}
       </div>

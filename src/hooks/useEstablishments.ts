@@ -1,6 +1,26 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+const ACTIVE_VENUE_STORAGE_KEY = "drinksmart.activeVenue.v1";
+
+function readStoredActiveVenueId(): string | null {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") return null;
+  try {
+    return window.localStorage.getItem(ACTIVE_VENUE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function persistActiveVenueId(id: string): void {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
+  try {
+    window.localStorage.setItem(ACTIVE_VENUE_STORAGE_KEY, id);
+  } catch {
+    // Storage unavailable — the selection still applies for this session.
+  }
+}
 
 export type Establishment = {
   id: string;
@@ -105,6 +125,31 @@ export const useEstablishments = () => {
     ...db.establishments,
     ...session.establishments,
   ];
+
+  // The one persisted active venue. Resolve it after the database settles:
+  // retain a persisted id only while it still exists, otherwise the global
+  // "Wetherspoons" seed, otherwise the first global venue, otherwise none.
+  const [activeVenueId, setActiveVenueIdState] = useState<string | null>(readStoredActiveVenueId);
+
+  useEffect(() => {
+    if (dbQuery.isLoading) return;
+    if (allEstablishments.length === 0) return;
+    if (activeVenueId !== null && allEstablishments.some((e) => e.id === activeVenueId)) return;
+    const seed = allEstablishments.find((e) => e.isGlobal && e.name === "Wetherspoons");
+    const nextId = (seed ?? allEstablishments.find((e) => e.isGlobal))?.id ?? null;
+    setActiveVenueIdState(nextId);
+    if (nextId !== null) persistActiveVenueId(nextId);
+  }, [dbQuery.isLoading, allEstablishments, activeVenueId]);
+
+  const setActiveVenueId = useCallback((id: string) => {
+    setActiveVenueIdState(id);
+    persistActiveVenueId(id);
+  }, []);
+
+  const activeVenue = useMemo(
+    () => allEstablishments.find((e) => e.id === activeVenueId) ?? null,
+    [allEstablishments, activeVenueId]
+  );
 
   const getEstablishmentDrinks = useCallback(
     (establishmentId: string): EstablishmentDrink[] => {
@@ -233,6 +278,9 @@ export const useEstablishments = () => {
     establishments: allEstablishments,
     loading: dbQuery.isLoading,
     isLoggedIn: !!userId,
+    activeVenue,
+    activeVenueId,
+    setActiveVenueId,
     getEstablishmentDrinks,
     getGlobalEstablishments,
     getUserEstablishments,

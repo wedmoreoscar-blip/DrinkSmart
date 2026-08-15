@@ -16,12 +16,9 @@ import {
   pickerCategoryFor,
 } from "@/components/picker/picker-copy";
 import {
-  entryQuantity,
-  entryUnit,
-  perUnitVolumeMl,
-  portionWord,
+  defaultServingFor,
   pureAlcoholMl,
-  type Portion,
+  servingMl,
 } from "@/components/picker/picker-model";
 import {
   entryEthanolMl,
@@ -45,7 +42,7 @@ type DrinksTabProps = {
 type Selection = {
   drinkId: string;
   quantity: number;
-  portion: Portion;
+  servingId: string;
 };
 
 const LockIcon = ({ locked }: { locked: boolean }) => (
@@ -90,7 +87,6 @@ const ChevronIcon = () => (
 const DrinksTab = ({
   onNext,
   onOpenVenues,
-  selectedVenueId,
   planBuilt = false,
   swapDrinkId,
   onSwapComplete,
@@ -103,11 +99,8 @@ const DrinksTab = ({
     replaceBreakWithDrink,
   } = useAppContext();
   const {
-    establishments,
+    activeVenue,
     getEstablishmentDrinks,
-    getUserEstablishments,
-    getGlobalEstablishments,
-    sessionEstablishments,
     getAllSearchableDrinks,
     addEstablishmentDrink,
   } = useEstablishments();
@@ -121,20 +114,13 @@ const DrinksTab = ({
   });
   const [sort, setSort] = useState<string>(CATEGORY_COPY.sort[0]);
   const [selected, setSelected] = useState<Selection | null>(null);
+  const [customMl, setCustomMl] = useState<number | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => new Set());
   const [swapSelectedId, setSwapSelectedId] = useState<string | null>(null);
   const swapScreenRef = useRef<HTMLDivElement | null>(null);
 
-  const venue = useMemo(
-    () =>
-      establishments.find((establishment) => establishment.id === selectedVenueId) ??
-      sessionEstablishments[0] ??
-      getUserEstablishments()[0] ??
-      getGlobalEstablishments()[0] ??
-      null,
-    [establishments, selectedVenueId, sessionEstablishments, getUserEstablishments, getGlobalEstablishments],
-  );
+  const venue = activeVenue;
 
   const venueDrinks = useMemo(
     () => (venue ? getEstablishmentDrinks(venue.id) : []),
@@ -244,11 +230,13 @@ const DrinksTab = ({
   const selectedDrink = selected
     ? venueDrinks.find((d) => d.id === selected.drinkId) ?? null
     : null;
+  const selectedServingMl =
+    selected && selectedDrink ? servingMl(selectedDrink, selected.servingId, customMl) : null;
   const pendingMl =
-    selectedDrink && selected
-      ? ((perUnitVolumeMl(selectedDrink, selected.portion) * selected.quantity * (selectedDrink.abv ?? 0)) / 100)
+    selectedServingMl != null && selected
+      ? (selectedServingMl * selected.quantity * (selectedDrink?.abv ?? 0)) / 100
       : 0;
-  const normalHasPending = selected !== null && selectedDrink !== null;
+  const normalHasPending = selected !== null && selectedDrink !== null && selectedServingMl != null;
 
   // ---- Swap mode -----------------------------------------------------------
 
@@ -295,9 +283,9 @@ const DrinksTab = ({
     for (const drink of venueDrinks) {
       const label = pickerCategoryFor(drink.category, drink.category_label);
       if (!label) continue;
-      const servingMl = pureAlcoholMl(drink);
-      if (servingMl > swapCapMl) continue;
-      if (targetMl != null && swapCommittedMl + servingMl > targetMl * 1.2) continue;
+      const servingEthanolMl = pureAlcoholMl(drink, defaultServingFor(drink).id, null);
+      if (servingEthanolMl > swapCapMl) continue;
+      if (targetMl != null && swapCommittedMl + servingEthanolMl > targetMl * 1.2) continue;
       const list = groups.get(label) ?? [];
       list.push(drink);
       groups.set(label, list);
@@ -312,7 +300,7 @@ const DrinksTab = ({
     () =>
       venueDrinks.filter((drink) => {
         const label = pickerCategoryFor(drink.category, drink.category_label);
-        return label !== null && pureAlcoholMl(drink) > swapCapMl;
+        return label !== null && pureAlcoholMl(drink, defaultServingFor(drink).id, null) > swapCapMl;
       }).length,
     [venueDrinks, swapCapMl],
   );
@@ -322,18 +310,21 @@ const DrinksTab = ({
   const swapSelectedDrink = swapSelectedId
     ? venueDrinks.find((d) => d.id === swapSelectedId) ?? null
     : null;
-  const swapPendingMl = swapSelectedDrink ? pureAlcoholMl(swapSelectedDrink) : 0;
+  const swapPendingMl = swapSelectedDrink
+    ? pureAlcoholMl(swapSelectedDrink, defaultServingFor(swapSelectedDrink).id, null)
+    : 0;
   const swapHasPending = swapSelectedDrink !== null;
 
   const handleCommitSwap = () => {
     if (!sourceEntry || !swapSelectedDrink) return;
+    const serving = defaultServingFor(swapSelectedDrink);
     const next: AlcoholTimelineEntryInput = {
       id: sourceEntry.id,
       category: swapSelectedDrink.category,
       drink: swapSelectedDrink.drink_name,
       customABV: swapSelectedDrink.abv == null ? undefined : String(swapSelectedDrink.abv),
-      quantity: entryQuantity(swapSelectedDrink, 1, "pint"),
-      unit: entryUnit(swapSelectedDrink),
+      quantity: String(serving.ml ?? 330),
+      unit: "ml",
       pricePerUnit: swapSelectedDrink.price,
       isCustom: false,
     };
@@ -393,31 +384,37 @@ const DrinksTab = ({
   const overCeiling = targetMl != null && committedMl + pendingMl > targetMl * 1.2;
 
   const handleSelect = (drinkId: string) => {
-    setSelected({ drinkId, quantity: 1, portion: "pint" });
+    const drink = venueDrinks.find((d) => d.id === drinkId);
+    if (!drink) return;
+    setSelected({ drinkId, quantity: 1, servingId: defaultServingFor(drink).id });
+    setCustomMl(null);
   };
 
   const handleAddSelected = () => {
     if (!selectedDrink || !selected) return;
+    if (selectedServingMl == null) return;
     if (targetMl != null && committedMl + pendingMl > targetMl * 1.2) return;
     const entry: AlcoholTimelineEntryInput = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       category: selectedDrink.category,
       drink: selectedDrink.drink_name,
       customABV: selectedDrink.abv == null ? undefined : String(selectedDrink.abv),
-      quantity: entryQuantity(selectedDrink, selected.quantity, selected.portion),
-      unit: entryUnit(selectedDrink),
+      quantity: String(selectedServingMl * selected.quantity),
+      unit: "ml",
       pricePerUnit: selectedDrink.price,
+      portions: selected.quantity > 1 ? selected.quantity : undefined,
     };
     addUnplannedDrink(entry);
     setSelected(null);
+    setCustomMl(null);
   };
 
   const handleAddCustom = async (draft: CustomDrinkDraft) => {
     const customMl = ((draft.serve ?? 0) * (draft.abv ?? 0)) / 100;
     if (targetMl != null && committedMl + customMl > targetMl * 1.2) return;
     const entry: AlcoholTimelineEntryInput = {
-      id: Date.now().toString(),
-      category: "",
+      id: crypto.randomUUID(),
+      category: "Cocktails",
       drink: "",
       isCustom: true,
       customName: draft.name,
@@ -449,11 +446,11 @@ const DrinksTab = ({
   const trayAdvice = overTargetAdvice(trayTotalMl, targetMl, state.inebriationLevel);
 
   const swapRowSub = (drink: (typeof venueDrinks)[number]) => {
-    const word = portionWord(drink, "pint");
-    const perMl = pureAlcoholMl(drink);
+    const serving = defaultServingFor(drink);
+    const perMl = pureAlcoholMl(drink, serving.id, null);
     return drink.abv == null || drink.abv === 0
-      ? word + " · 0 ml"
-      : CATEGORY_COPY.rowSubSingle(drink.abv, word, perMl);
+      ? serving.label + " · 0 ml"
+      : CATEGORY_COPY.rowSubSingle(drink.abv, serving.label, perMl);
   };
 
   const panelRow = (entry: AlcoholTimelineEntryInput) => (
@@ -567,7 +564,10 @@ const DrinksTab = ({
                           </div>
                           {swapSelectedId === drink.id && (
                             <div className="mt-[3px] text-[13px] leading-[1.2] tabular-nums text-[#b5abfc]">
-                              {SWAP_COPY.delta(pureAlcoholMl(drink) - sourceEthanolMl)}
+                              {SWAP_COPY.delta(
+                                pureAlcoholMl(drink, defaultServingFor(drink).id, null) -
+                                  sourceEthanolMl
+                              )}
                             </div>
                           )}
                         </div>
@@ -594,14 +594,16 @@ const DrinksTab = ({
             onSortChange={setSort}
             selectedId={selected?.drinkId ?? null}
             quantity={selected?.quantity ?? 1}
-            portion={selected?.portion ?? "pint"}
+            servingId={selected?.servingId ?? ""}
+            customMl={customMl}
             onSelect={handleSelect}
             onQuantityChange={(n) =>
               setSelected((current) => (current ? { ...current, quantity: n } : current))
             }
-            onPortionChange={(p) =>
-              setSelected((current) => (current ? { ...current, portion: p } : current))
+            onServingChange={(servingId) =>
+              setSelected((current) => (current ? { ...current, servingId } : current))
             }
+            onCustomMlChange={setCustomMl}
             onBack={() => setCategory(null)}
           />
         ) : (

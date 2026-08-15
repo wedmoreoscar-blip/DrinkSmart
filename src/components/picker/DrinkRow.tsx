@@ -1,41 +1,41 @@
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { CATEGORY_COPY, fmtMl, money } from "./picker-copy";
-import { isPintDrink, perUnitVolumeMl, portionWord, pureAlcoholMl, type Portion } from "./picker-model";
+import { pureAlcoholMl, servingOptionsFor } from "./picker-model";
 
 type DrinkRowProps = {
   drink: EstablishmentDrink;
   selected: boolean;
   quantity: number;
-  portion: Portion;
+  servingId: string;
+  customMl: number | null;
   onSelect: () => void;
   onQuantityChange: (quantity: number) => void;
-  onPortionChange: (portion: Portion) => void;
+  onServingChange: (servingId: string) => void;
+  onCustomMlChange: (ml: number | null) => void;
 };
 
 export const DrinkRow = ({
   drink,
   selected,
   quantity,
-  portion,
+  servingId,
+  customMl,
   onSelect,
   onQuantityChange,
-  onPortionChange,
+  onServingChange,
+  onCustomMlChange,
 }: DrinkRowProps) => {
-  const pint = isPintDrink(drink);
-  const word = portionWord(drink, portion);
-  const perUnitMl = perUnitVolumeMl(drink, portion);
-  const perUnitPureMl = pureAlcoholMl(drink, portion);
+  const options = servingOptionsFor(drink);
+  const serving = options.find((option) => option.id === servingId) ?? options[0];
+  const perUnitPureMl = pureAlcoholMl(drink, serving.id, customMl);
   const totalPureMl = perUnitPureMl * quantity;
 
   const sub =
     selected && quantity > 1
-      ? CATEGORY_COPY.rowSub(drink.abv, word, perUnitPureMl)
-      : CATEGORY_COPY.rowSubSingle(drink.abv, word, perUnitPureMl);
+      ? CATEGORY_COPY.rowSub(drink.abv, serving.label, perUnitPureMl)
+      : CATEGORY_COPY.rowSubSingle(drink.abv, serving.label, perUnitPureMl);
 
-  const summary =
-    word.endsWith(" ml") || word.endsWith(" oz")
-      ? quantity + " × " + word + " · " + fmtMl(totalPureMl) + " ml pure alcohol"
-      : CATEGORY_COPY.selectedSummary(quantity, word, totalPureMl);
+  const summary = quantity + " × " + serving.label + " · " + fmtMl(totalPureMl) + " ml pure alcohol";
 
   return (
     <div
@@ -74,7 +74,7 @@ export const DrinkRow = ({
       </button>
       {selected && (
         <>
-          <div className="mt-3.5 flex items-center gap-2.5">
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
             <button
               type="button"
               aria-label="Decrease quantity"
@@ -96,36 +96,43 @@ export const DrinkRow = ({
               +
             </button>
             <div className="flex-1" />
-            {pint && (
-              <div className="flex flex-none overflow-hidden rounded-ctl shadow-[0_0_0_1px_#383a46]">
+            <div className="flex flex-none flex-wrap items-center justify-end gap-1.5">
+              {options.map((option) => (
                 <button
+                  key={option.id}
                   type="button"
-                  aria-label="Half pint"
-                  onClick={() => onPortionChange("half")}
+                  aria-label={option.label}
+                  onClick={() => onServingChange(option.id)}
                   className={
-                    "flex min-h-14 min-w-[62px] items-center justify-center text-[19px] " +
-                    (portion === "half"
-                      ? "bg-accent font-medium text-primary-hover"
-                      : "text-muted-foreground")
+                    "flex min-h-14 min-w-[62px] items-center justify-center rounded-ctl text-[19px] " +
+                    (serving.id === option.id
+                      ? "bg-accent font-medium text-primary-hover shadow-[0_0_0_1px_#383a46]"
+                      : "text-muted-foreground shadow-[0_0_0_1px_#383a46]")
                   }
                 >
-                  half
+                  {option.label}
                 </button>
-                <button
-                  type="button"
-                  aria-label="Pint"
-                  onClick={() => onPortionChange("pint")}
-                  className={
-                    "flex min-h-14 min-w-[62px] items-center justify-center text-[19px] " +
-                    (portion === "pint"
-                      ? "bg-accent font-medium text-primary-hover"
-                      : "text-muted-foreground")
-                  }
-                >
-                  pint
-                </button>
-              </div>
-            )}
+              ))}
+              {serving.id === "custom" && (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="Custom serving ml"
+                  placeholder="ml"
+                  value={customMl ?? ""}
+                  onChange={(event) => {
+                    const raw = event.target.value.trim();
+                    if (raw === "") {
+                      onCustomMlChange(null);
+                      return;
+                    }
+                    const parsed = Number(raw);
+                    onCustomMlChange(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+                  }}
+                  className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
+                />
+              )}
+            </div>
           </div>
           {quantity > 1 && (
             <div className="mt-3 text-note text-muted-foreground">{summary}</div>

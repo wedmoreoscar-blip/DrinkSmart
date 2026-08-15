@@ -5,7 +5,7 @@ export const fmtMl = (ml: number): string => (ml < 10 ? ml.toFixed(1) : String(M
 export const PICKER_CATEGORY_ORDER = [
   "Beer & cider",
   "Wine",
-  "Spirits & mixers",
+  "Spirits",
   "Cocktails",
   "Soft & low-alcohol",
 ] as const;
@@ -30,7 +30,7 @@ export const pickerCategoryFor = (
   if (/wine|champagne|merlot|chardonnay|pinot|rioja|shiraz/.test(source)) return "Wine";
   if (/beer|lager|ale|ipa|stout|cider/.test(source)) return "Beer & cider";
   if (/spirit|vodka|gin|rum|whisk|whiskey|whisky|tequila|brandy|cognac|liqueur|shot|mixer/.test(source)) {
-    return "Spirits & mixers";
+    return "Spirits";
   }
   if (/soft|low[- ]?alcohol|non[- ]?alcohol|mocktail|alcopop|rtd|ready[- ]?to[- ]?drink/.test(source)) {
     return "Soft & low-alcohol";

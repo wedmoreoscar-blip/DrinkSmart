@@ -114,6 +114,9 @@ export function entryPortionWord(entry: AlcoholTimelineEntryInput): string {
     case "glass":
       return quantity + (quantity === 1 ? " glass" : " glasses");
     case "ml":
+      if (entry.portions && entry.portions > 1 && quantity > 0) {
+        return entry.portions + " × " + quantity / entry.portions + " ml";
+      }
       return quantity + " ml";
   }
 }

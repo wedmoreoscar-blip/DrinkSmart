@@ -13,9 +13,10 @@ import {
   computeRemainingBudget,
   lockedDrinkEntries,
   lockedEthanolTotal,
-  requestFingerprint,
   resolvePlanningWindow,
 } from "@/lib/planGenerationContracts";
+import { applyRegenerationToDrinks } from "@/lib/sessionEngine";
+import { useEstablishments } from "@/hooks/useEstablishments";
 import DrinksTab from "./DrinksTab";
 import MenuScannerTab from "./MenuScannerTab";
 import { EstablishmentsScreen } from "@/components/establishments/EstablishmentsScreen";
@@ -27,16 +28,33 @@ import {
   generatedDrinkToEntry,
   type GeneratedPlan,
   type GeneratePlanInput,
-  type GeneratePlanResult,
 } from "@/lib/generatePlan";
 
 const DEFAULT_DURATION_MINUTES = 180;
 const MIN_DURATION = 60;
 const MAX_DURATION = 480;
 const DURATION_STEP = 30;
-const PRELOAD_DEBOUNCE_MS = 300;
 const VESSEL_TARGET_LINE_PCT = 78;
 const ETHANOL_ML_PER_PINT = 19;
+const PLAN_GENERATED_STORAGE_KEY = "drinksmart.planGenerated.v1";
+
+const readPlanGenerated = (): boolean => {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") return false;
+  try {
+    return window.localStorage.getItem(PLAN_GENERATED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+};
+
+const persistPlanGenerated = (value: boolean): void => {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
+  try {
+    window.localStorage.setItem(PLAN_GENERATED_STORAGE_KEY, value ? "true" : "false");
+  } catch {
+    // Storage unavailable — the flag still applies for this session.
+  }
+};
 
 const NUMBER_WORDS = [
   "one",
@@ -132,6 +150,8 @@ const PlanTab = ({
   const { preferences } = useUserMetrics();
   const { lastSession, upsertLastSession } = useLastSession();
   const { toast } = useToast();
+  const { activeVenue, activeVenueId, setActiveVenueId, getEstablishmentDrinks } =
+    useEstablishments();
 
   const [duration, setDuration] = useState<number>(() =>
     deriveDurationMinutes(state.drinkingStartTime, state.drinkingTargetTime)
@@ -147,22 +167,51 @@ const PlanTab = ({
     return () => onFullScreenChange?.(false);
   }, [flow.screen, onFullScreenChange]);
 
-  // AI generation state
-  const [cachedPlan, setCachedPlan] = useState<GeneratePlanResult | null>(null);
-  const [cachedRequestFingerprint, setCachedRequestFingerprint] = useState<string | null>(null);
-  const requestFingerprintRef = useRef<string | null>(null);
+  // Keep the picker's selected venue in lock-step with the persisted active
+  // venue, except while a menu scan is in flight. Wetherspoons (or the
+  // resolved fallback) therefore shows HERE NOW and feeds the picker on
+  // first use without a click.
+  useEffect(() => {
+    if (flow.screen !== "picker" || flow.scannerTask !== "idle") return;
+    if (activeVenueId !== null && flow.selectedVenueId !== activeVenueId) {
+      dispatchFlow({ type: "select-venue", id: activeVenueId });
+    }
+  }, [activeVenueId, flow.selectedVenueId, flow.screen, flow.scannerTask]);
+
+  // AI generation state — generation is explicit only: opening or returning
+  // to Plan never calls AI, applies a plan, or mutates drinks.
   const [genState, setGenState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [lastPlanIds, setLastPlanIds] = useState<string[]>([]);
   const [planBuilt, setPlanBuilt] = useState<boolean>(() =>
     state.drinks.some((d) => d.drink || (d.isCustom && d.customName))
   );
+  // Whether an explicit generation has actually succeeded, independently of
+  // whether drinks exist: a fully manual plan stays `Build the night`.
+  const [hasGenerated, setHasGenerated] = useState<boolean>(readPlanGenerated);
   const pickerRegionRef = useRef<HTMLDivElement | null>(null);
 
-  const catalog = useMemo(() => buildCatalog(), []);
+  const venueDrinks = useMemo(
+    () => (activeVenue ? getEstablishmentDrinks(activeVenue.id) : []),
+    [activeVenue, getEstablishmentDrinks]
+  );
+
+  const catalog = useMemo(() => {
+    if (venueDrinks.length > 0) return buildCatalog(venueDrinks);
+    // The static Wetherspoons catalogue stands in only while the active
+    // Wetherspoons seed's database rows are temporarily unavailable; it must
+    // never bleed through into a selected custom venue.
+    if (activeVenue && activeVenue.isGlobal && activeVenue.name === "Wetherspoons") {
+      return buildCatalog();
+    }
+    return [];
+  }, [venueDrinks, activeVenue]);
 
   useEffect(() => {
-    if (state.drinks.some((drink) => drink.drink || (drink.isCustom && drink.customName))) {
-      setPlanBuilt(true);
+    const hasDrinks = state.drinks.some((drink) => drink.drink || (drink.isCustom && drink.customName));
+    setPlanBuilt(hasDrinks);
+    if (!hasDrinks) {
+      setHasGenerated(false);
+      persistPlanGenerated(false);
     }
   }, [state.drinks]);
 
@@ -203,58 +252,36 @@ const PlanTab = ({
     [state.userMetrics, state.targetBAC, state.timeDelta]
   );
 
-  const lockedEntries = useMemo(
-    () => lockedDrinkEntries(state.drinks, state.lockedDrinkIds, catalog),
-    [state.drinks, state.lockedDrinkIds, catalog]
+  // Protected ethanol: consumed ("Had it") ethanol plus the ethanol of
+  // explicitly locked, unconsumed current/future drinks. Both survival
+  // classes are subtracted exactly once from the deterministic generation
+  // budget; locked entries for fully consumed drinks are excluded so their
+  // ethanol is never counted twice.
+  const consumedSourceIds = useMemo(
+    () => new Set(state.consumedTimelineEntries.map((snapshot) => snapshot.sourceDrinkId)),
+    [state.consumedTimelineEntries]
   );
-  const lockedEthanolMl = useMemo(() => lockedEthanolTotal(lockedEntries), [lockedEntries]);
-
-  const preloadRequest = useMemo<{ request: GeneratePlanInput; fingerprint: string } | null>(() => {
-    if (!targetEthanolMl || !preferences) return null;
-    const budget = computeRemainingBudget(targetEthanolMl, lockedEthanolMl);
-    if (budget < 1) return null;
-    const request: GeneratePlanInput = {
-      target_ethanol_ml: budget,
-      duration_minutes: duration,
-      preferences,
-      catalog,
-      locked_drinks: lockedEntries,
-      exclude: [],
-    };
-    return { request, fingerprint: requestFingerprint(request) };
-  }, [targetEthanolMl, preferences, duration, catalog, lockedEntries, lockedEthanolMl]);
-
-  // Debounced preload — fires whenever the request context changes. A cached
-  // result is accepted only if its fingerprint still matches the current
-  // request, so a superseded async response can never overwrite a newer one.
-  useEffect(() => {
-    requestFingerprintRef.current = preloadRequest?.fingerprint ?? null;
-    if (!preloadRequest || !state.timeDelta) {
-      setCachedPlan(null);
-      setCachedRequestFingerprint(null);
-      setGenState("idle");
-      return;
-    }
-
-    const { request, fingerprint } = preloadRequest;
-    const timer = setTimeout(async () => {
-      setGenState("loading");
-      try {
-        // generatePlan never throws — it falls back to the greedy generator
-        const plan = await generatePlan(request);
-        if (fingerprint !== requestFingerprintRef.current) return;
-        setCachedPlan(plan);
-        setCachedRequestFingerprint(fingerprint);
-        setGenState("ready");
-      } catch (err) {
-        if (fingerprint !== requestFingerprintRef.current) return;
-        console.error("Preload generate-plan failed:", err);
-        setGenState("error");
-      }
-    }, PRELOAD_DEBOUNCE_MS);
-
-    return () => clearTimeout(timer);
-  }, [preloadRequest, state.timeDelta]);
+  const consumedEthanolMl = useMemo(
+    () =>
+      state.consumedTimelineEntries.reduce(
+        (sum, snapshot) => sum + (Number.isFinite(snapshot.pureAlcoholMl) ? snapshot.pureAlcoholMl : 0),
+        0
+      ),
+    [state.consumedTimelineEntries]
+  );
+  const lockedEntries = useMemo(
+    () =>
+      lockedDrinkEntries(
+        state.drinks,
+        state.lockedDrinkIds.filter((id) => !consumedSourceIds.has(id)),
+        catalog
+      ),
+    [state.drinks, state.lockedDrinkIds, consumedSourceIds, catalog]
+  );
+  const protectedEthanolMl = useMemo(
+    () => consumedEthanolMl + lockedEthanolTotal(lockedEntries),
+    [consumedEthanolMl, lockedEntries]
+  );
 
   // Static target meter — the vessel shows the target level only. It must not
   // respond to the selected drinks.
@@ -268,17 +295,25 @@ const PlanTab = ({
   }, [targetEthanolMl]);
 
   const applyPlan = (plan: GeneratedPlan) => {
-    const lockedEntries = state.drinks.filter((d) => state.lockedDrinkIds.includes(d.id));
+    // Shared retention rule with Timeline "Re-plan the rest": consumed/past
+    // source drinks and explicitly locked current/future source drinks
+    // survive; every other current/future drink is replaceable.
+    const protectedSourceIds = [
+      ...state.lockedDrinkIds,
+      ...state.consumedTimelineEntries.map((snapshot) => snapshot.sourceDrinkId),
+    ];
     const generatedEntries = plan.drinks
       .map((g) => generatedDrinkToEntry(g, catalog))
       .filter((d): d is NonNullable<typeof d> => d !== null);
-    const merged = [...lockedEntries, ...generatedEntries];
+    const merged = applyRegenerationToDrinks(state.drinks, protectedSourceIds, generatedEntries);
     const finalDrinks =
       merged.length === 0
         ? [{ id: "1", category: "", drink: "", quantity: "", unit: "ml" as const, isCustom: false }]
         : merged;
     updateDrinks(finalDrinks);
     setLastPlanIds(plan.drinks.map((d) => d.catalog_id));
+    setHasGenerated(true);
+    persistPlanGenerated(true);
 
     // Persist as the "last night" for next session
     if (finalDrinks.length > 0 && finalDrinks[0].drink !== "") {
@@ -315,6 +350,10 @@ const PlanTab = ({
     if (restoredDrinks.length > 0) {
       updateDrinks(restoredDrinks);
     }
+    // A restored night is a fully manual plan: no AI call happened, so the
+    // action stays `Build the night`.
+    setHasGenerated(false);
+    persistPlanGenerated(false);
     toast({
       title: "Last night restored",
       description: "Same duration, drinks and buzz target. Tweak anything if you like.",
@@ -330,9 +369,9 @@ const PlanTab = ({
     }
   };
 
-  // One generation operation: `Build the night` before the first applied plan,
-  // `Regenerate` afterwards. First generation may reuse the cached preload;
-  // later generation excludes the last plan's drink ids.
+  // One explicit generation operation: `Build the night` before any successful
+  // generation, `Regenerate` afterwards. Opening or returning to Plan never
+  // calls AI; only pressing this button does.
   const handleGenerate = async () => {
     const now = new Date();
     const resolved = resolvePlanningWindow(
@@ -353,8 +392,8 @@ const PlanTab = ({
       return;
     }
 
-    const budget = computeRemainingBudget(targetEthanolMl, lockedEthanolMl);
-    const exclude = planBuilt ? lastPlanIds : [];
+    const budget = computeRemainingBudget(targetEthanolMl, protectedEthanolMl);
+    const exclude = hasGenerated ? lastPlanIds : [];
     const request: GeneratePlanInput = {
       target_ethanol_ml: budget,
       duration_minutes: duration,
@@ -363,17 +402,8 @@ const PlanTab = ({
       locked_drinks: lockedEntries,
       exclude,
     };
-    const fingerprint = requestFingerprint(request);
-
-    if (!planBuilt && cachedPlan && cachedRequestFingerprint === fingerprint && budget > 0) {
-      applyPlan(cachedPlan);
-      notifyIfFallback(cachedPlan.usedFallback);
-      return;
-    }
 
     if (budget <= 0) {
-      setCachedPlan(null);
-      setCachedRequestFingerprint(null);
       setGenState("idle");
       applyPlan({ drinks: [], notes: "" });
       return;
@@ -381,12 +411,10 @@ const PlanTab = ({
 
     setGenState("loading");
     const plan = await generatePlan(request);
-    setCachedPlan(plan);
-    setCachedRequestFingerprint(fingerprint);
-    applyPlan(plan);
     setGenState("ready");
+    applyPlan(plan);
     notifyIfFallback(plan.usedFallback);
-    if (planBuilt && !plan.usedFallback) {
+    if (hasGenerated && !plan.usedFallback) {
       toast({ title: "Fresh plan ready" });
     }
   };
@@ -397,7 +425,7 @@ const PlanTab = ({
         <Loader2 className="w-4 h-4 animate-spin" />
         Generating...
       </>
-    ) : planBuilt ? (
+    ) : hasGenerated ? (
       "Regenerate"
     ) : (
       "Build the night"
@@ -605,7 +633,10 @@ const PlanTab = ({
     <div className={cn("h-full", flow.screen !== "establishments" && "hidden")}>
       <EstablishmentsScreen
         selectedId={flow.selectedVenueId}
-        onSelect={(id) => dispatchFlow({ type: "select-venue", id })}
+        onSelect={(id) => {
+          setActiveVenueId(id);
+          dispatchFlow({ type: "select-venue", id });
+        }}
         onScanMenu={() => dispatchFlow({ type: "open-scanner" })}
         onBack={() => dispatchFlow({ type: "keep-planning" })}
       />
@@ -617,7 +648,10 @@ const PlanTab = ({
           onClose={() => dispatchFlow({ type: "back-to-venues" })}
           onLeave={() => dispatchFlow({ type: "keep-planning" })}
           onReviewReady={() => dispatchFlow({ type: "check-scan" })}
-          onSaved={(id) => dispatchFlow({ type: "select-venue", id })}
+          onSaved={(id) => {
+            setActiveVenueId(id);
+            dispatchFlow({ type: "select-venue", id });
+          }}
           onTaskChange={(task) => dispatchFlow({ type: "scanner-task", task })}
         />
       </div>
