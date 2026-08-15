@@ -8,6 +8,7 @@ export type SavedDrink = {
   id: string;
   drink_name: string;
   abv: number;
+  serving_ml: number | null;
   created_at: string;
   isSessionOnly?: boolean;
 };
@@ -60,28 +61,28 @@ export const useSavedDrinks = () => {
     staleTime: Infinity,
   });
 
-  const saveDrinkMut = useMutation<boolean, Error, { drinkName: string; abv: number }>({
-    mutationFn: async ({ drinkName, abv }) => {
+  const saveDrinkMut = useMutation<
+    boolean,
+    Error,
+    { drinkName: string; abv: number; servingMl: number }
+  >({
+    mutationFn: async ({ drinkName, abv, servingMl }) => {
       if (!userId) throw new Error("Not authenticated");
 
-      // Avoid the duplicate-name round-trip — let the DB unique constraint catch it.
-      const { error } = await supabase.from("saved_custom_drinks").insert({
-        user_id: userId,
-        drink_name: drinkName,
-        abv,
-      });
+      // Upsert on the (user_id, drink_name) unique index: saving an edited
+      // preset updates the account record instead of dead-ending on the
+      // duplicate-name constraint.
+      const { error } = await supabase.from("saved_custom_drinks").upsert(
+        {
+          user_id: userId,
+          drink_name: drinkName,
+          abv,
+          serving_ml: servingMl,
+        },
+        { onConflict: "user_id,drink_name" }
+      );
 
-      if (error) {
-        if (error.code === "23505") {
-          toast({
-            title: "Already saved",
-            description: "This drink is already in your saved drinks.",
-            duration: 3000,
-          });
-          return false;
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Drink saved! 🍹",
@@ -130,7 +131,7 @@ export const useSavedDrinks = () => {
   });
 
   const saveDrink = useCallback(
-    async (drinkName: string, abv: number): Promise<boolean> => {
+    async (input: { drinkName: string; abv: number; servingMl: number }): Promise<boolean> => {
       if (!userId) {
         toast({
           title: "Not logged in",
@@ -140,25 +141,13 @@ export const useSavedDrinks = () => {
         });
         return false;
       }
-      // Cheap client-side dedupe to avoid an unnecessary write
-      const existing = (dbQuery.data ?? []).find(
-        (d) => d.drink_name.toLowerCase() === drinkName.toLowerCase()
-      );
-      if (existing) {
-        toast({
-          title: "Already saved",
-          description: "This drink is already in your saved drinks.",
-          duration: 3000,
-        });
-        return false;
-      }
       try {
-        return await saveDrinkMut.mutateAsync({ drinkName, abv });
+        return await saveDrinkMut.mutateAsync(input);
       } catch {
         return false;
       }
     },
-    [userId, dbQuery.data, saveDrinkMut, toast]
+    [userId, saveDrinkMut, toast]
   );
 
   const deleteDrink = useCallback(
@@ -189,6 +178,7 @@ export const useSavedDrinks = () => {
         id: `session-${Date.now()}`,
         drink_name: drinkName,
         abv,
+        serving_ml: null,
         created_at: new Date().toISOString(),
         isSessionOnly: true,
       };

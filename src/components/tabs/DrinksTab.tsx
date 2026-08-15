@@ -110,7 +110,7 @@ const DrinksTab = ({
     getAllSearchableDrinks,
     addEstablishmentDrink,
   } = useEstablishments();
-  const { isLoggedIn: hasAccount, saveDrink } = useSavedDrinks();
+  const { isLoggedIn: hasAccount, saveDrink, savedDrinks } = useSavedDrinks();
 
   const drinks = state.drinks;
 
@@ -455,8 +455,8 @@ const DrinksTab = ({
         volume_unit: "ml",
       });
     }
-    if (draft.saveToAccount && draft.abv != null && hasAccount) {
-      await saveDrink(draft.name, draft.abv);
+    if (draft.saveToAccount && draft.abv != null && draft.serve != null && hasAccount) {
+      await saveDrink({ drinkName: draft.name, abv: draft.abv, servingMl: draft.serve });
     }
     setCustomOpen(false);
   };
@@ -816,6 +816,7 @@ const DrinksTab = ({
         committedMl={committedMl}
         ceilingMl={targetMl != null ? targetMl * 1.2 : null}
         canSaveToAccount={hasAccount}
+        savedDrinks={savedDrinks}
         onAdd={handleAddCustom}
       />
     </div>
