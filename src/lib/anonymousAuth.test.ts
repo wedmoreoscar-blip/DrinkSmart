@@ -26,12 +26,14 @@ describe("ensureSession", () => {
     vi.clearAllMocks();
   });
 
-  it("uses a cached session that is not close to expiry", async () => {
-    const session = cachedSession(true, Math.floor(Date.now() / 1000) + 3600);
-    auth.getSession.mockResolvedValue({ data: { session }, error: null });
+  it("server-refreshes even a cached session whose local expiry looks current", async () => {
+    const cached = cachedSession(true, Math.floor(Date.now() / 1000) + 3600);
+    const refreshed = cachedSession(true, Math.floor(Date.now() / 1000) + 7200);
+    auth.getSession.mockResolvedValue({ data: { session: cached }, error: null });
+    auth.refreshSession.mockResolvedValue({ data: { session: refreshed }, error: null });
 
-    await expect(ensureSession()).resolves.toEqual({ session, error: null });
-    expect(auth.refreshSession).not.toHaveBeenCalled();
+    await expect(ensureSession()).resolves.toEqual({ session: refreshed, error: null });
+    expect(auth.refreshSession).toHaveBeenCalledOnce();
   });
 
   it("refreshes an expired session before declaring the app ready", async () => {

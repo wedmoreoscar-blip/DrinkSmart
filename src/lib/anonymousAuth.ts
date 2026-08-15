@@ -5,12 +5,6 @@ export type EnsureSessionResult =
   | { session: Session; error: null }
   | { session: null; error: AuthError | { message: string } };
 
-const SESSION_EXPIRY_SKEW_SECONDS = 60;
-
-const isExpiredOrExpiring = (session: Session): boolean =>
-  typeof session.expires_at !== "number" ||
-  session.expires_at <= Math.floor(Date.now() / 1000) + SESSION_EXPIRY_SKEW_SECONDS;
-
 async function createAnonymousSession(): Promise<EnsureSessionResult> {
   const { data, error } = await supabase.auth.signInAnonymously();
 
@@ -30,8 +24,10 @@ async function createAnonymousSession(): Promise<EnsureSessionResult> {
 }
 
 /**
- * Ensures a Supabase session exists. If none, signs the user in anonymously.
- * Idempotent — safe to call on every app mount.
+ * Ensures a server-refreshed Supabase session exists. A cached session is
+ * refreshed once before routes mount; its local expiry metadata is not trusted.
+ * If none exists, signs the user in anonymously. Idempotent — safe to call on
+ * every app mount.
  *
  * Returns an explicit { session, error } tuple so the caller can render a
  * visible error if anon auth is disabled or otherwise fails.
@@ -42,10 +38,6 @@ export async function ensureSession(): Promise<EnsureSessionResult> {
   if (getError) {
     console.error("Failed to get session:", getError);
     return { session: null, error: getError };
-  }
-
-  if (session && !isExpiredOrExpiring(session)) {
-    return { session, error: null };
   }
 
   if (session) {
