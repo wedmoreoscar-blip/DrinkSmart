@@ -10,8 +10,7 @@ import {
   generatedDrinkToEntry,
 } from "@/lib/generatePlan";
 import type { CatalogItem } from "@/lib/planCatalog";
-import { parsePreferences, type PreferenceData } from "@/lib/preferences";
-import { supabase } from "@/integrations/supabase/client";
+import type { PreferenceData } from "@/lib/preferences";
 import {
   type ConsumedSnapshot,
   type TimelineEntry,
@@ -71,6 +70,7 @@ type ReplanInput = {
   userMetrics: UserMetricsForCalc;
   targetBAC: { min: number; max: number };
   timeDeltaHours: number | null;
+  preferences: PreferenceData;
   drinks: LockedDrinkSource[];
   lockedDrinkIds: string[];
   drinkingStartTime: Date | null;
@@ -101,16 +101,15 @@ export function remainingReplanBudget(input: {
  * Build the same generation request PlanTab constructs and run it through the
  * planner (edge function with the greedy offline fallback). Consumed and
  * locked ethanol is subtracted from the budget via the shared contract
- * helpers; the caller decides how to merge the result.
- *
- * The Supabase client uses an environment-safe storage fallback, so this
- * module remains importable in the non-browser checker environment.
+ * helpers; the caller decides how to merge the result. Preferences come from
+ * the caller's live application state — never a fresh profile read.
  */
 export async function replanRemaining(input: ReplanInput): Promise<ReplanResult> {
   const {
     userMetrics,
     targetBAC,
     timeDeltaHours,
+    preferences,
     drinks,
     lockedDrinkIds,
     drinkingStartTime,
@@ -135,9 +134,6 @@ export async function replanRemaining(input: ReplanInput): Promise<ReplanResult>
 
   if (budget <= 0) return { entries: [], usedFallback: false };
 
-  const preferences = await fetchPreferences(supabase);
-  if (!preferences) return { entries: null, usedFallback: false };
-
   const request: GeneratePlanInput = {
     target_ethanol_ml: budget,
     duration_minutes: deriveDurationMinutes(drinkingStartTime, drinkingTargetTime),
@@ -153,20 +149,4 @@ export async function replanRemaining(input: ReplanInput): Promise<ReplanResult>
     .filter((entry): entry is GeneratedEntry => entry !== null);
 
   return { entries, usedFallback: plan.usedFallback };
-}
-
-async function fetchPreferences(
-  supabase: typeof import("@/integrations/supabase/client").supabase
-): Promise<PreferenceData | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase
-    .from("profiles")
-    .select("preferences")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!data) return null;
-  return parsePreferences(data.preferences);
 }

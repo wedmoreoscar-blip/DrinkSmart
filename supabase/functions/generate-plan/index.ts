@@ -61,8 +61,6 @@ You will receive:
 - A drinking duration in minutes
 - Per-call user preferences (sweet 0-1, strong 0-1, categories liked/avoided)
 - A catalog of available drinks. Each row gives (id | name | abv% | typical_ml | ethanol_ml | category) where ethanol_ml is the pure-ethanol contribution of ONE typical serving.
-- Locked drinks already chosen (their ethanol is already subtracted from the budget — DO NOT re-include them)
-- An exclude list of catalog_ids you must avoid
 
 Your job: select drinks from the catalog so that the total ethanol reaches target_ethanol_ml (aim within ±5%, never undershoot by more than 10%), and order them.
 
@@ -78,7 +76,6 @@ Variety rule (people stick to a few drinks):
 Hard rules:
 - Pick only from the provided catalog. NEVER invent drinks or ABVs. Use exact catalog_id values.
 - Do not pick any drink whose category appears in preferences.categories_avoided.
-- Do not pick any catalog_id appearing in the exclude list.
 - For each chosen drink set quantity and unit. quantity is a count of typical servings (so two pints of the same beer = one entry with quantity: 2, not two entries). Only override ml when you genuinely want a non-default size for an ml/oz drink.
 - Pick a reasonable number of total servings for the duration (rule of thumb: 1 serving per 30–60 min).
 
@@ -117,20 +114,74 @@ function planDrinkEthanol(drink: PlanDrink, item: CatalogItem): number {
   return qty * item.typical_ml * (item.abv / 100);
 }
 
+const VALID_UNITS = new Set(["ml", "oz", "shots", "pints", "glass"]);
+
+/**
+ * Admission gate for the model's submitted plan. Every row must resolve
+ * against the FILTERED server catalogue with structurally valid values, and
+ * the recomputed total must land within ±10% of the target. Anything invalid
+ * rejects the whole answer — no row is silently dropped, and the model's own
+ * arithmetic is never trusted. A large but well-shaped quantity is not
+ * independently invalid; deterministic target deviation is the size guard.
+ */
+function validateSubmittedPlan(
+  plan: PlanResponse,
+  catalogById: Map<string, CatalogItem>,
+  targetEthanolMl: number
+): { ok: true; totalEthanolMl: number } | { ok: false; reason: string } {
+  if (!plan || typeof plan !== "object") {
+    return { ok: false, reason: "submitted plan is not an object" };
+  }
+  if (!Array.isArray(plan.drinks)) {
+    return { ok: false, reason: "drinks must be an array" };
+  }
+
+  let total = 0;
+  for (const drink of plan.drinks) {
+    if (!drink || typeof drink !== "object") {
+      return { ok: false, reason: "malformed drink row" };
+    }
+    if (typeof drink.catalog_id !== "string" || drink.catalog_id.length === 0) {
+      return { ok: false, reason: "catalog_id must be a non-empty string" };
+    }
+    const item = catalogById.get(drink.catalog_id);
+    if (!item) {
+      return { ok: false, reason: `unknown catalog_id: ${drink.catalog_id}` };
+    }
+    if (
+      typeof drink.quantity !== "number" ||
+      !Number.isFinite(drink.quantity) ||
+      drink.quantity <= 0
+    ) {
+      return { ok: false, reason: "quantity must be finite and strictly greater than zero" };
+    }
+    if (typeof drink.unit !== "string" || !VALID_UNITS.has(drink.unit)) {
+      return { ok: false, reason: `invalid unit: ${drink.unit}` };
+    }
+    if (
+      drink.ml !== undefined &&
+      (typeof drink.ml !== "number" || !Number.isFinite(drink.ml) || drink.ml <= 0)
+    ) {
+      return { ok: false, reason: "ml must be finite and strictly greater than zero" };
+    }
+    const ethanol = planDrinkEthanol(drink, item);
+    if (!Number.isFinite(ethanol) || ethanol < 0) {
+      return { ok: false, reason: "ethanol must be finite and non-negative" };
+    }
+    total += ethanol;
+  }
+
+  if (targetEthanolMl > 0 && Math.abs(total - targetEthanolMl) / targetEthanolMl > 0.1) {
+    return {
+      ok: false,
+      reason: `total ${total.toFixed(1)}ml deviates more than 10% from target ${targetEthanolMl.toFixed(1)}ml`,
+    };
+  }
+
+  return { ok: true, totalEthanolMl: total };
+}
+
 function buildUserMessage(req: GeneratePlanRequest): string {
-  const lockedSummary =
-    req.locked_drinks && req.locked_drinks.length > 0
-      ? req.locked_drinks
-          .map(
-            (l) =>
-              `${l.catalog_id} (${l.quantity} ${l.unit}, ${l.ethanol_ml.toFixed(1)}ml ethanol)`
-          )
-          .join(", ")
-      : "none";
-
-  const excludeSummary =
-    req.exclude && req.exclude.length > 0 ? req.exclude.join(", ") : "none";
-
   return [
     `target_ethanol_ml: ${req.target_ethanol_ml.toFixed(1)}`,
     `duration_minutes: ${req.duration_minutes}`,
@@ -139,8 +190,6 @@ function buildUserMessage(req: GeneratePlanRequest): string {
     `  strong: ${req.preferences.strong}`,
     `  categories_liked: [${req.preferences.categories_liked.join(", ")}]`,
     `  categories_avoided: [${req.preferences.categories_avoided.join(", ")}]`,
-    `locked_drinks: ${lockedSummary}`,
-    `exclude: ${excludeSummary}`,
     "",
     "Draft your picks, call calculate_ethanol to verify, then submit_plan.",
   ].join("\n");
@@ -226,7 +275,7 @@ function handleCalculateEthanol(
   for (const d of args.drinks) {
     const item = catalogById.get(d.catalog_id);
     if (!item) {
-      breakdown.push(`${d.catalog_id}: UNKNOWN — not in catalog, will be dropped`);
+      breakdown.push(`${d.catalog_id}: UNKNOWN — not in the available catalog, do not include it in submit_plan`);
       continue;
     }
     const ethanol = planDrinkEthanol(d, item);
@@ -312,16 +361,36 @@ export default {
         `generate-plan: user=${ctx.userClaims?.id} target=${validated.target_ethanol_ml}ml duration=${validated.duration_minutes}min catalog=${validated.catalog.length}`
       );
 
-      const catalogById = new Map(validated.catalog.map((c) => [c.id, c]));
+      // locked_drinks[].catalog_id and exclude[] are server-side control data:
+      // their identifiers are removed from every model-visible surface (system
+      // prompt catalogue block, user message, tool results and catalogById).
+      // The full catalogue is never sent to the model.
+      const hiddenIds = new Set<string>([
+        ...(validated.locked_drinks ?? []).map((d) => d.catalog_id),
+        ...(validated.exclude ?? []),
+      ]);
+      const visibleCatalog = validated.catalog.filter((c) => !hiddenIds.has(c.id));
+
+      // With nothing eligible left and a positive target, fail cleanly so the
+      // client's deterministic greedy fallback handles the request locally.
+      if (visibleCatalog.length === 0) {
+        console.error(
+          `No eligible catalog items after applying locked/exclude filtering (${validated.catalog.length} supplied)`
+        );
+        return jsonResponse({ error: "No eligible catalog items" }, 422);
+      }
+
+      const catalogById = new Map(visibleCatalog.map((c) => [c.id, c]));
 
       const systemPrompt =
-        SYSTEM_INSTRUCTIONS + "\n\n" + buildCatalogBlock(validated.catalog);
+        SYSTEM_INSTRUCTIONS + "\n\n" + buildCatalogBlock(visibleCatalog);
 
       const messages: ChatMessage[] = [
         { role: "user", content: buildUserMessage(validated) },
       ];
 
       let plan: PlanResponse | null = null;
+      let acceptedEthanolMl = 0;
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
 
@@ -341,6 +410,15 @@ export default {
               tools: TOOLS,
               tool_choice: "auto",
               max_tokens: 2048,
+              provider: {
+                only: ["deepseek"],
+                allow_fallbacks: false,
+                require_parameters: true,
+              },
+              reasoning: {
+                effort: "none",
+                exclude: true,
+              },
             }),
           }
         );
@@ -411,7 +489,18 @@ export default {
               content: result,
             });
           } else if (fnName === "submit_plan") {
-            plan = args as unknown as PlanResponse;
+            const submitted = args as unknown as PlanResponse;
+            const validation = validateSubmittedPlan(
+              submitted,
+              catalogById,
+              validated.target_ethanol_ml
+            );
+            if (!validation.ok) {
+              console.error(`Rejected submit_plan: ${validation.reason}`);
+              return jsonResponse({ error: `Invalid plan: ${validation.reason}` }, 422);
+            }
+            plan = submitted;
+            acceptedEthanolMl = validation.totalEthanolMl;
             messages.push({
               role: "tool",
               tool_call_id: tc.id,
@@ -442,37 +531,14 @@ export default {
         );
       }
 
-      // Drop any drinks whose catalog_id isn't in the provided catalog.
-      const cleanedDrinks = plan.drinks.filter((d) =>
-        catalogById.has(d.catalog_id)
-      );
-
-      if (cleanedDrinks.length !== plan.drinks.length) {
-        console.warn(
-          `Dropped ${plan.drinks.length - cleanedDrinks.length} drinks with unknown catalog_ids`
-        );
-      }
-
-      // Recompute actual ethanol server-side — never trust the model's arithmetic.
-      const actualTotalEthanolMl = cleanedDrinks.reduce(
-        (sum, d) => sum + planDrinkEthanol(d, catalogById.get(d.catalog_id)!),
-        0
-      );
-
-      const deficitPct =
-        validated.target_ethanol_ml > 0
-          ? (validated.target_ethanol_ml - actualTotalEthanolMl) /
-            validated.target_ethanol_ml
-          : 0;
-
       console.log(
-        `plan: drinks=${cleanedDrinks.length} actual=${actualTotalEthanolMl.toFixed(1)}ml target=${validated.target_ethanol_ml.toFixed(1)}ml deficit=${(deficitPct * 100).toFixed(1)}%`
+        `plan: drinks=${plan.drinks.length} actual=${acceptedEthanolMl.toFixed(1)}ml target=${validated.target_ethanol_ml.toFixed(1)}ml`
       );
 
       return jsonResponse({
-        drinks: cleanedDrinks,
+        drinks: plan.drinks,
         notes: plan.notes ?? "",
-        actual_total_ethanol_ml: actualTotalEthanolMl,
+        actual_total_ethanol_ml: acceptedEthanolMl,
       } satisfies PlanResponse);
     } catch (error) {
       console.error("Error in generate-plan function:", error);
