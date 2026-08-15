@@ -223,6 +223,14 @@ const DrinksTab = ({
     [state.consumedTimelineEntries],
   );
 
+  // Plan-tab cards show only drinks that are still actionable. Consumed
+  // records stay in planEntries (committed ethanol, tray ceiling, target
+  // accounting, BAC, timeline) but their source drinks no longer render here.
+  const unconsumedEntries = useMemo(
+    () => planEntries.filter((entry) => !consumedSourceIds.has(entry.id)),
+    [planEntries, consumedSourceIds],
+  );
+
   // Committed plan: pure alcohol from every planned drink, so far
   const committedMl = useMemo(
     () => planEntries.reduce((total, entry) => total + entryEthanolMl(entry, entryAbv(entry)), 0),
@@ -353,7 +361,7 @@ const DrinksTab = ({
       string,
       { entries: AlcoholTimelineEntryInput[]; count: number }
     >();
-    for (const entry of planEntries) {
+    for (const entry of unconsumedEntries) {
       const label = entry.isCustom
         ? PICKER_COPY.customCategory.name
         : pickerCategoryFor(entry.category, null);
@@ -364,7 +372,7 @@ const DrinksTab = ({
       groups.set(label, group);
     }
     return groups;
-  }, [planEntries, entryAbv]);
+  }, [unconsumedEntries, entryAbv]);
 
   const planGroupSub = (group: ReturnType<typeof planGroups.get>) =>
     PLAN_BUILT_COPY.categorySub(
@@ -494,26 +502,22 @@ const DrinksTab = ({
           )}
         </div>
       </div>
-      {!consumedSourceIds.has(entry.id) && (
-        <>
-          <button
-            type="button"
-            aria-label={state.lockedDrinkIds.includes(entry.id) ? "Unlock" : "Lock"}
-            onClick={() => toggleLockedDrink(entry.id)}
-            className="flex h-14 w-14 flex-none items-center justify-center"
-          >
-            <LockIcon locked={state.lockedDrinkIds.includes(entry.id)} />
-          </button>
-          <button
-            type="button"
-            aria-label="Delete"
-            onClick={() => handleDeleteDrink(entry.id)}
-            className="flex h-14 w-14 flex-none items-center justify-center"
-          >
-            <DeleteIcon />
-          </button>
-        </>
-      )}
+      <button
+        type="button"
+        aria-label={state.lockedDrinkIds.includes(entry.id) ? "Unlock" : "Lock"}
+        onClick={() => toggleLockedDrink(entry.id)}
+        className="flex h-14 w-14 flex-none items-center justify-center"
+      >
+        <LockIcon locked={state.lockedDrinkIds.includes(entry.id)} />
+      </button>
+      <button
+        type="button"
+        aria-label="Delete"
+        onClick={() => handleDeleteDrink(entry.id)}
+        className="flex h-14 w-14 flex-none items-center justify-center"
+      >
+        <DeleteIcon />
+      </button>
     </div>
   );
 
