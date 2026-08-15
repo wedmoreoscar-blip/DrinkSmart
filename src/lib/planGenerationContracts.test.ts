@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CatalogItem } from "@/lib/planCatalog";
 import type { GeneratePlanInput, LockedDrink } from "@/lib/generatePlan";
 import {
+  computeRegenerationBudget,
   computeRemainingBudget,
   lockedDrinkEntries,
   lockedEthanolTotal,
@@ -9,6 +10,7 @@ import {
   resolvePlanningWindow,
   type LockedDrinkSource,
 } from "@/lib/planGenerationContracts";
+import type { ConsumedSnapshot, TimelineEntry } from "@/lib/sessionEngine";
 
 const CATALOG: CatalogItem[] = [
   { id: "beer_pint::Guinness", name: "Guinness", abv: 4.1, typical_ml: 568, category: "beer_pint" },
@@ -62,6 +64,53 @@ describe("computeRemainingBudget", () => {
       expect(Number.isFinite(budget)).toBe(true);
       expect(budget).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+describe("computeRegenerationBudget", () => {
+  const alcohol = (
+    entryId: string,
+    drinkId: string,
+    pureAlcoholMl: number,
+  ): TimelineEntry => ({
+    kind: "alcohol",
+    entryId,
+    drinkId,
+    drinkName: drinkId,
+    unitNumber: 1,
+    totalUnits: 2,
+    time: new Date(60_000),
+    pureAlcoholMl,
+    percentageOfTarget: 20,
+    icon: "",
+    unit: "ml",
+    intervalMinutes: 20,
+  });
+
+  it("subtracts consumed ethanol and the unconsumed remainder of that protected source once", () => {
+    const timeline = [
+      alcohol("A:unit:1", "A", 10),
+      alcohol("A:unit:2", "A", 10),
+      alcohol("B:unit:1", "B", 30),
+    ];
+    const consumedSnapshots: ConsumedSnapshot[] = [
+      {
+        entryId: "A:unit:1",
+        sourceDrinkId: "A",
+        consumedAt: new Date(0),
+        pureAlcoholMl: 10,
+      },
+    ];
+
+    expect(
+      computeRegenerationBudget({
+        targetEthanolMl: 60,
+        timeline,
+        consumedSnapshots,
+        lockedDrinkIds: [],
+        now: new Date(0),
+      }),
+    ).toBe(40);
   });
 });
 

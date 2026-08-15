@@ -35,9 +35,9 @@ No other file may be modified.
 - `npm run build`: PASS — Vite built 2,219 modules in 50.20s (52.87s wall time), with only the
   existing stale-Browserslist and large-chunk warnings.
 - `git diff --check`: clean.
-- Environment trap: this worktree has no `.env`. Before running the two permitted checks, load the
-  root environment into that shell with `set -a; source /home/oscar/DrinkSmart/.env; set +a`.
-  Never print, copy, edit, stage, or commit the environment file or its values.
+- Environment trap for the checker-owned baseline: this worktree has no `.env`. The checker loads
+  the root environment into its shell without printing, copying, editing, staging, or committing
+  the environment file or its values.
 
 ## Requirements
 
@@ -98,16 +98,11 @@ No other file may be modified.
 
 ## What you run, and what you do not
 
-Run exactly these two, from the root of your worktree:
-
-- `npm run typecheck` — the one check that catches your own errors before handback.
-- `npx vitest run` — cheap, and confirms you broke nothing that already worked.
-
-**Do not run `npm run lint` or `npm run build`.** They belong to the checker, who runs the full
-baseline on the integration branch after review. They are the two most expensive commands in this
-repository and the least informative to you: lint is known-failing at a fixed count you cannot
-improve, and build tells you nothing typecheck did not. Several implementers run in parallel on a
-2-core machine, so an unnecessary build starves every other agent and yourself.
+**Oscar's post-commission process override: run no verification.** Do not run typecheck, Vitest or
+other tests, lint, build, browser, visual, Supabase, or native checks, and do not write or modify
+tests. Finish the production implementation, map the five clauses, and hand back immediately. The
+Codex checker owns all non-visual verification after handback; Oscar owns visual checking. This
+override supersedes the original commission's verification instructions.
 
 Do not run `npm install` or `npm ci`. Your worktree is already provisioned.
 Do not run `git commit`, `git push`, or any `supabase` command. Leave your work uncommitted; the
@@ -128,8 +123,6 @@ Before reporting back:
 - Re-read the spec clause by clause. For each clause, point at the specific
   change that satisfies it. If any clause has no corresponding change,
   you are not finished.
-- Run the code. It must execute without syntax or import errors.
-- Run the existing test suite. It must pass exactly as it did before.
 - Do NOT write new tests. Do NOT modify existing tests. Verification of
   new behaviour is not your job.
 - Report what you changed, which clause each change maps to, and anything

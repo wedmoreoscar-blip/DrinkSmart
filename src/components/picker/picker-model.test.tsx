@@ -5,61 +5,115 @@ import type { DrinkFilters } from "@/components/DrinkFilterPopover";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { CategoryScreen } from "./CategoryScreen";
 import { DrinkRow } from "./DrinkRow";
-import { entryQuantity, perUnitVolumeMl } from "./picker-model";
+import {
+  databaseVolumeMl,
+  defaultServingFor,
+  pureAlcoholMl,
+  servingMl,
+  servingOptionsFor,
+  servingPrice,
+} from "./picker-model";
 import { pickerCategoryFor } from "./picker-copy";
 
 const drink = (
   id: string,
   name: string,
   abv: number | null,
-  volume: number,
+  volume: number | null,
   volumeUnit = "ml",
-): EstablishmentDrink =>
-  ({
-    id,
-    establishment_id: "venue-1",
-    drink_name: name,
-    abv,
-    category: "beer",
-    category_label: "Beer",
-    price: 5,
-    volume,
-    volume_unit: volumeUnit,
-  }) as EstablishmentDrink;
+  category = "beer",
+  categoryLabel = "Beer",
+): EstablishmentDrink => ({
+  id,
+  establishment_id: "venue-1",
+  drink_name: name,
+  abv,
+  category,
+  category_label: categoryLabel,
+  price: 5,
+  volume,
+  volume_unit: volumeUnit,
+});
 
-const filters: DrinkFilters = {
-  abvRange: { min: 0, max: 100 },
-  selectedCategories: ["Beer & cider"],
-};
-
-describe("W4-5 picker contract", () => {
-  it("groups venue labels in the fixed picker order and omits custom rows", () => {
+describe("Wave 5 picker serving contract", () => {
+  it("keeps the fixed category order, renames Spirits, and omits custom rows", () => {
     expect(pickerCategoryFor("beer_pint", "Beer (Pint)")).toBe("Beer & cider");
-    expect(pickerCategoryFor("cider_pint", "Cider (Pint)")).toBe("Beer & cider");
     expect(pickerCategoryFor("wine_red", "Red Wine")).toBe("Wine");
-    expect(pickerCategoryFor("vodka", "Vodka")).toBe("Spirits & mixers");
+    expect(pickerCategoryFor("vodka", "Vodka")).toBe("Spirits");
     expect(pickerCategoryFor("cocktails", "Cocktails")).toBe("Cocktails");
     expect(pickerCategoryFor("alcopops", "Alcopops/RTD")).toBe("Soft & low-alcohol");
     expect(pickerCategoryFor("custom", "Other")).toBeNull();
   });
 
-  it("recomputes a half from half the pint volume and commits one fractional-pint entry", () => {
-    const pint = drink("pint", "Pint", 4, 568, "pint");
+  it("offers the complete serving matrix and category defaults", () => {
+    const beer = drink("beer", "Beer", 4, 568, "ml");
+    const spirit = drink("spirit", "Gin", 40, 25, "ml", "gin", "Gin");
+    const wine = drink("wine", "Wine", 12, 175, "ml", "wine_red", "Red Wine");
 
-    expect(perUnitVolumeMl(pint, "pint")).toBe(568);
-    expect(perUnitVolumeMl(pint, "half")).toBe(284);
-    expect((perUnitVolumeMl(pint, "half") * 4) / 100).toBeCloseTo(11.36);
-    expect(entryQuantity(pint, 3, "half")).toBe("1.5");
+    expect(servingOptionsFor(beer)).toEqual([
+      { id: "half", label: "Half pint", ml: 284 },
+      { id: "pint", label: "Pint", ml: 568 },
+      { id: "custom", label: "Custom", ml: null },
+    ]);
+    expect(servingOptionsFor(spirit)).toEqual([
+      { id: "single", label: "Single", ml: 25 },
+      { id: "double", label: "Double", ml: 50 },
+      { id: "custom", label: "Custom", ml: null },
+    ]);
+    expect(servingOptionsFor(wine).map((option) => option.ml)).toEqual([125, 175, 250, null]);
+    expect(defaultServingFor(beer).id).toBe("pint");
+    expect(defaultServingFor(spirit).id).toBe("single");
+    expect(defaultServingFor(wine).id).toBe("wine-175");
   });
 
-  it("sorts least alcohol by serve volume × ABV, not by ABV alone", () => {
+  it("keeps Database and Standard distinct even when both resolve to 330 ml", () => {
+    const cocktail = drink("can", "Cocktail can", 5, 330, "ml", "cocktails", "Cocktails");
+
+    expect(servingOptionsFor(cocktail)).toEqual([
+      { id: "database", label: "DB volume", ml: 330 },
+      { id: "standard", label: "Standard", ml: 330 },
+      { id: "custom", label: "Custom", ml: null },
+    ]);
+  });
+
+  it("converts database units, including fractional and half-pint servings", () => {
+    expect(databaseVolumeMl(drink("pint", "Pint", 4, 1, "pint"))).toBe(568);
+    expect(databaseVolumeMl(drink("fraction", "Half", 4, 0.5, "pint"))).toBe(284);
+    expect(databaseVolumeMl(drink("half", "Half", 4, null, "half-pint"))).toBe(284);
+    expect(databaseVolumeMl(drink("oz", "Measure", 40, 1.5, "oz"))).toBeCloseTo(44.36, 1);
+    expect(databaseVolumeMl(drink("missing", "Bottle", 5, null, "bottle"))).toBeNull();
+  });
+
+  it("uses a positive custom serving and exact serving × count × ABV arithmetic", () => {
+    const spirit = drink("spirit", "Gin", 40, 25, "ml", "gin", "Gin");
+
+    expect(servingMl(spirit, "custom", null)).toBeNull();
+    expect(servingMl(spirit, "custom", -1)).toBeNull();
+    expect(servingMl(spirit, "custom", 35)).toBe(35);
+    expect(pureAlcoholMl(spirit, "double", null) * 3).toBe(60);
+    expect(pureAlcoholMl(spirit, "custom", 35) * 2).toBe(28);
+  });
+
+  it("scales prices from the database serving to the selected serving and count", () => {
+    const beer = drink("beer", "Beer", 4, 568, "ml");
+
+    expect(servingPrice(beer, "pint", null)).toBe(5);
+    expect(servingPrice(beer, "half", null)).toBe(2.5);
+    expect((servingPrice(beer, "half", null) ?? 0) * 3).toBe(7.5);
+  });
+
+  it("sorts least alcohol by the default serving volume × ABV", () => {
+    const filters: DrinkFilters = {
+      abvRange: { min: 0, max: 100 },
+      selectedCategories: ["Cocktails"],
+    };
     const html = renderToStaticMarkup(
       <CategoryScreen
-        categoryLabel="Beer"
-        availableCategories={["Beer & cider"]}
+        categoryLabel="Cocktails"
+        availableCategories={["Cocktails"]}
         drinks={[
-          drink("large-low", "Large low ABV", 4, 568),
-          drink("small-high", "Small high ABV", 5, 250),
+          drink("large-low", "Large low ABV", 4, 568, "ml", "cocktails", "Cocktails"),
+          drink("small-high", "Small high ABV", 5, 250, "ml", "cocktails", "Cocktails"),
         ]}
         filters={filters}
         onFiltersChange={() => {}}
@@ -67,10 +121,12 @@ describe("W4-5 picker contract", () => {
         onSortChange={() => {}}
         selectedId={null}
         quantity={1}
-        portion="pint"
+        servingId=""
+        customMl={null}
         onSelect={() => {}}
         onQuantityChange={() => {}}
-        onPortionChange={() => {}}
+        onServingChange={() => {}}
+        onCustomMlChange={() => {}}
         onBack={() => {}}
       />,
     );
@@ -78,50 +134,27 @@ describe("W4-5 picker contract", () => {
     expect(html.indexOf("Small high ABV")).toBeLessThan(html.indexOf("Large low ABV"));
   });
 
-  it("applies the selected venue categories as well as the unrestricted ABV baseline", () => {
-    const beer = drink("beer", "Beer", 5, 568);
-    const wine = {
-      ...drink("wine", "Wine", 12, 175, "glass"),
-      category: "wine_red",
-      category_label: "Red Wine",
-    };
-    const html = renderToStaticMarkup(
-      <CategoryScreen
-        categoryLabel="Wine"
-        availableCategories={["Beer & cider", "Wine"]}
-        drinks={[beer, wine]}
-        filters={{ abvRange: { min: 0, max: 100 }, selectedCategories: ["Wine"] }}
-        onFiltersChange={() => {}}
-        sort="Cheapest first"
-        onSortChange={() => {}}
-        selectedId={null}
-        quantity={1}
-        portion="pint"
-        onSelect={() => {}}
-        onQuantityChange={() => {}}
-        onPortionChange={() => {}}
-        onBack={() => {}}
-      />,
-    );
-
-    expect(html).toContain("Wine");
-    expect(html).not.toContain(">Beer<");
-  });
-
-  it("shows missing strength as an em dash and treats it as zero alcohol", () => {
+  it("renders every serving control beside quantity controls and treats missing ABV as zero", () => {
     const html = renderToStaticMarkup(
       <DrinkRow
-        drink={drink("gap", "Unknown strength", null, 330)}
-        selected={false}
+        drink={drink("gap", "Unknown strength", null, null, "bottle", "unknown", "Unknown")}
+        selected
         quantity={1}
-        portion="pint"
+        servingId="database"
+        customMl={null}
         onSelect={() => {}}
         onQuantityChange={() => {}}
-        onPortionChange={() => {}}
+        onServingChange={() => {}}
+        onCustomMlChange={() => {}}
       />,
     );
 
-    expect(html).toContain("—% · 330 ml · 0.0 ml");
-    expect(html).not.toContain("0.0% · 330 ml");
+    expect(html).toContain("Decrease quantity");
+    expect(html).toContain("Increase quantity");
+    expect(html).toContain("DB volume");
+    expect(html).toContain("Standard");
+    expect(html).toContain("Custom");
+    expect(html).toContain("—% · DB volume · 0.0 ml");
+    expect(html).not.toContain("0.0% · DB volume");
   });
 });

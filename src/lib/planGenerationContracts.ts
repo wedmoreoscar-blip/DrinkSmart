@@ -1,6 +1,11 @@
 import { convertToMl } from "@/lib/timelineHelpers";
 import type { CatalogItem, DrinkUnit } from "@/lib/planCatalog";
 import type { GeneratePlanInput, LockedDrink } from "@/lib/generatePlan";
+import {
+  deriveRegenerationContext,
+  type ConsumedSnapshot,
+  type TimelineEntry,
+} from "@/lib/sessionEngine";
 
 /**
  * Pure request-accounting for plan generation.
@@ -74,6 +79,22 @@ export function computeRemainingBudget(
   const budget = targetEthanolMl - lockedEthanolMl;
   if (!Number.isFinite(budget)) return 0;
   return Math.max(0, budget);
+}
+
+export function computeRegenerationBudget(input: {
+  targetEthanolMl: number;
+  timeline: TimelineEntry[];
+  consumedSnapshots: ConsumedSnapshot[];
+  lockedDrinkIds: string[];
+  now: Date;
+}): number {
+  return deriveRegenerationContext({
+    targetEthanolMl: input.targetEthanolMl,
+    timeline: input.timeline,
+    consumedSnapshots: input.consumedSnapshots,
+    keptSourceIds: input.lockedDrinkIds,
+    now: input.now,
+  }).remainingEthanolMl;
 }
 
 function canonicalize(value: unknown): unknown {

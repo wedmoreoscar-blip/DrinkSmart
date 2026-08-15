@@ -1,18 +1,18 @@
 import {
+  computeRegenerationBudget,
   lockedDrinkEntries,
   type LockedDrinkSource,
 } from "@/lib/planGenerationContracts";
 import type { GeneratePlanInput, UserMetricsForCalc } from "@/lib/generatePlan";
 import {
-  buildCatalog,
   computeTargetEthanolMl,
   generatePlan,
   generatedDrinkToEntry,
 } from "@/lib/generatePlan";
+import type { CatalogItem } from "@/lib/planCatalog";
 import { parsePreferences, type PreferenceData } from "@/lib/preferences";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  deriveRegenerationContext,
   type ConsumedSnapshot,
   type TimelineEntry,
 } from "@/lib/sessionEngine";
@@ -77,6 +77,7 @@ type ReplanInput = {
   drinkingTargetTime: Date | null;
   timeline: TimelineEntry[];
   consumedSnapshots: ConsumedSnapshot[];
+  catalog: CatalogItem[];
   now: Date;
 };
 
@@ -87,13 +88,13 @@ export function remainingReplanBudget(input: {
   lockedDrinkIds: string[];
   now: Date;
 }): number {
-  return deriveRegenerationContext({
+  return computeRegenerationBudget({
     targetEthanolMl: input.targetEthanolMl,
     timeline: input.timeline,
     consumedSnapshots: input.consumedSnapshots,
-    keptSourceIds: input.lockedDrinkIds,
+    lockedDrinkIds: input.lockedDrinkIds,
     now: input.now,
-  }).remainingEthanolMl;
+  });
 }
 
 /**
@@ -116,13 +117,13 @@ export async function replanRemaining(input: ReplanInput): Promise<ReplanResult>
     drinkingTargetTime,
     timeline,
     consumedSnapshots,
+    catalog,
     now,
   } = input;
 
   const targetEthanolMl = computeTargetEthanolMl(userMetrics, targetBAC, timeDeltaHours);
   if (targetEthanolMl === null) return { entries: null, usedFallback: false };
 
-  const catalog = buildCatalog();
   const lockedEntries = lockedDrinkEntries(drinks, lockedDrinkIds, catalog);
   const budget = remainingReplanBudget({
     targetEthanolMl,

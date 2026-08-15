@@ -10,9 +10,8 @@ import { History, Loader2, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBACForLevel } from "@/data/buzzLevels";
 import {
-  computeRemainingBudget,
+  computeRegenerationBudget,
   lockedDrinkEntries,
-  lockedEthanolTotal,
   resolvePlanningWindow,
 } from "@/lib/planGenerationContracts";
 import { applyRegenerationToDrinks } from "@/lib/sessionEngine";
@@ -22,13 +21,13 @@ import MenuScannerTab from "./MenuScannerTab";
 import { EstablishmentsScreen } from "@/components/establishments/EstablishmentsScreen";
 import { planFlowReducer } from "./plan-navigation";
 import {
-  buildCatalog,
   computeTargetEthanolMl,
   generatePlan,
   generatedDrinkToEntry,
   type GeneratedPlan,
   type GeneratePlanInput,
 } from "@/lib/generatePlan";
+import { buildActiveVenueCatalog } from "@/lib/planCatalog";
 
 const DEFAULT_DURATION_MINUTES = 180;
 const MIN_DURATION = 60;
@@ -187,7 +186,11 @@ const PlanTab = ({
   );
   // Whether an explicit generation has actually succeeded, independently of
   // whether drinks exist: a fully manual plan stays `Build the night`.
-  const [hasGenerated, setHasGenerated] = useState<boolean>(readPlanGenerated);
+  const [hasGenerated, setHasGenerated] = useState<boolean>(
+    () =>
+      state.drinks.some((drink) => drink.drink || (drink.isCustom && drink.customName)) &&
+      readPlanGenerated(),
+  );
   const pickerRegionRef = useRef<HTMLDivElement | null>(null);
 
   const venueDrinks = useMemo(
@@ -195,16 +198,10 @@ const PlanTab = ({
     [activeVenue, getEstablishmentDrinks]
   );
 
-  const catalog = useMemo(() => {
-    if (venueDrinks.length > 0) return buildCatalog(venueDrinks);
-    // The static Wetherspoons catalogue stands in only while the active
-    // Wetherspoons seed's database rows are temporarily unavailable; it must
-    // never bleed through into a selected custom venue.
-    if (activeVenue && activeVenue.isGlobal && activeVenue.name === "Wetherspoons") {
-      return buildCatalog();
-    }
-    return [];
-  }, [venueDrinks, activeVenue]);
+  const catalog = useMemo(
+    () => buildActiveVenueCatalog(activeVenue, venueDrinks),
+    [venueDrinks, activeVenue],
+  );
 
   useEffect(() => {
     const hasDrinks = state.drinks.some((drink) => drink.drink || (drink.isCustom && drink.customName));
@@ -252,35 +249,9 @@ const PlanTab = ({
     [state.userMetrics, state.targetBAC, state.timeDelta]
   );
 
-  // Protected ethanol: consumed ("Had it") ethanol plus the ethanol of
-  // explicitly locked, unconsumed current/future drinks. Both survival
-  // classes are subtracted exactly once from the deterministic generation
-  // budget; locked entries for fully consumed drinks are excluded so their
-  // ethanol is never counted twice.
-  const consumedSourceIds = useMemo(
-    () => new Set(state.consumedTimelineEntries.map((snapshot) => snapshot.sourceDrinkId)),
-    [state.consumedTimelineEntries]
-  );
-  const consumedEthanolMl = useMemo(
-    () =>
-      state.consumedTimelineEntries.reduce(
-        (sum, snapshot) => sum + (Number.isFinite(snapshot.pureAlcoholMl) ? snapshot.pureAlcoholMl : 0),
-        0
-      ),
-    [state.consumedTimelineEntries]
-  );
   const lockedEntries = useMemo(
-    () =>
-      lockedDrinkEntries(
-        state.drinks,
-        state.lockedDrinkIds.filter((id) => !consumedSourceIds.has(id)),
-        catalog
-      ),
-    [state.drinks, state.lockedDrinkIds, consumedSourceIds, catalog]
-  );
-  const protectedEthanolMl = useMemo(
-    () => consumedEthanolMl + lockedEthanolTotal(lockedEntries),
-    [consumedEthanolMl, lockedEntries]
+    () => lockedDrinkEntries(state.drinks, state.lockedDrinkIds, catalog),
+    [state.drinks, state.lockedDrinkIds, catalog],
   );
 
   // Static target meter — the vessel shows the target level only. It must not
@@ -348,7 +319,13 @@ const PlanTab = ({
       id: crypto.randomUUID(),
     }));
     if (restoredDrinks.length > 0) {
-      updateDrinks(restoredDrinks);
+      const protectedSourceIds = [
+        ...state.lockedDrinkIds,
+        ...state.consumedTimelineEntries.map((snapshot) => snapshot.sourceDrinkId),
+      ];
+      updateDrinks(
+        applyRegenerationToDrinks(state.drinks, protectedSourceIds, restoredDrinks),
+      );
     }
     // A restored night is a fully manual plan: no AI call happened, so the
     // action stays `Build the night`.
@@ -392,7 +369,13 @@ const PlanTab = ({
       return;
     }
 
-    const budget = computeRemainingBudget(targetEthanolMl, protectedEthanolMl);
+    const budget = computeRegenerationBudget({
+      targetEthanolMl,
+      timeline: state.drinkTimeline,
+      consumedSnapshots: state.consumedTimelineEntries,
+      lockedDrinkIds: state.lockedDrinkIds,
+      now,
+    });
     const exclude = hasGenerated ? lastPlanIds : [];
     const request: GeneratePlanInput = {
       target_ethanol_ml: budget,

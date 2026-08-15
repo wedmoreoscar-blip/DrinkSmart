@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const ACTIVE_VENUE_STORAGE_KEY = "drinksmart.activeVenue.v1";
+const activeVenueKey = ["activeVenue"] as const;
 
 function readStoredActiveVenueId(): string | null {
   if (typeof window === "undefined" || typeof window.localStorage === "undefined") return null;
@@ -13,10 +14,11 @@ function readStoredActiveVenueId(): string | null {
   }
 }
 
-function persistActiveVenueId(id: string): void {
+function persistActiveVenueId(id: string | null): void {
   if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
   try {
-    window.localStorage.setItem(ACTIVE_VENUE_STORAGE_KEY, id);
+    if (id === null) window.localStorage.removeItem(ACTIVE_VENUE_STORAGE_KEY);
+    else window.localStorage.setItem(ACTIVE_VENUE_STORAGE_KEY, id);
   } catch {
     // Storage unavailable — the selection still applies for this session.
   }
@@ -28,6 +30,20 @@ export type Establishment = {
   isGlobal: boolean;
   isSessionOnly?: boolean;
 };
+
+export function resolveActiveVenueId(
+  establishments: Establishment[],
+  persistedId: string | null,
+): string | null {
+  if (persistedId !== null && establishments.some((venue) => venue.id === persistedId)) {
+    return persistedId;
+  }
+  return (
+    establishments.find((venue) => venue.isGlobal && venue.name === "Wetherspoons") ??
+    establishments.find((venue) => venue.isGlobal) ??
+    null
+  )?.id ?? null;
+}
 
 export type EstablishmentDrink = {
   id: string;
@@ -121,30 +137,35 @@ export const useEstablishments = () => {
   const db = dbQuery.data ?? { establishments: [], drinks: [] };
   const session = sessionQuery.data ?? emptySession;
 
-  const allEstablishments: Establishment[] = [
-    ...db.establishments,
-    ...session.establishments,
-  ];
+  const allEstablishments = useMemo<Establishment[]>(
+    () => [...db.establishments, ...session.establishments],
+    [db.establishments, session.establishments],
+  );
 
   // The one persisted active venue. Resolve it after the database settles:
   // retain a persisted id only while it still exists, otherwise the global
   // "Wetherspoons" seed, otherwise the first global venue, otherwise none.
-  const [activeVenueId, setActiveVenueIdState] = useState<string | null>(readStoredActiveVenueId);
+  const activeVenueQuery = useQuery<string | null>({
+    queryKey: activeVenueKey,
+    queryFn: () => Promise.resolve(readStoredActiveVenueId()),
+    enabled: false,
+    initialData: readStoredActiveVenueId,
+    staleTime: Infinity,
+  });
+  const activeVenueId = activeVenueQuery.data ?? null;
 
   useEffect(() => {
     if (dbQuery.isLoading) return;
-    if (allEstablishments.length === 0) return;
-    if (activeVenueId !== null && allEstablishments.some((e) => e.id === activeVenueId)) return;
-    const seed = allEstablishments.find((e) => e.isGlobal && e.name === "Wetherspoons");
-    const nextId = (seed ?? allEstablishments.find((e) => e.isGlobal))?.id ?? null;
-    setActiveVenueIdState(nextId);
-    if (nextId !== null) persistActiveVenueId(nextId);
-  }, [dbQuery.isLoading, allEstablishments, activeVenueId]);
+    const nextId = resolveActiveVenueId(allEstablishments, activeVenueId);
+    if (nextId === activeVenueId) return;
+    queryClient.setQueryData(activeVenueKey, nextId);
+    persistActiveVenueId(nextId);
+  }, [dbQuery.isLoading, allEstablishments, activeVenueId, queryClient]);
 
   const setActiveVenueId = useCallback((id: string) => {
-    setActiveVenueIdState(id);
+    queryClient.setQueryData(activeVenueKey, id);
     persistActiveVenueId(id);
-  }, []);
+  }, [queryClient]);
 
   const activeVenue = useMemo(
     () => allEstablishments.find((e) => e.id === activeVenueId) ?? null,

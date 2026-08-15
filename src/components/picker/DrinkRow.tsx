@@ -1,6 +1,6 @@
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { CATEGORY_COPY, fmtMl, money } from "./picker-copy";
-import { pureAlcoholMl, servingOptionsFor } from "./picker-model";
+import { pureAlcoholMl, servingOptionsFor, servingPrice } from "./picker-model";
 
 type DrinkRowProps = {
   drink: EstablishmentDrink;
@@ -28,6 +28,7 @@ export const DrinkRow = ({
   const options = servingOptionsFor(drink);
   const serving = options.find((option) => option.id === servingId) ?? options[0];
   const perUnitPureMl = pureAlcoholMl(drink, serving.id, customMl);
+  const perUnitPrice = servingPrice(drink, serving.id, customMl);
   const totalPureMl = perUnitPureMl * quantity;
 
   const sub =
@@ -57,16 +58,16 @@ export const DrinkRow = ({
           </div>
           <div className="mt-0.5 text-[15px] leading-[1.3] text-muted-foreground">{sub}</div>
         </div>
-        {drink.price != null && (
+        {perUnitPrice != null && (
           <div className="flex-none text-right">
             <div className="text-[19px] font-medium leading-[1.2] tabular-nums text-foreground">
               {selected && quantity > 1
-                ? CATEGORY_COPY.priceTotal(drink.price, quantity)
-                : money(drink.price)}
+                ? CATEGORY_COPY.priceTotal(perUnitPrice, quantity)
+                : money(perUnitPrice)}
             </div>
             {selected && quantity > 1 && (
               <div className="mt-[3px] text-[13px] leading-[1.2] tabular-nums text-[#75798c]">
-                {CATEGORY_COPY.priceUnit(drink.price, quantity)}
+                {CATEGORY_COPY.priceUnit(perUnitPrice, quantity)}
               </div>
             )}
           </div>

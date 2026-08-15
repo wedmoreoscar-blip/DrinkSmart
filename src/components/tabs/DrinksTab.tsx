@@ -19,6 +19,7 @@ import {
   defaultServingFor,
   pureAlcoholMl,
   servingMl,
+  servingPrice,
 } from "@/components/picker/picker-model";
 import {
   entryEthanolMl,
@@ -211,6 +212,10 @@ const DrinksTab = ({
       ),
     [drinks],
   );
+  const consumedSourceIds = useMemo(
+    () => new Set(state.consumedTimelineEntries.map((snapshot) => snapshot.sourceDrinkId)),
+    [state.consumedTimelineEntries],
+  );
 
   // Committed plan: pure alcohol from every planned drink, so far
   const committedMl = useMemo(
@@ -325,7 +330,7 @@ const DrinksTab = ({
       customABV: swapSelectedDrink.abv == null ? undefined : String(swapSelectedDrink.abv),
       quantity: String(serving.ml ?? 330),
       unit: "ml",
-      pricePerUnit: swapSelectedDrink.price,
+      pricePerUnit: servingPrice(swapSelectedDrink, serving.id, null),
       isCustom: false,
     };
     if (sourceBreak) {
@@ -376,6 +381,7 @@ const DrinksTab = ({
   };
 
   const handleDeleteDrink = (id: string) => {
+    if (consumedSourceIds.has(id)) return;
     updateDrinks(drinks.filter((d) => d.id !== id));
   };
 
@@ -401,7 +407,7 @@ const DrinksTab = ({
       customABV: selectedDrink.abv == null ? undefined : String(selectedDrink.abv),
       quantity: String(selectedServingMl * selected.quantity),
       unit: "ml",
-      pricePerUnit: selectedDrink.price,
+      pricePerUnit: servingPrice(selectedDrink, selected.servingId, customMl),
       portions: selected.quantity > 1 ? selected.quantity : undefined,
     };
     addUnplannedDrink(entry);
@@ -463,26 +469,32 @@ const DrinksTab = ({
           {PLAN_BUILT_COPY.drinkSub(
             entryPortionWord(entry),
             entryEthanolMl(entry, entryAbv(entry)),
-            entry.pricePerUnit ?? null
+            entry.pricePerUnit != null
+              ? entry.pricePerUnit * (entry.portions ?? 1)
+              : null
           )}
         </div>
       </div>
-      <button
-        type="button"
-        aria-label={state.lockedDrinkIds.includes(entry.id) ? "Unlock" : "Lock"}
-        onClick={() => toggleLockedDrink(entry.id)}
-        className="flex h-14 w-14 flex-none items-center justify-center"
-      >
-        <LockIcon locked={state.lockedDrinkIds.includes(entry.id)} />
-      </button>
-      <button
-        type="button"
-        aria-label="Delete"
-        onClick={() => handleDeleteDrink(entry.id)}
-        className="flex h-14 w-14 flex-none items-center justify-center"
-      >
-        <DeleteIcon />
-      </button>
+      {!consumedSourceIds.has(entry.id) && (
+        <>
+          <button
+            type="button"
+            aria-label={state.lockedDrinkIds.includes(entry.id) ? "Unlock" : "Lock"}
+            onClick={() => toggleLockedDrink(entry.id)}
+            className="flex h-14 w-14 flex-none items-center justify-center"
+          >
+            <LockIcon locked={state.lockedDrinkIds.includes(entry.id)} />
+          </button>
+          <button
+            type="button"
+            aria-label="Delete"
+            onClick={() => handleDeleteDrink(entry.id)}
+            className="flex h-14 w-14 flex-none items-center justify-center"
+          >
+            <DeleteIcon />
+          </button>
+        </>
+      )}
     </div>
   );
 
@@ -526,8 +538,10 @@ const DrinksTab = ({
                     {group.label}
                   </div>
                   <div className="flex flex-col gap-2.5">
-                    {group.drinks.map((drink) => (
-                      <button
+                    {group.drinks.map((drink) => {
+                      const defaultServing = defaultServingFor(drink);
+                      const price = servingPrice(drink, defaultServing.id, null);
+                      return <button
                         key={drink.id}
                         type="button"
                         onClick={() => setSwapSelectedId(drink.id)}
@@ -553,26 +567,25 @@ const DrinksTab = ({
                           <div
                             className={cn(
                               "text-[19px] font-medium leading-[1.2] tabular-nums",
-                              drink.price == null || drink.price === 0
+                              price == null || price === 0
                                 ? "text-muted-foreground"
                                 : "text-foreground"
                             )}
                           >
-                            {drink.price == null || drink.price === 0
+                            {price == null || price === 0
                               ? "free"
-                              : money(drink.price)}
+                              : money(price)}
                           </div>
                           {swapSelectedId === drink.id && (
                             <div className="mt-[3px] text-[13px] leading-[1.2] tabular-nums text-[#b5abfc]">
                               {SWAP_COPY.delta(
-                                pureAlcoholMl(drink, defaultServingFor(drink).id, null) -
-                                  sourceEthanolMl
+                                pureAlcoholMl(drink, defaultServing.id, null) - sourceEthanolMl
                               )}
                             </div>
                           )}
                         </div>
-                      </button>
-                    ))}
+                      </button>;
+                    })}
                   </div>
                 </div>
               ))}

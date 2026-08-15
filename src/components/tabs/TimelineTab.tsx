@@ -43,10 +43,12 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableTimelineItem } from "./SortableTimelineItem";
 import { replanRemaining, sortableIdFor } from "./timeline-replan";
+import type { CatalogItem } from "@/lib/planCatalog";
 
 type TimelineTabProps = {
   onNext?: () => void;
   onSwapRequest?: (drinkId: string) => void;
+  replanCatalog?: CatalogItem[];
 };
 
 type TimelineEntry = {
@@ -92,7 +94,7 @@ const getVolumeLabel = (entry: TimelineEntry) => {
 const getUnitLabel = (entry: TimelineEntry) =>
   getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit).replace(/glasss$/, "glass");
 
-const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
+const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabProps) => {
   const {
     state,
     reorderTimelineEntries,
@@ -264,6 +266,7 @@ const TimelineTab = ({ onNext, onSwapRequest }: TimelineTabProps) => {
       drinkingTargetTime: state.drinkingTargetTime,
       timeline: state.drinkTimeline,
       consumedSnapshots: state.consumedTimelineEntries,
+      catalog: replanCatalog,
       now: currentTime,
     });
     setReplanning(false);

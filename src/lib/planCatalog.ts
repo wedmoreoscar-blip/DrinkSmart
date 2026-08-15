@@ -1,5 +1,5 @@
 import { drinkCategories } from "@/data/drinksData";
-import type { EstablishmentDrink } from "@/hooks/useEstablishments";
+import type { Establishment, EstablishmentDrink } from "@/hooks/useEstablishments";
 import { pickerCategoryFor, type PickerCategoryLabel } from "@/components/picker/picker-copy";
 import { databaseVolumeMl } from "@/components/picker/picker-model";
 
@@ -105,6 +105,18 @@ export function buildStaticCatalog(): CatalogItem[] {
       category: categoryKey,
     }));
   });
+}
+
+export function buildActiveVenueCatalog(
+  activeVenue: Establishment | null,
+  drinks: EstablishmentDrink[],
+): CatalogItem[] {
+  if (!activeVenue) return [];
+  const activeRows = drinks.filter((drink) => drink.establishment_id === activeVenue.id);
+  if (activeRows.length > 0) return buildCatalogFromDrinks(activeRows);
+  return activeVenue.isGlobal && activeVenue.name === "Wetherspoons"
+    ? buildStaticCatalog()
+    : [];
 }
 
 export function getCategoryDefaultUnit(category: string): DrinkUnit {

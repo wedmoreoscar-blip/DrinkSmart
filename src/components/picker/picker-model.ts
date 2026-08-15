@@ -21,13 +21,16 @@ const volumeUnit = (drink: EstablishmentDrink): string => (drink.volume_unit ?? 
  */
 export function databaseVolumeMl(drink: EstablishmentDrink): number | null {
   const unit = volumeUnit(drink);
-  if (unit.includes("pint")) return PINT_ML;
-  if (unit.includes("glass")) return 175;
-  if (unit.includes("shot")) return SHOT_ML;
-  if (unit.includes("oz")) return (drink.volume ?? 1.5) * OZ_ML;
-  if (drink.volume != null && Number.isFinite(drink.volume) && drink.volume > 0) {
-    return drink.volume;
-  }
+  const volume =
+    drink.volume != null && Number.isFinite(drink.volume) && drink.volume > 0
+      ? drink.volume
+      : null;
+  if (/half[ -]?pint/.test(unit)) return (volume ?? 1) * (PINT_ML / 2);
+  if (unit.includes("pint")) return (volume ?? 1) * PINT_ML;
+  if (unit.includes("oz")) return (volume ?? 1.5) * OZ_ML;
+  if (unit.includes("glass")) return volume !== null && volume > 10 ? volume : (volume ?? 1) * 175;
+  if (unit.includes("shot")) return volume !== null && volume > 10 ? volume : (volume ?? 1) * SHOT_ML;
+  if (volume !== null) return volume;
   return null;
 }
 
@@ -65,7 +68,7 @@ export function servingOptionsFor(drink: EstablishmentDrink): ServingOption[] {
     ];
   }
   return [
-    { id: "database", label: "Database", ml: databaseVolumeMl(drink) ?? 330 },
+    { id: "database", label: "DB volume", ml: databaseVolumeMl(drink) ?? 330 },
     { id: "standard", label: "Standard", ml: 330 },
     CUSTOM,
   ];
@@ -119,4 +122,17 @@ export function pureAlcoholMl(
 ): number {
   const ml = servingMl(drink, servingId, customMl);
   return ml == null ? 0 : (ml * (drink.abv ?? 0)) / 100;
+}
+
+/** Scale the database price to the selected serving volume. */
+export function servingPrice(
+  drink: EstablishmentDrink,
+  servingId: string,
+  customMl: number | null,
+): number | null {
+  if (drink.price == null) return null;
+  const selectedMl = servingMl(drink, servingId, customMl);
+  if (selectedMl === null) return null;
+  const pricedMl = databaseVolumeMl(drink) ?? defaultServingFor(drink).ml ?? 330;
+  return drink.price * (selectedMl / pricedMl);
 }

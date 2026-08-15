@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { User, GlassWater, GitCommitVertical } from "lucide-react";
 import { AppProvider } from "@/contexts/AppContext";
@@ -8,13 +8,25 @@ import Profile from "@/pages/Profile";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { useUserMetrics } from "@/hooks/useUserMetrics";
 import { MetricsSync } from "@/components/MetricsSync";
+import { useEstablishments } from "@/hooks/useEstablishments";
+import { buildActiveVenueCatalog } from "@/lib/planCatalog";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("plan");
   const [planFullScreen, setPlanFullScreen] = useState(false);
   const [swapDrinkId, setSwapDrinkId] = useState<string | null>(null);
   const { isOnboarded, loading: metricsLoading, refetch } = useUserMetrics();
+  const { activeVenue, getEstablishmentDrinks } = useEstablishments();
   const [onboardingClosed, setOnboardingClosed] = useState(false);
+
+  const activeVenueDrinks = useMemo(
+    () => (activeVenue ? getEstablishmentDrinks(activeVenue.id) : []),
+    [activeVenue, getEstablishmentDrinks],
+  );
+  const replanCatalog = useMemo(
+    () => buildActiveVenueCatalog(activeVenue, activeVenueDrinks),
+    [activeVenue, activeVenueDrinks],
+  );
 
   const showOnboarding = !metricsLoading && !isOnboarded && !onboardingClosed;
 
@@ -54,6 +66,7 @@ const Dashboard = () => {
           <TabsContent value="timeline" className="flex-1 overflow-y-auto">
             <TimelineTab
               onNext={() => setActiveTab("plan")}
+              replanCatalog={replanCatalog}
               onSwapRequest={(drinkId) => {
                 setSwapDrinkId(drinkId);
                 setActiveTab("plan");
