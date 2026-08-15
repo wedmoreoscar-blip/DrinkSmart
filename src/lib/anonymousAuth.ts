@@ -5,25 +5,13 @@ export type EnsureSessionResult =
   | { session: Session; error: null }
   | { session: null; error: AuthError | { message: string } };
 
-/**
- * Ensures a Supabase session exists. If none, signs the user in anonymously.
- * Idempotent — safe to call on every app mount.
- *
- * Returns an explicit { session, error } tuple so the caller can render a
- * visible error if anon auth is disabled or otherwise fails.
- */
-export async function ensureSession(): Promise<EnsureSessionResult> {
-  const { data: { session }, error: getError } = await supabase.auth.getSession();
+const SESSION_EXPIRY_SKEW_SECONDS = 60;
 
-  if (getError) {
-    console.error("Failed to get session:", getError);
-    return { session: null, error: getError };
-  }
+const isExpiredOrExpiring = (session: Session): boolean =>
+  typeof session.expires_at !== "number" ||
+  session.expires_at <= Math.floor(Date.now() / 1000) + SESSION_EXPIRY_SKEW_SECONDS;
 
-  if (session) {
-    return { session, error: null };
-  }
-
+async function createAnonymousSession(): Promise<EnsureSessionResult> {
   const { data, error } = await supabase.auth.signInAnonymously();
 
   if (error) {
@@ -39,6 +27,39 @@ export async function ensureSession(): Promise<EnsureSessionResult> {
   }
 
   return { session: data.session, error: null };
+}
+
+/**
+ * Ensures a Supabase session exists. If none, signs the user in anonymously.
+ * Idempotent — safe to call on every app mount.
+ *
+ * Returns an explicit { session, error } tuple so the caller can render a
+ * visible error if anon auth is disabled or otherwise fails.
+ */
+export async function ensureSession(): Promise<EnsureSessionResult> {
+  const { data: { session }, error: getError } = await supabase.auth.getSession();
+
+  if (getError) {
+    console.error("Failed to get session:", getError);
+    return { session: null, error: getError };
+  }
+
+  if (session && !isExpiredOrExpiring(session)) {
+    return { session, error: null };
+  }
+
+  if (session) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (data.session) return { session: data.session, error: null };
+
+    if (!isAnonymousSession(session)) {
+      const refreshError = error ?? { message: "Session refresh returned no session" };
+      console.error("Failed to refresh authenticated session:", refreshError);
+      return { session: null, error: refreshError };
+    }
+  }
+
+  return createAnonymousSession();
 }
 
 export function isAnonymousSession(session: Session | null | undefined): boolean {

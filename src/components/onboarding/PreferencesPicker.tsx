@@ -53,8 +53,8 @@ const WordStopRail = ({
       <div className="text-[15px] leading-[1.2] text-muted-foreground">{label}</div>
       <div className="text-lead font-medium text-foreground">{labels[value] ?? "Balanced"}</div>
     </div>
-    <div className="flex h-tap items-center gap-2.5">
-      <div className="flex-none text-micro text-[#75798c]">{startWord}</div>
+    <div className="grid h-tap grid-cols-[72px_minmax(0,1fr)_72px] items-center gap-2.5">
+      <div className="text-left text-micro text-[#75798c]">{startWord}</div>
       <div className="relative flex flex-1 items-center">
         <div className="pointer-events-none absolute inset-x-0 h-px bg-[linear-gradient(to_right,transparent,rgba(233,233,237,.16)_30px,rgba(233,233,237,.16)_calc(100%-30px),transparent)]" />
         <div className="relative flex w-full items-center">
@@ -81,7 +81,7 @@ const WordStopRail = ({
           })}
         </div>
       </div>
-      <div className="flex-none text-micro text-[#75798c]">{endWord}</div>
+      <div className="text-right text-micro text-[#75798c]">{endWord}</div>
     </div>
   </div>
 );
