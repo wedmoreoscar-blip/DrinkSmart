@@ -12,13 +12,13 @@ supplies trusted ethanol arithmetic.
 
 ## Allowed files
 
-- `/home/oscar/.traycer/worktrees/deepseek_agent_0/src/lib/generatePlan.ts`
-- `/home/oscar/.traycer/worktrees/deepseek_agent_0/src/lib/greedyPlanFallback.ts`
-- `/home/oscar/.traycer/worktrees/deepseek_agent_0/src/lib/planGenerationContracts.ts`
-- `/home/oscar/.traycer/worktrees/deepseek_agent_0/src/components/tabs/PlanTab.tsx`
-- `/home/oscar/.traycer/worktrees/deepseek_agent_0/src/components/tabs/TimelineTab.tsx`
-- `/home/oscar/.traycer/worktrees/deepseek_agent_0/src/components/tabs/timeline-replan.ts`
-- `/home/oscar/.traycer/worktrees/deepseek_agent_0/supabase/functions/generate-plan/index.ts`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_0/src/lib/generatePlan.ts`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_0/src/lib/greedyPlanFallback.ts`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_0/src/lib/planGenerationContracts.ts`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_0/src/components/tabs/PlanTab.tsx`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_0/src/components/tabs/TimelineTab.tsx`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_0/src/components/tabs/timeline-replan.ts`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_0/supabase/functions/generate-plan/index.ts`
 
 ## Existing contracts to preserve
 

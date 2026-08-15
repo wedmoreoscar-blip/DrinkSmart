@@ -8,8 +8,8 @@ past its effective plan end.
 
 ## Allowed files
 
-- `/home/oscar/.traycer/worktrees/deepseek_agent_1/src/contexts/AppContext.tsx`
-- `/home/oscar/.traycer/worktrees/deepseek_agent_1/src/components/tabs/DrinksTab.tsx`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_1/src/contexts/AppContext.tsx`
+- `/home/oscar/.traycer/worktrees/wedmoreoscar-blip__drinksmart/drinksmart_worktree_1/src/components/tabs/DrinksTab.tsx`
 
 ## Existing contracts to preserve
 
