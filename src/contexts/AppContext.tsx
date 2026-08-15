@@ -16,6 +16,7 @@ import {
   type TimelineEntry,
 } from "@/lib/sessionEngine";
 import { recordTimelineConsumption } from "@/lib/timelineConsumption";
+import type { SessionSnapshot } from "@/hooks/useSessionHistory";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -83,6 +84,7 @@ type AppContextType = {
   applyRegeneratedRemainingDrinks: (generatedDrinks: DrinkEntry[], now?: Date) => void;
   replaceBreakWithDrink: (breakEntryId: string, drink: DrinkEntry, now?: Date) => void;
   endSession: (now?: Date) => void;
+  loadSessionSnapshot: (snapshot: SessionSnapshot, now?: Date) => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -492,6 +494,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => resetActiveSessionState(prev, now ?? new Date()));
   };
 
+  const loadSessionSnapshot = (snapshot: SessionSnapshot, now?: Date) => {
+    // A saved snapshot becomes a clean, editable draft: the current drinks are
+    // replaced (never merged) with clones carrying collision-safe source ids,
+    // and every consumption/lock/timing artifact of the previous session is
+    // cleared. The saved duration is rebased from the supplied current time.
+    setState((prev) => {
+      const currentTime = now ?? new Date();
+      const buzzLevel = Math.max(1, Math.min(snapshot.buzz_level, 7));
+      const bacRange = getBACForLevel(buzzLevel);
+      const clonedDrinks = snapshot.drinks.map((drink) => ({
+        ...drink,
+        id: crypto.randomUUID(),
+      }));
+      return {
+        ...prev,
+        inebriationLevel: buzzLevel,
+        targetBAC: { min: bacRange.min_bac, max: bacRange.max_bac },
+        drinks:
+          clonedDrinks.length > 0
+            ? clonedDrinks
+            : initialState.drinks.map((drink) => ({ ...drink })),
+        lockedDrinkIds: [],
+        startTime: 0,
+        isTimerRunning: false,
+        startDateTime: null,
+        drinkingStartTime: currentTime,
+        drinkingTargetTime: new Date(currentTime.getTime() + snapshot.duration_minutes * 60_000),
+        timeDelta: snapshot.duration_minutes / 60,
+        drinkTimeline: [],
+        drinkCalculations: [],
+        adjustedTargetMl: null,
+        isTargetAdjusted: false,
+        breaks: [],
+        consumedTimelineEntries: [],
+        delayedEntryMinutes: {},
+        effectivePlanEndTime: null,
+      };
+    });
+  };
+
   // Auto-recalculate timeline when dependencies change
   useEffect(() => {
     calculateDrinkTimeline();
@@ -537,6 +579,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         applyRegeneratedRemainingDrinks,
         replaceBreakWithDrink,
         endSession,
+        loadSessionSnapshot,
       }}
     >
       {children}

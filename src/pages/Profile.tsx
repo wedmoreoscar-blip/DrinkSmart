@@ -26,11 +26,16 @@ import { StatsSheet } from "@/components/profile/StatsSheet";
 import { PreferencesCard } from "@/components/profile/PreferencesCard";
 import { AccountCard } from "@/components/profile/AccountCard";
 import { AdminGroup } from "@/components/profile/AdminGroup";
+import { SessionHistory } from "@/components/profile/SessionHistory";
 import { countMovedDrinks } from "@/components/profile/replan";
 
 type ProfileRow = {
   username: string | null;
   avatar_url: string | null;
+};
+
+type ProfileProps = {
+  onOpenPlan?: () => void;
 };
 
 // The app ships dark-only: the light palette in index.css is derived rather
@@ -39,7 +44,7 @@ type ProfileRow = {
 // main.tsx at the same time. The theme plumbing below stays wired either way.
 const LIGHT_THEME_AVAILABLE = false;
 
-const Profile = () => {
+const Profile = ({ onOpenPlan }: ProfileProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
@@ -149,6 +154,9 @@ const Profile = () => {
         onAddEmail={() => navigate("/auth")}
         onSignOut={handleSignOut}
       />
+
+      {/* Session history — completed sessions as reusable plan snapshots */}
+      <SessionHistory onOpenPlan={onOpenPlan} />
 
       {/* Admin — below the fold, after the fading rule, and a SIBLING of the
           Account card rather than inside it. 4a closes both the CTA div and the
