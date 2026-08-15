@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAppContext } from "@/contexts/AppContext";
 import { deriveSessionPhase } from "@/lib/sessionEngine";
+import { useSessionHistory, type SessionHistoryDrink } from "@/hooks/useSessionHistory";
 import { Bell, BellOff, Clock } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWebDrinkReminders } from "@/hooks/useWebDrinkReminders";
@@ -119,7 +120,10 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
   const [dropLineY, setDropLineY] = useState<number | null>(null);
   const [replanning, setReplanning] = useState(false);
   const [earlyEntryId, setEarlyEntryId] = useState<string | null>(null);
+  const [endingSession, setEndingSession] = useState(false);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
+
+  const { isAccount, saveSessionSnapshot } = useSessionHistory();
 
   const {
     isNative,
@@ -210,7 +214,44 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
     setEarlyEntryId(null);
   };
 
-  const handleEndSession = () => {
+  // The winding-down exit: capture the completed plan exactly once, before the
+  // reset, so the reset can never erase the snapshot inputs. Anonymous users
+  // skip the history request entirely. Whether saving succeeds or fails, the
+  // existing reset, notification cancellation and return to Plan always run.
+  const snapshotDurationMinutes = (): number => {
+    const start = state.drinkingStartTime;
+    const target = state.drinkingTargetTime;
+    if (start && target) {
+      const diff = Math.round((target.getTime() - start.getTime()) / 60000);
+      if (diff > 0) return diff;
+    }
+    if (state.timeDelta !== null && Number.isFinite(state.timeDelta) && state.timeDelta > 0) {
+      return Math.round(state.timeDelta * 60);
+    }
+    return 180;
+  };
+
+  const snapshotDrinks = (): SessionHistoryDrink[] =>
+    state.drinks.filter((drink) => drink.drink || (drink.isCustom && drink.customName));
+
+  const handleEndSession = async () => {
+    if (endingSession) return;
+    setEndingSession(true);
+
+    if (isAccount) {
+      const saved = await saveSessionSnapshot({
+        duration_minutes: snapshotDurationMinutes(),
+        buzz_level: Math.max(1, Math.min(state.inebriationLevel, 7)),
+        drinks: snapshotDrinks(),
+      });
+      if (!saved) {
+        toast({
+          title: "Session ended",
+          description: "We couldn't save it to your history.",
+        });
+      }
+    }
+
     endSession(new Date());
     void cancelAll();
     onNext?.();

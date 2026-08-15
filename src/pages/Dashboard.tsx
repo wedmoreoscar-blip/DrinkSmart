@@ -45,7 +45,7 @@ const Dashboard = () => {
           {/* 4a is drawn at padding:20px 20px 0. p-4 gave 16px and md:p-6 introduced a
               24px jump the design does not have -- these frames are a fixed 402px. */}
           <TabsContent value="profile" className="flex-1 overflow-y-auto px-5 pb-0 pt-5">
-            <Profile />
+            <Profile onOpenPlan={() => setActiveTab("plan")} />
           </TabsContent>
 
           <TabsContent

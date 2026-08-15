@@ -226,6 +226,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_session_history: {
+        Row: {
+          buzz_level: number
+          completed_at: string
+          drinks: Json
+          duration_minutes: number
+          id: string
+          user_id: string
+        }
+        Insert: {
+          buzz_level: number
+          completed_at?: string
+          drinks: Json
+          duration_minutes: number
+          id?: string
+          user_id: string
+        }
+        Update: {
+          buzz_level?: number
+          completed_at?: string
+          drinks?: Json
+          duration_minutes?: number
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_session_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth.users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_sessions: {
         Row: {
           buzz_level: number

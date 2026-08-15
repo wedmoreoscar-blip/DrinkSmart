@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppContext } from "@/contexts/AppContext";
 import { useUserMetrics } from "@/hooks/useUserMetrics";
-import { useLastSession } from "@/hooks/useLastSession";
+import { useSessionHistory } from "@/hooks/useSessionHistory";
 import { useToast } from "@/hooks/use-toast";
 import { History, Loader2, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -145,9 +145,10 @@ const PlanTab = ({
     updateDrinkingStartTime,
     updateDrinkingTargetTime,
     updateDrinks,
+    loadSessionSnapshot,
   } = useAppContext();
   const { preferences } = useUserMetrics();
-  const { lastSession, upsertLastSession } = useLastSession();
+  const { lastSession } = useSessionHistory();
   const { toast } = useToast();
   const { activeVenue, activeVenueId, setActiveVenueId, getEstablishmentDrinks } =
     useEstablishments();
@@ -286,15 +287,6 @@ const PlanTab = ({
     setHasGenerated(true);
     persistPlanGenerated(true);
 
-    // Persist as the "last night" for next session
-    if (finalDrinks.length > 0 && finalDrinks[0].drink !== "") {
-      upsertLastSession({
-        duration_minutes: duration,
-        buzz_level: currentLevel,
-        drinks: finalDrinks,
-      });
-    }
-
     // Stay on Plan: mark the curation region built and bring it into view
     // once React has rendered the applied list.
     setPlanBuilt(true);
@@ -303,36 +295,23 @@ const PlanTab = ({
     }, 0);
   };
 
-  const handleUseLastNight = () => {
+  const handleUseLastSession = () => {
     if (!lastSession) return;
     const now = new Date();
     const restoredDuration = Math.min(
       MAX_DURATION,
       Math.max(MIN_DURATION, lastSession.duration_minutes)
     );
+    // Keep this Plan's local duration in sync while it is already mounted;
+    // the shared operation replaces the drinks and rebases the window.
     setDuration(restoredDuration);
-    updateInebriationLevel(Math.max(1, Math.min(lastSession.buzz_level, 7)));
-    updateDrinkingStartTime(now);
-    updateDrinkingTargetTime(new Date(now.getTime() + restoredDuration * 60_000));
-    const restoredDrinks = lastSession.drinks.map((d) => ({
-      ...d,
-      id: crypto.randomUUID(),
-    }));
-    if (restoredDrinks.length > 0) {
-      const protectedSourceIds = [
-        ...state.lockedDrinkIds,
-        ...state.consumedTimelineEntries.map((snapshot) => snapshot.sourceDrinkId),
-      ];
-      updateDrinks(
-        applyRegenerationToDrinks(state.drinks, protectedSourceIds, restoredDrinks),
-      );
-    }
-    // A restored night is a fully manual plan: no AI call happened, so the
+    loadSessionSnapshot(lastSession, now);
+    // A loaded snapshot is a fully manual draft: no AI call happened, so the
     // action stays `Build the night`.
     setHasGenerated(false);
     persistPlanGenerated(false);
     toast({
-      title: "Last night restored",
+      title: "Last session loaded",
       description: "Same duration, drinks and buzz target. Tweak anything if you like.",
     });
   };
@@ -426,20 +405,20 @@ const PlanTab = ({
     <>
     <div className={cn("h-full px-5 pb-0 animate-in fade-in duration-500", flow.screen !== "picker" && "hidden")}>
       <div className="flex min-h-[calc(100%-14px)] flex-col pt-[22px]">
-      {/* Use last night — only when a prior session is persisted */}
+      {/* Use last session — only when a prior session is persisted */}
       {lastSession && lastSession.drinks.length > 0 && (
         <Card className="p-4 flex items-center justify-between gap-3 bg-muted/30 border-primary/20 mb-[14px]">
           <div className="flex items-center gap-3 min-w-0">
             <History className="w-5 h-5 text-primary shrink-0" />
             <div className="min-w-0">
-              <p className="font-medium text-sm">Repeat last night?</p>
+              <p className="font-medium text-sm">Repeat last session?</p>
               <p className="text-xs text-muted-foreground truncate">
                 Buzz {Math.min(lastSession.buzz_level, 7)} · {formatDuration(lastSession.duration_minutes)} · {lastSession.drinks.length} drink{lastSession.drinks.length === 1 ? "" : "s"}
               </p>
             </div>
           </div>
-          <Button size="sm" variant="outline" onClick={handleUseLastNight}>
-            Use last night
+          <Button size="sm" variant="outline" onClick={handleUseLastSession}>
+            Use last session
           </Button>
         </Card>
       )}
