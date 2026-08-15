@@ -4,6 +4,15 @@ Authoritative implementation contract: Traycer artifact `wave-5-change-inventory
 2026-08-13 amendment. That written spec outranks the Claude Design README/HTML/PNG delivery wherever
 they conflict; the drawings govern the many visual details on which the written spec is silent.
 
+## Post-Wave-5 live-data completion
+
+- [ ] W5-8 — repair menu scanning with Gemini 3.1 Flash Lite, deterministic fallback provenance,
+  absolute-ml normalization, serving-aware deduplication and active-venue persistence.
+- [ ] W5-9 — make account custom drinks reusable from Plan through a blank editable Name selector,
+  persisted serving ml and current-venue-only menu saving.
+- [ ] Batch `speccheck`, independent acceptance tests, one repair loop, one full baseline and
+  fast-forward integration. Live Supabase/OpenRouter/browser evidence remains separate.
+
 ## Wave 5 execution
 
 - [x] W5-1 — Plan generates and regenerates in place, auto-scrolls to curation, and advances only
