@@ -14,12 +14,15 @@ export const PLAN_BUILT_COPY = {
     band + " · " + n + (n === 1 ? " drink" : " drinks") + " · " + fmtMl(ml) + " of " + fmtMl(target) + " ml",
   regenerate: "Regenerate",
   regenerateHint: "re-rolls only what is not locked",
-  categorySub: (n: number, ml: number) =>
-    n === 0 ? "nothing picked" : n + " picked · " + fmtMl(ml) + " ml",
+  categorySub: (n: number, volume: string, ethanol: string) =>
+    n === 0
+      ? "nothing picked"
+      : n + " picked · " + volume + " · " + ethanol,
   // The design always renders money(price); generated entries carry no price,
   // so the price segment is omitted when it is null.
-  drinkSub: (portion: string, ml: number, price: number | null) =>
-    portion + " · " + ml.toFixed(1) + " ml" + (price != null ? " · " + money(price) : ""),
+  drinkSub: (portion: string, ethanol: string, price: number | null) =>
+    portion + " · " + ethanol +
+    (price != null ? " · " + money(price) : ""),
   waterSub: "330 ml · break · free",
   toggle: (open: boolean) => (open ? "hide" : "show"),
   trayReading: (ml: number, target: number) => fmtMl(ml) + " of " + fmtMl(target) + " ml",
@@ -98,25 +101,92 @@ export function entryEthanolMl(entry: AlcoholTimelineEntryInput, abv: number | n
   return entryVolumeMl(entry, quantity) * ((abv ?? 0) / 100);
 }
 
+export function entryServingCount(entry: AlcoholTimelineEntryInput): number {
+  if (entry.portions && Number.isFinite(entry.portions) && entry.portions > 0) {
+    return entry.portions;
+  }
+  if (!entry.quantity) return 0;
+  const quantity = parseFloat(entry.quantity);
+  if (!Number.isFinite(quantity) || quantity <= 0) return 0;
+  if (entry.unit === "ml" || entry.unit === "oz") return 1;
+  return Number.isInteger(quantity) ? quantity : 1;
+}
+
+export function planGroupVolumeLabel(entries: AlcoholTimelineEntryInput[]): string {
+  const portions = entries
+    .map((entry) => {
+      if (!entry.quantity) return null;
+      const quantity = parseFloat(entry.quantity);
+      const count = entryServingCount(entry);
+      if (!Number.isFinite(quantity) || quantity <= 0 || count <= 0) return null;
+      const totalVolumeMl = entryVolumeMl(entry, quantity);
+      return { count, totalVolumeMl, perServingMl: totalVolumeMl / count };
+    })
+    .filter((portion): portion is NonNullable<typeof portion> => portion !== null);
+
+  if (portions.length === 0) return "0 ml";
+  const totalCount = portions.reduce((sum, portion) => sum + portion.count, 0);
+  const totalVolumeMl = portions.reduce((sum, portion) => sum + portion.totalVolumeMl, 0);
+  const firstServingMl = portions[0].perServingMl;
+  const uniformServing = portions.every(
+    (portion) => Math.abs(portion.perServingMl - firstServingMl) < 0.01,
+  );
+
+  if (uniformServing) {
+    return totalCount > 1
+      ? totalCount + " × " + fmtMl(firstServingMl) + " ml"
+      : fmtMl(firstServingMl) + " ml";
+  }
+  return fmtMl(totalVolumeMl) + " ml total";
+}
+
+export function entryEthanolLabel(
+  entry: AlcoholTimelineEntryInput,
+  abv: number | null,
+): string {
+  const count = entryServingCount(entry);
+  const totalEthanolMl = entryEthanolMl(entry, abv);
+  return count > 1
+    ? count + " × " + fmtMl(totalEthanolMl / count) + " ml ethanol"
+    : fmtMl(totalEthanolMl) + " ml ethanol";
+}
+
+export function planGroupEthanolLabel(
+  entries: AlcoholTimelineEntryInput[],
+  getAbv: (entry: AlcoholTimelineEntryInput) => number | null,
+): string {
+  const portions = entries
+    .map((entry) => {
+      const count = entryServingCount(entry);
+      if (count <= 0) return null;
+      const totalEthanolMl = entryEthanolMl(entry, getAbv(entry));
+      return { count, totalEthanolMl, perServingMl: totalEthanolMl / count };
+    })
+    .filter((portion): portion is NonNullable<typeof portion> => portion !== null);
+
+  if (portions.length === 0) return "0 ml ethanol";
+  const totalCount = portions.reduce((sum, portion) => sum + portion.count, 0);
+  const totalEthanolMl = portions.reduce((sum, portion) => sum + portion.totalEthanolMl, 0);
+  const firstServingMl = portions[0].perServingMl;
+  const uniformServing = portions.every(
+    (portion) => Math.abs(portion.perServingMl - firstServingMl) < 0.01,
+  );
+
+  if (uniformServing) {
+    return totalCount > 1
+      ? totalCount + " × " + fmtMl(firstServingMl) + " ml ethanol"
+      : fmtMl(firstServingMl) + " ml ethanol";
+  }
+  return fmtMl(totalEthanolMl) + " ml ethanol total";
+}
+
 export function entryPortionWord(entry: AlcoholTimelineEntryInput): string {
   if (!entry.quantity) return "";
   const quantity = parseFloat(entry.quantity);
-  if (!Number.isFinite(quantity)) return "";
-  switch (entry.unit) {
-    case "pints":
-      if (quantity === 0.5) return "half";
-      if (quantity === 1) return "pint";
-      return quantity + " pints";
-    case "oz":
-      return quantity + " oz";
-    case "shots":
-      return quantity + (quantity === 1 ? " shot" : " shots");
-    case "glass":
-      return quantity + (quantity === 1 ? " glass" : " glasses");
-    case "ml":
-      if (entry.portions && entry.portions > 1 && quantity > 0) {
-        return entry.portions + " × " + quantity / entry.portions + " ml";
-      }
-      return quantity + " ml";
-  }
+  if (!Number.isFinite(quantity) || quantity <= 0) return "";
+  const count = entryServingCount(entry);
+  const totalVolumeMl = entryVolumeMl(entry, quantity);
+  return count > 1
+    ? count + " × " + fmtMl(totalVolumeMl / count) + " ml"
+    : fmtMl(totalVolumeMl) + " ml";
 }

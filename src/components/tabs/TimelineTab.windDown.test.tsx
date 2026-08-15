@@ -10,11 +10,11 @@ const timeline = vi.hoisted(() => [
     kind: "alcohol" as const,
     entryId: "lager:unit:1",
     drinkId: "lager",
-    drinkName: "Lager",
+    drinkName: "25ml Lager",
     unitNumber: 1,
     totalUnits: 1,
     time: new Date(Date.now() + 3_600_000),
-    pureAlcoholMl: 12,
+    pureAlcoholMl: 10,
     percentageOfTarget: 25,
     icon: "",
     unit: "ml",
@@ -103,6 +103,7 @@ describe("TimelineTab wind-down routing", () => {
     expect(html).not.toMatch(/<button[^>]*disabled[^>]*>Had it<\/button>/);
     expect(html.indexOf("Plan ends")).toBeLessThan(html.indexOf("Drink Reminders"));
     expect(html.indexOf("Drink Reminders")).toBeLessThan(html.indexOf("Re-plan the rest"));
+    expect(html).toContain("25 ml · 10 ml ethanol");
   });
 
   it("keeps an overdue unconsumed drink selected and out of the past state", () => {

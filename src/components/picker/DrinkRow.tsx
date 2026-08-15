@@ -1,6 +1,11 @@
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
-import { CATEGORY_COPY, fmtMl, money } from "./picker-copy";
-import { pureAlcoholMl, servingOptionsFor, servingPrice } from "./picker-model";
+import { CATEGORY_COPY, money } from "./picker-copy";
+import {
+  pureAlcoholMl,
+  servingMl,
+  servingOptionsFor,
+  servingPrice,
+} from "./picker-model";
 
 type DrinkRowProps = {
   drink: EstablishmentDrink;
@@ -27,16 +32,20 @@ export const DrinkRow = ({
 }: DrinkRowProps) => {
   const options = servingOptionsFor(drink);
   const serving = options.find((option) => option.id === servingId) ?? options[0];
+  const perUnitVolumeMl = servingMl(drink, serving.id, customMl) ?? 0;
   const perUnitPureMl = pureAlcoholMl(drink, serving.id, customMl);
   const perUnitPrice = servingPrice(drink, serving.id, customMl);
-  const totalPureMl = perUnitPureMl * quantity;
 
   const sub =
     selected && quantity > 1
-      ? CATEGORY_COPY.rowSub(drink.abv, serving.label, perUnitPureMl)
-      : CATEGORY_COPY.rowSubSingle(drink.abv, serving.label, perUnitPureMl);
+      ? CATEGORY_COPY.rowSub(drink.abv, perUnitVolumeMl, perUnitPureMl)
+      : CATEGORY_COPY.rowSubSingle(
+          drink.abv,
+          perUnitVolumeMl,
+          perUnitPureMl,
+        );
 
-  const summary = quantity + " × " + serving.label + " · " + fmtMl(totalPureMl) + " ml pure alcohol";
+  const summary = CATEGORY_COPY.selectedSummary(quantity, perUnitVolumeMl, perUnitPureMl);
 
   return (
     <div

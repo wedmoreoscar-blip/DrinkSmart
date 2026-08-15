@@ -23,8 +23,12 @@ import {
 } from "@/components/picker/picker-model";
 import {
   entryEthanolMl,
+  entryEthanolLabel,
   entryPortionWord,
+  entryServingCount,
   overTargetAdvice,
+  planGroupEthanolLabel,
+  planGroupVolumeLabel,
   PLAN_BUILT_COPY,
   SWAP_COPY,
 } from "@/components/picker/wave5-picker";
@@ -223,12 +227,10 @@ const DrinksTab = ({
     [planEntries, entryAbv],
   );
 
-  const committedCount = drinks.filter(
-    (d) =>
-      d.quantity &&
-      parseFloat(d.quantity) > 0 &&
-      (d.drink || (d.isCustom && d.customName)),
-  ).length;
+  const committedCount = planEntries.reduce(
+    (total, entry) => total + entryServingCount(entry),
+    0,
+  );
 
   const targetMl = calculateTotalPureAlcoholNeeded();
 
@@ -345,19 +347,29 @@ const DrinksTab = ({
   // ---- Plan-built panels ----------------------------------------------------
 
   const planGroups = useMemo(() => {
-    const groups = new Map<string, { entries: AlcoholTimelineEntryInput[]; ml: number }>();
+    const groups = new Map<
+      string,
+      { entries: AlcoholTimelineEntryInput[]; count: number }
+    >();
     for (const entry of planEntries) {
       const label = entry.isCustom
         ? PICKER_COPY.customCategory.name
         : pickerCategoryFor(entry.category, null);
       if (!label) continue;
-      const group = groups.get(label) ?? { entries: [], ml: 0 };
+      const group = groups.get(label) ?? { entries: [], count: 0 };
       group.entries.push(entry);
-      group.ml += entryEthanolMl(entry, entryAbv(entry));
+      group.count += entryServingCount(entry);
       groups.set(label, group);
     }
     return groups;
   }, [planEntries, entryAbv]);
+
+  const planGroupSub = (group: ReturnType<typeof planGroups.get>) =>
+    PLAN_BUILT_COPY.categorySub(
+      group?.count ?? 0,
+      group ? planGroupVolumeLabel(group.entries) : "0 ml",
+      group ? planGroupEthanolLabel(group.entries, entryAbv) : "0 ml ethanol",
+    );
 
   const visibleCategories = useMemo(() => {
     const venueCategories = new Map(categories.map((entry) => [entry.label, entry]));
@@ -454,9 +466,11 @@ const DrinksTab = ({
   const swapRowSub = (drink: (typeof venueDrinks)[number]) => {
     const serving = defaultServingFor(drink);
     const perMl = pureAlcoholMl(drink, serving.id, null);
-    return drink.abv == null || drink.abv === 0
-      ? serving.label + " · 0 ml"
-      : CATEGORY_COPY.rowSubSingle(drink.abv, serving.label, perMl);
+    return CATEGORY_COPY.rowSubSingle(
+      drink.abv,
+      serving.ml ?? 330,
+      perMl,
+    );
   };
 
   const panelRow = (entry: AlcoholTimelineEntryInput) => (
@@ -468,7 +482,7 @@ const DrinksTab = ({
         <div className="mt-[3px] text-[13px] leading-[1.3] tabular-nums text-[#75798c]">
           {PLAN_BUILT_COPY.drinkSub(
             entryPortionWord(entry),
-            entryEthanolMl(entry, entryAbv(entry)),
+            entryEthanolLabel(entry, entryAbv(entry)),
             entry.pricePerUnit != null
               ? entry.pricePerUnit * (entry.portions ?? 1)
               : null
@@ -657,7 +671,7 @@ const DrinksTab = ({
                           {cat.label}
                         </div>
                         <div className="mt-0.5 text-[15px] leading-[1.3] text-muted-foreground">
-                          {PLAN_BUILT_COPY.categorySub(picked.length, group?.ml ?? 0)}
+                          {planGroupSub(group)}
                         </div>
                       </button>
                       <button
@@ -695,7 +709,7 @@ const DrinksTab = ({
                       </div>
                       <div className="mt-0.5 text-[15px] leading-[1.3] text-muted-foreground">
                         {planBuilt
-                          ? PLAN_BUILT_COPY.categorySub(picked.length, group?.ml ?? 0)
+                          ? planGroupSub(group)
                           : PICKER_COPY.categorySub(cat.count, cat.minPrice)}
                       </div>
                     </div>
@@ -720,7 +734,7 @@ const DrinksTab = ({
                           {PICKER_COPY.customCategory.name}
                         </div>
                         <div className="mt-0.5 text-[15px] leading-[1.3] text-muted-foreground">
-                          {PLAN_BUILT_COPY.categorySub(customPicked.length, customGroup?.ml ?? 0)}
+                          {planGroupSub(customGroup)}
                         </div>
                       </button>
                       <button

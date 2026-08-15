@@ -53,14 +53,17 @@ export const PICKER_COPY = {
 };
 
 export const CATEGORY_COPY = {
-  rowSub: (abv: number | null, portion: string, ml: number) =>
-    (abv == null ? "—" : abv.toFixed(1)) + "% · " + portion + " · " + ml.toFixed(1) + " ml each",
-  rowSubSingle: (abv: number | null, portion: string, ml: number) =>
-    (abv == null ? "—" : abv.toFixed(1)) + "% · " + portion + " · " + ml.toFixed(1) + " ml",
+  rowSub: (abv: number | null, volumeMl: number, ethanolMl: number) =>
+    (abv == null ? "—" : abv.toFixed(1)) + "% · " + fmtMl(volumeMl) +
+    " ml each · " + fmtMl(ethanolMl) + " ml ethanol each",
+  rowSubSingle: (abv: number | null, volumeMl: number, ethanolMl: number) =>
+    (abv == null ? "—" : abv.toFixed(1)) + "% · " + fmtMl(volumeMl) +
+    " ml · " + fmtMl(ethanolMl) + " ml ethanol",
   priceTotal: (p: number, n: number) => money(p * n),
   priceUnit: (p: number, n: number) => n + " × " + money(p),
-  selectedSummary: (n: number, portion: string, ml: number) =>
-    n + " " + (n === 1 ? portion : portion + "s") + " · " + fmtMl(ml) + " ml pure alcohol",
+  selectedSummary: (n: number, volumeMl: number, ethanolMl: number) =>
+    n + " × " + fmtMl(volumeMl) + " ml · " +
+    n + " × " + fmtMl(ethanolMl) + " ml ethanol",
   abvChip: (lo: number, hi: number) => "ABV " + lo + "–" + hi + "%",
   sort: ["Cheapest first", "Strongest first", "Least alcohol first"],
   trayPendingSub: (ml: number) => "of " + fmtMl(ml) + " ml — the pending amount reads hollow",

@@ -44,6 +44,7 @@ import {
 import { SortableTimelineItem } from "./SortableTimelineItem";
 import { replanRemaining, sortableIdFor } from "./timeline-replan";
 import type { CatalogItem } from "@/lib/planCatalog";
+import { fmtMl } from "@/components/picker/picker-copy";
 
 type TimelineTabProps = {
   onNext?: () => void;
@@ -76,6 +77,10 @@ const getDisplayName = (entry: TimelineEntry) =>
 const getVolumeLabel = (entry: TimelineEntry) => {
   const match = entry.drinkName.match(/^(\d+(?:\.\d+)?)\s*(ml|oz)\b/i);
   if (match) return `${match[1]} ${match[2].toLowerCase()}`;
+
+  if (typeof entry.volumeMl === "number" && Number.isFinite(entry.volumeMl)) {
+    return `${entry.volumeMl} ml`;
+  }
 
   switch (entry.unit) {
     case "pints":
@@ -126,7 +131,7 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
   useWebDrinkReminders(state.drinkTimeline, !isNative && webRemindersEnabled);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { delay: 125, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -171,7 +176,12 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
     : "Plan ends";
   const nextVolume = nextEntry ? getVolumeLabel(nextEntry) : null;
   const nextDetail = nextEntry
-    ? `${nextVolume ? `${nextVolume} ` : ""}${nextUnit} · ${formatClock(nextEntry.time)}`
+    ? [
+        nextVolume ?? nextUnit,
+        `${fmtMl(nextEntry.pureAlcoholMl)} ml ethanol`,
+        nextVolume && nextEntry.totalUnits > 1 ? nextUnit : null,
+        formatClock(nextEntry.time),
+      ].filter((part): part is string => part !== null).join(" · ")
     : "Plan ends · —";
   const minutesAway = nextEntry
     ? Math.max(0, Math.ceil((nextEntry.time.getTime() - currentTime.getTime()) / 60000))
@@ -439,7 +449,6 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
                   consumedEntryIds.has(entry.entryId) ||
                   (entry.kind === "break" && entry.time.getTime() <= currentTime.getTime());
                 const isCurrent = index === nextEntryIndex;
-                const isMovingOrigin = movingEntryId === id;
                 const actionSourceId = entry.kind === "break" ? entry.entryId : entry.drinkId;
 
                 return (
@@ -465,20 +474,12 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
                       }}
                       className="relative"
                     >
-                      {isMovingOrigin && (
-                        <div className="absolute inset-y-1 left-[100px] right-0 z-0 flex items-center">
-                          <div className="flex h-14 w-full items-center rounded-ctl border border-border px-[14px] text-[15px] text-[#75798c]">
-                            left from here
-                          </div>
-                        </div>
-                      )}
                       <SortableTimelineItem
                         entry={entry}
                         isPast={isPast}
                         isCurrent={isCurrent}
                         isDraggable={!isPast}
                         isLocked={state.lockedDrinkIds.includes(actionSourceId)}
-                        moving={movingEntryId !== null}
                         onToggleLock={() => toggleLockedDrink(actionSourceId)}
                         onSwapRequest={() => onSwapRequest?.(actionSourceId)}
                       />

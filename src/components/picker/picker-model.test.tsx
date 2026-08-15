@@ -154,7 +154,44 @@ describe("Wave 5 picker serving contract", () => {
     expect(html).toContain("DB volume");
     expect(html).toContain("Standard");
     expect(html).toContain("Custom");
-    expect(html).toContain("—% · DB volume · 0.0 ml");
-    expect(html).not.toContain("0.0% · DB volume");
+    expect(html).toContain("—% · 330 ml · 0.0 ml ethanol");
+    expect(html).not.toContain("—% · DB volume ·");
+    expect(html).not.toContain("0.0% · 330 ml");
+  });
+
+  it("keeps semantic serving names in controls while subtitles show only ABV, volume and ethanol", () => {
+    const spirit = drink("spirit", "Vodka", 40, 25, "ml", "vodka", "Vodka");
+    const single = renderToStaticMarkup(
+      <DrinkRow
+        drink={spirit}
+        selected
+        quantity={1}
+        servingId="single"
+        customMl={null}
+        onSelect={() => {}}
+        onQuantityChange={() => {}}
+        onServingChange={() => {}}
+        onCustomMlChange={() => {}}
+      />,
+    );
+    const double = renderToStaticMarkup(
+      <DrinkRow
+        drink={spirit}
+        selected
+        quantity={1}
+        servingId="double"
+        customMl={null}
+        onSelect={() => {}}
+        onQuantityChange={() => {}}
+        onServingChange={() => {}}
+        onCustomMlChange={() => {}}
+      />,
+    );
+
+    expect(single).toContain("40.0% · 25 ml · 10 ml ethanol");
+    expect(double).toContain("40.0% · 50 ml · 20 ml ethanol");
+    expect(single).toContain(">Single<");
+    expect(single).toContain(">Double<");
+    expect(single).not.toContain("40.0% · Single");
   });
 });

@@ -1,10 +1,10 @@
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getUnitDisplayText } from "@/lib/timelineHelpers";
 import { OZ_ML, PINT_ML, SHOT_ML, GLASS_ML } from "@/lib/drinkConstants";
 import { sortableIdFor } from "./timeline-replan";
+import { fmtMl } from "@/components/picker/picker-copy";
 
 type DrinkTimelineEntry = {
   kind?: "alcohol" | "break";
@@ -28,7 +28,6 @@ type SortableTimelineItemProps = {
   isCurrent: boolean;
   isDraggable: boolean;
   isLocked: boolean;
-  moving: boolean;
   onToggleLock: () => void;
   onSwapRequest: () => void;
 };
@@ -121,7 +120,6 @@ export const SortableTimelineItem = ({
   isCurrent,
   isDraggable,
   isLocked,
-  moving,
   onToggleLock,
   onSwapRequest,
 }: SortableTimelineItemProps) => {
@@ -136,19 +134,24 @@ export const SortableTimelineItem = ({
   const isLockedRow = isLocked && !isPast;
   const unitLabel = getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit).replace(/glasss$/, "glass");
   const volumeLabel = getVolumeLabel(entry) || "";
+  const alcoholDetail = [
+    volumeLabel || unitLabel,
+    `${fmtMl(entry.pureAlcoholMl)} ml ethanol`,
+    entry.totalUnits > 1 ? unitLabel : null,
+  ].filter((part): part is string => part !== null).join(" · ");
 
   const detail = isBreak
     ? `${volumeLabel || "330 ml"} · ${isPast ? "had" : `${entry.durationMinutes ?? 0} min`}`
     : isPast
-      ? `${volumeLabel || unitLabel} · had`
+      ? `${alcoholDetail} · had`
       : isLockedRow
-        ? `${volumeLabel || unitLabel} · kept`
-        : isCurrent
-          ? `${volumeLabel || unitLabel} · ${entry.pureAlcoholMl.toFixed(1)} ml alc`
-          : `${unitLabel} · ${entry.pureAlcoholMl.toFixed(1)} ml`;
+        ? `${alcoholDetail} · kept`
+        : alcoholDetail;
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: transform
+      ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)`
+      : undefined,
     transition,
   };
 
@@ -169,7 +172,7 @@ export const SortableTimelineItem = ({
       className={cn(
         "relative",
         isDragging && "z-10",
-        isPast && (moving ? "opacity-[.3]" : "opacity-[.45]")
+        isPast && "opacity-[.45]"
       )}
     >
       <div
