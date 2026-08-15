@@ -3,7 +3,7 @@ import { Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DrinkFilterPopover, type DrinkFilters } from "@/components/DrinkFilterPopover";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
-import { CATEGORY_COPY } from "./picker-copy";
+import { CATEGORY_COPY, pickerCategoryFor } from "./picker-copy";
 import type { Portion } from "./picker-model";
 import { DrinkRow } from "./DrinkRow";
 import { pureAlcoholMl } from "./picker-model";
@@ -11,6 +11,7 @@ import { pureAlcoholMl } from "./picker-model";
 type CategoryScreenProps = {
   categoryLabel: string;
   drinks: EstablishmentDrink[];
+  availableCategories: string[];
   filters: DrinkFilters;
   onFiltersChange: (filters: DrinkFilters) => void;
   sort: string;
@@ -27,6 +28,7 @@ type CategoryScreenProps = {
 export const CategoryScreen = ({
   categoryLabel,
   drinks,
+  availableCategories,
   filters,
   onFiltersChange,
   sort,
@@ -45,17 +47,22 @@ export const CategoryScreen = ({
 
   const visibleDrinks = useMemo(() => {
     const abvActive = filters.abvRange.min > 0 || filters.abvRange.max < 100;
-    const filtered = drinks.filter((d) =>
-      d.abv == null
-        ? !abvActive
-        : d.abv >= filters.abvRange.min && d.abv <= filters.abvRange.max,
-    );
+    const filtered = drinks.filter((d) => {
+      const drinkCategory = pickerCategoryFor(d.category, d.category_label);
+      const categoryMatches =
+        drinkCategory !== null && filters.selectedCategories.includes(drinkCategory);
+      const abvMatches =
+        d.abv == null
+          ? !abvActive
+          : d.abv >= filters.abvRange.min && d.abv <= filters.abvRange.max;
+      return categoryMatches && abvMatches;
+    });
     const sorted = [...filtered];
     if (sort === CATEGORY_COPY.sort[1]) sorted.sort((a, b) => (b.abv ?? -1) - (a.abv ?? -1));
     else if (sort === CATEGORY_COPY.sort[2]) sorted.sort((a, b) => pureAlcoholMl(a) - pureAlcoholMl(b));
     else sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
     return sorted;
-  }, [drinks, filters.abvRange, sort]);
+  }, [drinks, filters.abvRange, filters.selectedCategories, sort]);
 
   const chipLabel = CATEGORY_COPY.abvChip(filters.abvRange.min, filters.abvRange.max);
 
@@ -70,14 +77,14 @@ export const CategoryScreen = ({
         <div className="flex-1 truncate text-[24px] font-medium leading-[1.15] tracking-[-0.015em] text-foreground">
           {categoryLabel}
         </div>
-        <div className="flex-none text-[15px] leading-[1.2] text-[#75798c]">{drinks.length}</div>
+        <div className="flex-none text-[15px] leading-[1.2] text-[#75798c]">{visibleDrinks.length}</div>
       </div>
 
       <div className="flex flex-none gap-2.5">
         <DrinkFilterPopover
           filters={filters}
           onFiltersChange={onFiltersChange}
-          availableCategories={[categoryLabel]}
+          availableCategories={availableCategories}
           trigger={
             <button
               type="button"

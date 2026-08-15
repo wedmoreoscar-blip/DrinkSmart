@@ -32,8 +32,8 @@ export const DrinkFilterPopover = ({
 
   const hasActiveFilters = useMemo(() => {
     const hasAbvFilter = filters.abvRange.min > DEFAULT_ABV_MIN || filters.abvRange.max < DEFAULT_ABV_MAX;
-    const hasCategoryFilter = filters.selectedCategories.length > 0 && 
-      filters.selectedCategories.length < availableCategories.length;
+    const hasCategoryFilter =
+      filters.selectedCategories.length !== availableCategories.length;
     return hasAbvFilter || hasCategoryFilter;
   }, [filters, availableCategories.length]);
 
@@ -46,7 +46,7 @@ export const DrinkFilterPopover = ({
 
   const handleCategoryToggle = (category: string, checked: boolean) => {
     const newCategories = checked
-      ? [...filters.selectedCategories, category]
+      ? Array.from(new Set([...filters.selectedCategories, category]))
       : filters.selectedCategories.filter((c) => c !== category);
     
     onFiltersChange({
@@ -154,9 +154,9 @@ export const DrinkFilterPopover = ({
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+            <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto">
               {availableCategories.map((category) => (
-                <div key={category} className="flex items-center space-x-2">
+                <div key={category} className="flex min-h-8 min-w-0 items-center space-x-2">
                   <Checkbox
                     id={`category-${category}`}
                     checked={filters.selectedCategories.includes(category)}
@@ -166,7 +166,7 @@ export const DrinkFilterPopover = ({
                   />
                   <Label
                     htmlFor={`category-${category}`}
-                    className="text-xs font-normal cursor-pointer truncate"
+                    className="cursor-pointer whitespace-nowrap text-xs font-normal"
                     title={category}
                   >
                     {category}
@@ -182,8 +182,7 @@ export const DrinkFilterPopover = ({
               {filters.abvRange.min > 0 || filters.abvRange.max < 100 ? (
                 <span>ABV: {filters.abvRange.min}% - {filters.abvRange.max}%</span>
               ) : null}
-              {filters.selectedCategories.length > 0 && 
-               filters.selectedCategories.length < availableCategories.length && (
+              {filters.selectedCategories.length !== availableCategories.length && (
                 <span className="block">
                   {filters.selectedCategories.length} of {availableCategories.length} categories
                 </span>

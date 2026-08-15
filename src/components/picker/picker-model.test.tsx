@@ -29,7 +29,7 @@ const drink = (
 
 const filters: DrinkFilters = {
   abvRange: { min: 0, max: 100 },
-  selectedCategories: [],
+  selectedCategories: ["Beer & cider"],
 };
 
 describe("W4-5 picker contract", () => {
@@ -56,6 +56,7 @@ describe("W4-5 picker contract", () => {
     const html = renderToStaticMarkup(
       <CategoryScreen
         categoryLabel="Beer"
+        availableCategories={["Beer & cider"]}
         drinks={[
           drink("large-low", "Large low ABV", 4, 568),
           drink("small-high", "Small high ABV", 5, 250),
@@ -75,6 +76,36 @@ describe("W4-5 picker contract", () => {
     );
 
     expect(html.indexOf("Small high ABV")).toBeLessThan(html.indexOf("Large low ABV"));
+  });
+
+  it("applies the selected venue categories as well as the unrestricted ABV baseline", () => {
+    const beer = drink("beer", "Beer", 5, 568);
+    const wine = {
+      ...drink("wine", "Wine", 12, 175, "glass"),
+      category: "wine_red",
+      category_label: "Red Wine",
+    };
+    const html = renderToStaticMarkup(
+      <CategoryScreen
+        categoryLabel="Wine"
+        availableCategories={["Beer & cider", "Wine"]}
+        drinks={[beer, wine]}
+        filters={{ abvRange: { min: 0, max: 100 }, selectedCategories: ["Wine"] }}
+        onFiltersChange={() => {}}
+        sort="Cheapest first"
+        onSortChange={() => {}}
+        selectedId={null}
+        quantity={1}
+        portion="pint"
+        onSelect={() => {}}
+        onQuantityChange={() => {}}
+        onPortionChange={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(html).toContain("Wine");
+    expect(html).not.toContain(">Beer<");
   });
 
   it("shows missing strength as an em dash and treats it as zero alcohol", () => {

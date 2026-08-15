@@ -116,7 +116,7 @@ const DrinksTab = ({
 
   const [category, setCategory] = useState<string | null>(null);
   const [filters, setFilters] = useState<DrinkFilters>({
-    abvRange: { min: 4, max: 6 },
+    abvRange: { min: 0, max: 100 },
     selectedCategories: [],
   });
   const [sort, setSort] = useState<string>(CATEGORY_COPY.sort[0]);
@@ -161,13 +161,10 @@ const DrinksTab = ({
     });
   }, [venueDrinks]);
 
-  const categoryDrinks = useMemo(
-    () =>
-      category
-        ? venueDrinks.filter((d) => pickerCategoryFor(d.category, d.category_label) === category)
-        : [],
-    [category, venueDrinks],
-  );
+  const openCategory = (label: string) => {
+    setCategory(label);
+    setFilters((current) => ({ ...current, selectedCategories: [label] }));
+  };
 
   // Calculate total pure alcohol needed using Watson TBW formula
   const calculateTotalPureAlcoholNeeded = () => {
@@ -589,7 +586,8 @@ const DrinksTab = ({
         ) : category ? (
           <CategoryScreen
             categoryLabel={category}
-            drinks={categoryDrinks}
+            drinks={venueDrinks}
+            availableCategories={categories.map((entry) => entry.label)}
             filters={filters}
             onFiltersChange={setFilters}
             sort={sort}
@@ -637,7 +635,7 @@ const DrinksTab = ({
                     <div className="flex min-h-[72px] items-center gap-1.5 py-[14px] pl-[18px] pr-2">
                       <button
                         type="button"
-                        onClick={() => setCategory(cat.label)}
+                        onClick={() => openCategory(cat.label)}
                         className="min-w-0 flex-1 text-left"
                       >
                         <div className="text-[24px] font-medium leading-[1.15] tracking-[-0.015em] text-foreground">
@@ -657,7 +655,7 @@ const DrinksTab = ({
                       <button
                         type="button"
                         aria-label={cat.label}
-                        onClick={() => setCategory(cat.label)}
+                        onClick={() => openCategory(cat.label)}
                         className="flex h-14 w-11 flex-none items-center justify-center"
                       >
                         <ChevronIcon />
@@ -673,7 +671,7 @@ const DrinksTab = ({
                   <button
                     key={cat.label}
                     type="button"
-                    onClick={() => setCategory(cat.label)}
+                    onClick={() => openCategory(cat.label)}
                     className="flex min-h-[72px] items-center justify-between gap-3 rounded-lg bg-card px-[18px] py-[14px] text-left"
                   >
                     <div>
