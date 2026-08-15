@@ -55,7 +55,11 @@ export function classifyDrink(
   const source = `${category ?? ""} ${categoryLabel ?? ""}`.trim().toLowerCase();
 
   if (/low[ -]?alcohol/.test(source)) return "low";
-  if (/no[ -]?alcohol|non[ -]?alcohol|soft[ -]?drink|soft drink|mocktail|alcohol[- ]?free|0\s*%/.test(source)) {
+  const explicitlyZeroPercent = /(?:^|[^\d.])0(?:\.0+)?\s*%/.test(source);
+  if (
+    /no[ -]?alcohol|non[ -]?alcohol|soft[ -]?drink|soft drink|mocktail|alcohol[- ]?free/.test(source) ||
+    explicitlyZeroPercent
+  ) {
     return "soft";
   }
   if (/cocktail|spritz/.test(source)) return "cocktail";

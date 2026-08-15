@@ -66,4 +66,35 @@ describe("Wave 5 active venue contract", () => {
     expect(buildActiveVenueCatalog(customVenue, [])).toEqual([]);
     expect(buildActiveVenueCatalog(null, [])).toEqual([]);
   });
+
+  it("uses the shared category fallbacks only when legacy rows lack ABV or serving volume", () => {
+    const legacySpirit: EstablishmentDrink = {
+      ...row(customVenue.id),
+      id: "legacy-spirit",
+      drink_name: "House vodka",
+      abv: null,
+      category: "spirits",
+      category_label: "Vodka",
+      volume: null,
+      volume_unit: null,
+    };
+    const storedWine = row(customVenue.id);
+
+    expect(buildActiveVenueCatalog(customVenue, [legacySpirit, storedWine])).toEqual([
+      {
+        id: "legacy-spirit",
+        name: "House vodka",
+        abv: 40,
+        typical_ml: 25,
+        category: "vodka",
+      },
+      {
+        id: "my-bar-drink-1",
+        name: "House wine",
+        abv: 12,
+        typical_ml: 250,
+        category: "wine_white",
+      },
+    ]);
+  });
 });

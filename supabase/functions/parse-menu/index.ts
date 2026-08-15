@@ -33,7 +33,7 @@ interface ParseMenuResponse {
   errors?: string[];
 }
 
-const SYSTEM_PROMPT = `You are a menu parsing assistant. Extract alcoholic drink information from menu images.
+const SYSTEM_PROMPT = `You are a menu parsing assistant. Extract drink information from menu images.
 
 For each drink, extract:
 - name: The drink name exactly as shown
@@ -44,7 +44,7 @@ For each drink, extract:
 - volume: The volume/size as a number. null if not visible.
 - volumeUnit: The unit of volume (ml, oz, pint, half-pint, shot, glass, bottle, can). null if not visible.
 
-Focus only on alcoholic drinks. Skip non-alcoholic items unless they're clearly labeled as low-alcohol, no-alcohol or 0% alcohol options.
+Include clearly listed soft drinks and clearly labeled low-alcohol, no-alcohol or 0% options alongside alcoholic drinks. Ignore food and unrelated items.
 
 If you can see an establishment/venue name in the image, set suggestedName.
 
@@ -187,7 +187,7 @@ const handler = withSupabase({ auth: 'user' }, async (req, ctx) => {
                   },
                   {
                     type: 'text',
-                    text: 'Extract all alcoholic drinks from this menu image.',
+                    text: 'Extract all listed drinks from this menu image, including soft and low/no-alcohol options.',
                   },
                 ],
               },
