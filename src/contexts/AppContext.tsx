@@ -22,6 +22,10 @@ type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
 type WeightUnit = "kg" | "lbs";
 
+// W5-11: a session the user abandons is cleared six hours after its effective
+// plan end. One named interval, used by the expiry scheduler below.
+const SESSION_ABANDON_GRACE_MS = 6 * 60 * 60 * 1000;
+
 type DrinkEntry = AlcoholTimelineEntryInput;
 
 type BreakEntry = BreakTimelineEntryInput;
@@ -540,6 +544,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     clearSession();
     setState((prev) => resetActiveSessionState(prev, now ?? new Date()));
   };
+
+  const expireAbandonedSession = useCallback(() => {
+    // Same debounce-race protection as endSession: clear the persisted
+    // session before resetting state, then the persist effect writes the
+    // fresh blank session. No account history snapshot is written.
+    clearSession();
+    setState((prev) => resetActiveSessionState(prev, new Date()));
+  }, []);
+
+  // Expire an abandoned session six hours after its effective plan end. The
+  // timer is rescheduled whenever the deterministic rescheduler moves
+  // effectivePlanEndTime (+15, delays), and a deadline already past — e.g.
+  // right after a persisted abandoned session hydrates and its timeline is
+  // recomputed — expires immediately. Consumption alone never triggers it.
+  useEffect(() => {
+    const deadline = state.effectivePlanEndTime;
+    if (!deadline) return;
+    const expiryAt = deadline.getTime() + SESSION_ABANDON_GRACE_MS;
+    const delay = expiryAt - Date.now();
+    if (delay <= 0) {
+      expireAbandonedSession();
+      return;
+    }
+    const timer = setTimeout(expireAbandonedSession, delay);
+    return () => clearTimeout(timer);
+  }, [state.effectivePlanEndTime, expireAbandonedSession]);
 
   const loadSessionSnapshot = (snapshot: SessionSnapshot, now?: Date) => {
     // A saved snapshot becomes a clean, editable draft: the current drinks are
