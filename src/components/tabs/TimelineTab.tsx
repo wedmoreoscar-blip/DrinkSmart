@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +15,9 @@ import {
 import { useAppContext } from "@/contexts/AppContext";
 import { deriveSessionPhase } from "@/lib/sessionEngine";
 import { useSessionHistory } from "@/hooks/useSessionHistory";
+import { QueryClientContext } from "@tanstack/react-query";
+import { useUserMetrics } from "@/hooks/useUserMetrics";
+import type { PreferenceData } from "@/lib/preferences";
 import {
   completedSessionDurationMinutes,
   realSessionDrinks,
@@ -106,6 +109,21 @@ const getVolumeLabel = (entry: TimelineEntry) => {
 const getUnitLabel = (entry: TimelineEntry) =>
   getUnitDisplayText(entry.unitNumber, entry.totalUnits, entry.unit).replace(/glasss$/, "glass");
 
+// Timeline's preferences source, matching PlanTab's useUserMetrics source of
+// truth. The bridge renders only inside a React Query provider, so rendering
+// TimelineTab in a bare test environment never touches the hook.
+const TimelinePreferencesBridge = ({
+  onPreferences,
+}: {
+  onPreferences: (preferences: PreferenceData | undefined) => void;
+}) => {
+  const { preferences } = useUserMetrics();
+  useEffect(() => {
+    onPreferences(preferences);
+  }, [onPreferences, preferences]);
+  return null;
+};
+
 const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabProps) => {
   const {
     state,
@@ -125,6 +143,8 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
   const [movingEntryId, setMovingEntryId] = useState<string | null>(null);
   const [dropLineY, setDropLineY] = useState<number | null>(null);
   const [replanning, setReplanning] = useState(false);
+  const [replanPreferences, setReplanPreferences] = useState<PreferenceData | undefined>();
+  const hasQueryClient = useContext(QueryClientContext) !== undefined;
   const [earlyEntryId, setEarlyEntryId] = useState<string | null>(null);
   const [endingSession, setEndingSession] = useState(false);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
@@ -325,27 +345,53 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
   const handleReplan = async () => {
     if (replanning) return;
     setReplanning(true);
-    const result = await replanRemaining({
-      userMetrics: state.userMetrics,
-      targetBAC: state.targetBAC,
-      timeDeltaHours: state.timeDelta,
-      drinks: state.drinks,
-      lockedDrinkIds: state.lockedDrinkIds,
-      drinkingStartTime: state.drinkingStartTime,
-      drinkingTargetTime: state.drinkingTargetTime,
-      timeline: state.drinkTimeline,
-      consumedSnapshots: state.consumedTimelineEntries,
-      catalog: replanCatalog,
-      now: currentTime,
-    });
-    setReplanning(false);
-    if (result.entries === null) return;
-    applyRegeneratedRemainingDrinks(result.entries);
-    if (result.usedFallback) {
-      toast({
-        title: "Built offline",
-        description: "AI planner unreachable — used a local plan instead.",
+    try {
+      if (!replanPreferences) {
+        toast({
+          title: "Complete your profile first",
+          description: "We need your stats to compute your alcohol target.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const result = await replanRemaining({
+        userMetrics: state.userMetrics,
+        targetBAC: state.targetBAC,
+        timeDeltaHours: state.timeDelta,
+        preferences: replanPreferences,
+        drinks: state.drinks,
+        lockedDrinkIds: state.lockedDrinkIds,
+        drinkingStartTime: state.drinkingStartTime,
+        drinkingTargetTime: state.drinkingTargetTime,
+        timeline: state.drinkTimeline,
+        consumedSnapshots: state.consumedTimelineEntries,
+        catalog: replanCatalog,
+        now: currentTime,
       });
+      if (result.entries === null) {
+        toast({
+          title: "Complete your profile first",
+          description: "We need your stats to compute your alcohol target.",
+          variant: "destructive",
+        });
+        return;
+      }
+      applyRegeneratedRemainingDrinks(result.entries);
+      if (result.usedFallback) {
+        toast({
+          title: "Built offline",
+          description: "AI planner unreachable — used a local plan instead.",
+        });
+      }
+    } catch (error) {
+      console.error("Re-plan the rest failed:", error);
+      toast({
+        title: "Couldn't re-plan the rest",
+        description: "Something went wrong while re-planning. Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setReplanning(false);
     }
   };
 
@@ -380,6 +426,9 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+      {hasQueryClient && (
+        <TimelinePreferencesBridge onPreferences={setReplanPreferences} />
+      )}
       <section className="relative shrink-0 border-b border-secondary px-5 pb-5 pt-2">
         {movingEntry && (
           <div className="absolute inset-0 z-[1] flex items-center gap-3 bg-background px-5 pb-5 pt-2">
