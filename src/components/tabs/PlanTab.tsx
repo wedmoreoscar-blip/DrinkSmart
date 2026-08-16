@@ -16,6 +16,7 @@ import {
   resolvePlanningWindow,
 } from "@/lib/planGenerationContracts";
 import { applyRegenerationToDrinks } from "@/lib/sessionEngine";
+import { entryServingCount } from "@/components/picker/wave5-picker";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import DrinksTab from "./DrinksTab";
 import MenuScannerTab from "./MenuScannerTab";
@@ -264,6 +265,19 @@ const PlanTab = ({
     () => computeTargetEthanolMl(state.userMetrics, state.targetBAC, state.timeDelta),
     [state.userMetrics, state.targetBAC, state.timeDelta]
   );
+
+  // The night's total: pricePerUnit × servings, present only when some plan
+  // entry actually carries a price — never a guessed £0.
+  const nightCost = useMemo(() => {
+    let total = 0;
+    let priced = false;
+    for (const drink of state.drinks) {
+      if (drink.pricePerUnit == null) continue;
+      priced = true;
+      total += drink.pricePerUnit * entryServingCount(drink);
+    }
+    return priced ? total : null;
+  }, [state.drinks]);
 
   const lockedEntries = useMemo(
     () => lockedDrinkEntries(state.drinks, state.lockedDrinkIds, catalog),
@@ -593,6 +607,16 @@ const PlanTab = ({
             </div>
           )}
         </div>
+        {nightCost != null && (
+          <div className="flex-none text-right">
+            <div className="text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
+              Total
+            </div>
+            <div className="mt-[6px] text-[28px] font-medium leading-[1.1] tabular-nums text-foreground">
+              £{nightCost.toFixed(2)}
+            </div>
+          </div>
+        )}
       </div>
 
         <div className="mt-3 flex items-center gap-3">

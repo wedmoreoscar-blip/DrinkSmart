@@ -96,8 +96,16 @@ const DEFAULT_SERVING_IDS: Record<PickerCategoryLabel, string> = {
   "Soft & low-alcohol": SERVE_SERVING_ID,
 };
 
-/** The serving a drink defaults to when it is first selected or used in a swap. */
-export function defaultServingFor(drink: EstablishmentDrink): ServingOption {
+/**
+ * The serving a drink defaults to when it is first selected or used in a swap.
+ * A remembered serve is the drink's own: the row opens on Custom with the
+ * user's ml pre-filled, and the least-alcohol sort and swap eligibility both
+ * rank on the serve the user actually drinks.
+ */
+export function defaultServingFor(
+  drink: EstablishmentDrink & { rememberedServingMl?: number | null },
+): ServingOption {
+  if (drink.rememberedServingMl != null) return CUSTOM;
   const options = servingOptionsFor(drink);
   const label = pickerCategoryFor(drink.category, drink.category_label);
   // An uncategorised row is a kept custom drink: its single serve is its own.
@@ -139,9 +147,14 @@ export function pureAlcoholMl(
   return ml == null ? 0 : (ml * (drink.abv ?? 0)) / 100;
 }
 
-/** Scale the database price to the selected serving volume. */
+/**
+ * Scale the price to the selected serving volume. The user's remembered serve
+ * is the volume their price is for, so it takes precedence over the row's own
+ * database serving, its default rung, and the category fallback as the base
+ * the scaling divides by.
+ */
 export function servingPrice(
-  drink: EstablishmentDrink,
+  drink: EstablishmentDrink & { rememberedServingMl?: number | null },
   servingId: string,
   customMl: number | null,
 ): number | null {
@@ -149,6 +162,7 @@ export function servingPrice(
   const selectedMl = servingMl(drink, servingId, customMl);
   if (selectedMl === null) return null;
   const pricedMl =
+    drink.rememberedServingMl ??
     databaseVolumeMl(drink) ??
     defaultServingFor(drink).ml ??
     fallbackServeMl(drink.category, drink.category_label);

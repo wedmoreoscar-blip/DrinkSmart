@@ -15,6 +15,8 @@ type PickerTrayProps = {
   actionLabel?: string;
   traySub?: string;
   advice?: string | null;
+  /** Running plan cost; null when no entry carries a price. */
+  cost?: number | null;
 };
 
 export const PickerTray = ({
@@ -30,6 +32,7 @@ export const PickerTray = ({
   actionLabel,
   traySub,
   advice = null,
+  cost = null,
 }: PickerTrayProps) => {
   const target = targetMl ?? 0;
   const reading = hasPending
@@ -53,6 +56,9 @@ export const PickerTray = ({
       <div className="min-w-0 flex-1">
         <div className="text-lead font-medium leading-[1.1] tabular-nums text-foreground">
           {reading}
+          {cost != null && (
+            <span className="ml-2 text-[#75798c]">· £{cost.toFixed(2)}</span>
+          )}
         </div>
         {advice ? (
           <div className="mt-[5px] text-note leading-[1.4] text-[#cfd3e5]">{advice}</div>

@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DrinkFilterPopover, type DrinkFilters } from "@/components/DrinkFilterPopover";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
+import { compareByPriceCheapestFirst } from "@/lib/drinkOverrides";
 import { CATEGORY_COPY, pickerScreenCategoryFor } from "./picker-copy";
 import { defaultServingFor } from "./picker-model";
 import { DrinkRow } from "./DrinkRow";
@@ -33,6 +34,7 @@ type CategoryScreenProps = {
   onQuantityChange: (quantity: number) => void;
   onServingChange: (servingId: string) => void;
   onCustomMlChange: (ml: number | null) => void;
+  onPriceCommit?: (drinkId: string, price: number | null) => void;
   onBack: () => void;
 };
 
@@ -62,6 +64,7 @@ export const CategoryScreen = ({
   onQuantityChange,
   onServingChange,
   onCustomMlChange,
+  onPriceCommit,
   onBack,
 }: CategoryScreenProps) => {
   const [sortOpen, setSortOpen] = useState(false);
@@ -87,7 +90,7 @@ export const CategoryScreen = ({
           pureAlcoholMl(a, defaultServingFor(a).id, null) -
           pureAlcoholMl(b, defaultServingFor(b).id, null)
       );
-    else sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+    else sorted.sort(compareByPriceCheapestFirst);
     return sorted;
   }, [drinks, filters.abvRange, filters.selectedCategories, sort]);
 
@@ -190,6 +193,7 @@ export const CategoryScreen = ({
               onCustomMlChange={(next) =>
                 planned ? onPlannedCustomMlChange?.(drink.id, next) : onCustomMlChange(next)
               }
+              onPriceCommit={(price) => onPriceCommit?.(drink.id, price)}
             />
           );
         })}

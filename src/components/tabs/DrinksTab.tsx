@@ -4,6 +4,7 @@ import type { AlcoholTimelineEntryInput } from "@/lib/sessionEngine";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
 import { useEstablishments, type EstablishmentDrink } from "@/hooks/useEstablishments";
 import { useSavedDrinks } from "@/hooks/useSavedDrinks";
+import { useDrinkOverrides } from "@/hooks/useDrinkOverrides";
 import type { DrinkFilters } from "@/components/DrinkFilterPopover";
 import { CategoryScreen, type PlannedRow } from "@/components/picker/CategoryScreen";
 import { CustomDrinkSheet, type CustomDrinkDraft } from "@/components/picker/CustomDrinkSheet";
@@ -138,6 +139,7 @@ const DrinksTab = ({
     addEstablishmentDrink,
   } = useEstablishments();
   const { isLoggedIn: hasAccount, saveDrink, savedDrinks } = useSavedDrinks();
+  const { setOverride } = useDrinkOverrides();
 
   const drinks = state.drinks;
 
@@ -269,6 +271,19 @@ const DrinksTab = ({
     (total, entry) => total + entryServingCount(entry),
     0,
   );
+
+  // Running plan cost: pricePerUnit × servings, present only when some entry
+  // actually carries a price — never a guessed £0.
+  const committedCost = useMemo(() => {
+    let total = 0;
+    let priced = false;
+    for (const entry of planEntries) {
+      if (entry.pricePerUnit == null) continue;
+      priced = true;
+      total += entry.pricePerUnit * entryServingCount(entry);
+    }
+    return priced ? total : null;
+  }, [planEntries]);
 
   const targetMl = calculateTotalPureAlcoholNeeded();
 
@@ -566,6 +581,13 @@ const DrinksTab = ({
   const handleSelect = (drinkId: string) => {
     const drink = venueDrinks.find((d) => d.id === drinkId);
     if (!drink) return;
+    // A remembered serve opens the row as the user left it: Custom already
+    // selected and the box pre-filled with their serve.
+    if (drink.rememberedServingMl != null) {
+      setSelected({ drinkId, quantity: 1, servingId: "custom" });
+      setCustomMl(drink.rememberedServingMl);
+      return;
+    }
     setSelected({ drinkId, quantity: 1, servingId: defaultServingFor(drink).id });
     setCustomMl(null);
   };
@@ -574,6 +596,12 @@ const DrinksTab = ({
     if (!selectedDrink || !selected) return;
     if (selectedServingMl == null) return;
     if (targetMl != null && committedMl + pendingMl > targetMl * 1.2) return;
+    // Committing a custom ml remembers that serve for the venue drink, so the
+    // next session opens this row on Custom at the same volume. A fixed rung
+    // or the sheet's per-entry Serve field never writes an override.
+    if (selected.servingId === "custom" && customMl != null) {
+      void setOverride(selectedDrink.id, { serving_ml: customMl });
+    }
     const category = plannedCategoryFor(selectedDrink);
     const entry: AlcoholTimelineEntryInput = {
       id: crypto.randomUUID(),
@@ -841,6 +869,9 @@ const DrinksTab = ({
               setSelected((current) => (current ? { ...current, servingId } : current))
             }
             onCustomMlChange={setCustomMl}
+            onPriceCommit={(drinkId, price) => {
+              void setOverride(drinkId, { price });
+            }}
             onBack={() => setCategory(null)}
           />
         ) : (
@@ -998,6 +1029,7 @@ const DrinksTab = ({
         pendingMl={trayPendingMl}
         pendingQuantity={swapMode ? 1 : (selected?.quantity ?? 0)}
         hasPending={swapMode ? swapHasPending : normalHasPending}
+        cost={committedCost}
         onDone={onNext}
         onAdd={swapMode ? handleCommitSwap : handleAddSelected}
         addDisabled={swapMode ? !swapHasPending : overCeiling}
