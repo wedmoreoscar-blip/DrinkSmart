@@ -71,6 +71,8 @@ export const useSessionHistory = () => {
         duration_minutes: input.duration_minutes,
         buzz_level: input.buzz_level,
         drinks: input.drinks as unknown as Json,
+        budget_min: input.budget_min,
+        budget_max: input.budget_max,
       };
       const { error } = await supabase.from("user_session_history").insert(row);
       if (error) {

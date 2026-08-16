@@ -1245,6 +1245,28 @@ Changing it **deletes working behaviour for existing anonymous users**, so it is
 announced switch rather than a silent regression. The anonymous → account upgrade must still carry
 the row over, which it does today via `user_id` preservation.
 
+## LOCKED — The benchmark re-run is its own stage, and it carries the price backfill (2026-08-16)
+
+Settled by Oscar. Amends the sequencing in `price-and-account-value` §4.E and §7, which put the
+re-run inside E.
+
+- **E ships un-benchmarked.** The price column on `CatalogItem`, the budget in `preferences`, the
+  prompt rule and the returned plan cost all land without a re-run behind them. The 30-trials-per-
+  provider evidence in *Provider routing after the CN jurisdiction guardrail* stops describing what
+  ships the moment E merges, and that is accepted rather than avoided.
+- **The stage after E is A plus the re-run, together.** Real Wetherspoons prices go into the seeded
+  rows first; the benchmark then runs against the catalogue and prompt that production actually
+  sends.
+- **The reason is that one re-run replaces two.** Benchmarking E while every `price` is null measures
+  a prompt whose price column is empty — not the shipping token count, not the shipping selection
+  pressure. Running it after the backfill measures the real thing once, instead of once now and
+  again after A.
+- **So A+re-run is the gate on E's behaviour being trusted,** not a follow-up to it. Until that stage
+  completes, E's plans are unvalidated against the ±10% admission gate.
+- **`Cheapest first` (C) is inert on the same dependency.** It is built against a column that is null
+  for every seeded row and starts working when A lands; C still needs its stated null-price sort
+  rule (sort last, visibly) so the inert period is honest rather than silently mis-ordered.
+
 ## PENDING — Price capture, and the one open decision (2026-08-16)
 
 Specified in `price-and-account-value`; **nothing built**. Settled within it: a single

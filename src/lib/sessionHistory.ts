@@ -24,12 +24,21 @@ export type SessionSnapshot = {
   buzz_level: number;
   drinks: SessionHistoryDrink[];
   completed_at: string;
+  /**
+   * The night's money range, in whole pounds. Both nullable: rows written
+   * before the budget existed carry nulls, and `budget_max` is null whenever
+   * the user set no upper limit.
+   */
+  budget_min: number | null;
+  budget_max: number | null;
 };
 
 export type SaveSessionSnapshotInput = {
   duration_minutes: number;
   buzz_level: number;
   drinks: SessionHistoryDrink[];
+  budget_min: number | null;
+  budget_max: number | null;
 };
 
 export function historyAccountUserId(session: Session | null): string | null {

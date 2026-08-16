@@ -40,6 +40,7 @@ vi.mock("@/contexts/AppContext", () => ({
       drinks: [{ id: "lager", category: "Beer & cider", drink: "Lager", quantity: "25", unit: "ml" }],
       lockedDrinkIds: [],
       delayedEntryMinutes: {},
+      budget: { min: 20, max: 60 },
     },
     reorderTimelineEntries: vi.fn(),
     toggleLockedDrink: vi.fn(),
@@ -113,6 +114,8 @@ describe("TimelineTab wind-down routing", () => {
       duration_minutes: 240,
       buzz_level: 4,
       drinks: [expect.objectContaining({ id: "lager", drink: "Lager" })],
+      budget_min: 20,
+      budget_max: 60,
     });
     expect(saveSessionSnapshotMock.mock.invocationCallOrder[0]).toBeLessThan(
       endSessionMock.mock.invocationCallOrder[0],

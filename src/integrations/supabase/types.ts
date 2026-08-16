@@ -234,6 +234,8 @@ export type Database = {
       }
       user_session_history: {
         Row: {
+          budget_max: number | null
+          budget_min: number | null
           buzz_level: number
           completed_at: string
           drinks: Json
@@ -242,6 +244,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          budget_max?: number | null
+          budget_min?: number | null
           buzz_level: number
           completed_at?: string
           drinks: Json
@@ -250,6 +254,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          budget_max?: number | null
+          budget_min?: number | null
           buzz_level?: number
           completed_at?: string
           drinks?: Json

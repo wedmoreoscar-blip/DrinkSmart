@@ -17,6 +17,11 @@ import {
 } from "@/lib/sessionEngine";
 import { recordTimelineConsumption } from "@/lib/timelineConsumption";
 import type { SessionSnapshot } from "@/lib/sessionHistory";
+import {
+  normalizeBudgetRange,
+  WIDE_BUDGET_RANGE,
+  type BudgetRange,
+} from "@/lib/budget";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -65,12 +70,14 @@ type AppState = {
   consumedTimelineEntries: ConsumedSnapshot[]; // logged consumptions keyed by entry id
   delayedEntryMinutes: Record<string, number>; // accumulated delay minutes keyed by entry id
   effectivePlanEndTime: Date | null; // derived plan end, recomputed never persisted
+  budget: BudgetRange; // the night's money range; belongs to the session, not the user
 };
 
 type AppContextType = {
   state: AppState;
   updateUserMetrics: (metrics: Partial<UserMetrics>) => void;
   updateInebriationLevel: (level: number) => void;
+  updateBudget: (budget: BudgetRange) => void;
   updateDrinks: (drinks: DrinkEntry[]) => void;
   updateTimeline: (startTime: number, isRunning: boolean) => void;
   updateStartTime: (startTime: Date) => void;
@@ -124,6 +131,7 @@ const initialState: AppState = {
   consumedTimelineEntries: [],
   delayedEntryMinutes: {},
   effectivePlanEndTime: null,
+  budget: { ...WIDE_BUDGET_RANGE },
 };
 
 /**
@@ -156,6 +164,10 @@ function resetActiveSessionState(prev: AppState, now: Date): AppState {
     consumedTimelineEntries: [],
     delayedEntryMinutes: {},
     effectivePlanEndTime: null,
+    // A budget describes one evening, not the drinker, so the next night
+    // starts maximally wide rather than inheriting this one's band. Duration
+    // is retained above because it is a habit; what you will spend is not.
+    budget: { ...WIDE_BUDGET_RANGE },
   };
 }
 
@@ -198,6 +210,10 @@ function loadSessionSnapshotState(
     consumedTimelineEntries: [],
     delayedEntryMinutes: {},
     effectivePlanEndTime: null,
+    // `use last night` brings the band back with the rest of the settings. A
+    // snapshot saved before the columns existed carries nulls and restores
+    // wide, which is what that night effectively had.
+    budget: normalizeBudgetRange(snapshot.budget_min, snapshot.budget_max),
   };
 }
 
@@ -283,6 +299,7 @@ function hydrateInitialState(): AppState {
     breaks: persisted.breaks.map((breakEntry) => ({ kind: "break" as const, ...breakEntry })),
     consumedTimelineEntries: persisted.consumedTimelineEntries,
     delayedEntryMinutes: persisted.delayedEntryMinutes,
+    budget: persisted.budget,
   };
 }
 
@@ -300,6 +317,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       breaks: state.breaks,
       consumedTimelineEntries: state.consumedTimelineEntries,
       delayedEntryMinutes: state.delayedEntryMinutes,
+      budget: state.budget,
     });
   }, [
     state.inebriationLevel,
@@ -310,6 +328,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     state.breaks,
     state.consumedTimelineEntries,
     state.delayedEntryMinutes,
+    state.budget,
   ]);
 
   const updateUserMetrics = useCallback((metrics: Partial<UserMetrics>) => {
@@ -327,6 +346,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       targetBAC: { min: bacRange.min_bac, max: bacRange.max_bac },
     }));
   };
+
+  const updateBudget = useCallback((budget: BudgetRange) => {
+    setState((prev) => {
+      const next = normalizeBudgetRange(budget.min, budget.max);
+      if (next.min === prev.budget.min && next.max === prev.budget.max) return prev;
+      return { ...prev, budget: next };
+    });
+  }, []);
 
   const updateDrinks = (drinks: DrinkEntry[]) => {
     setState((prev) => {
@@ -644,6 +671,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         state,
         updateUserMetrics,
         updateInebriationLevel,
+        updateBudget,
         updateDrinks,
         updateTimeline,
         updateStartTime,

@@ -9,7 +9,14 @@
  */
 
 import { sourceDrinkIdFromEntryId } from "@/lib/sessionEngine";
+import { normalizeBudgetRange, WIDE_BUDGET_RANGE, type BudgetRange } from "@/lib/budget";
 
+// Deliberately still `.v1` after the budget range was added. The versioning
+// rule exists to stop new code misreading an old shape, and it cannot here:
+// both budget fields are additive and optional, so a payload written before
+// them simply lacks them and hydrates to the wide default a fresh session
+// would have got anyway. Bumping would discard every in-progress session for
+// no gain.
 const STORAGE_KEY = "drinksmart.session.v1";
 const SAVE_DEBOUNCE_MS = 500;
 
@@ -52,6 +59,10 @@ export type PersistedSession = {
   breaks: PersistedBreak[];
   consumedTimelineEntries: PersistedConsumedEntry[];
   delayedEntryMinutes: Record<string, number>;
+  /** Whole pounds. Absent in payloads written before the budget range. */
+  budgetMin?: number;
+  /** Whole pounds, or null for no upper limit. */
+  budgetMax?: number | null;
 };
 
 export type LoadedConsumedEntry = Omit<PersistedConsumedEntry, "consumedAt"> & {
@@ -60,11 +71,17 @@ export type LoadedConsumedEntry = Omit<PersistedConsumedEntry, "consumedAt"> & {
 
 export type LoadedSession = Omit<
   PersistedSession,
-  "drinkingStartTime" | "drinkingTargetTime" | "consumedTimelineEntries"
+  | "drinkingStartTime"
+  | "drinkingTargetTime"
+  | "consumedTimelineEntries"
+  | "budgetMin"
+  | "budgetMax"
 > & {
   drinkingStartTime: Date | null;
   drinkingTargetTime: Date | null;
   consumedTimelineEntries: LoadedConsumedEntry[];
+  /** Always present once loaded: an absent stored budget becomes the wide default. */
+  budget: BudgetRange;
 };
 
 function parseDate(value: unknown): Date | null {
@@ -169,6 +186,10 @@ export function parseSession(raw: unknown): LoadedSession | null {
     breaks,
     consumedTimelineEntries,
     delayedEntryMinutes,
+    budget:
+      "budgetMin" in payload || "budgetMax" in payload
+        ? normalizeBudgetRange(payload.budgetMin, payload.budgetMax)
+        : { ...WIDE_BUDGET_RANGE },
   };
 }
 
@@ -187,6 +208,8 @@ export function serializeSession(session: LoadedSession): PersistedSession {
       pureAlcoholMl: entry.pureAlcoholMl,
     })),
     delayedEntryMinutes: session.delayedEntryMinutes,
+    budgetMin: session.budget.min,
+    budgetMax: session.budget.max,
   };
 }
 

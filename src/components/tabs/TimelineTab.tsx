@@ -272,6 +272,8 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
           ),
           buzz_level: Math.max(1, Math.min(state.inebriationLevel, 7)),
           drinks: realSessionDrinks(state.drinks),
+          budget_min: state.budget.min,
+          budget_max: state.budget.max,
         });
       }
     } catch {

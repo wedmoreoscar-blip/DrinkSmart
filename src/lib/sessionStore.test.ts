@@ -39,6 +39,7 @@ function validLoadedSession(): LoadedSession {
       },
     ],
     delayedEntryMinutes: { "beer-1:unit:2": 15, "wine-1:unit:1": 30 },
+    budget: { min: 20, max: 60 },
   };
 }
 
@@ -95,6 +96,38 @@ describe("parseSession", () => {
     expect(parsed!.consumedTimelineEntries).toEqual([]);
     expect(parsed!.delayedEntryMinutes).toEqual({});
     expect(parsed!.drinkingStartTime!.getTime()).toBe(Date.parse("2026-01-10T21:30:00Z"));
+  });
+
+  // The budget is why the storage key stayed `.v1`: a payload written before
+  // it must keep its session and pick up the wide default, not be discarded.
+  it("hydrates a pre-budget payload to the wide default", () => {
+    const parsed = parseSession({
+      inebriationLevel: 2,
+      drinks: [],
+      lockedDrinkIds: [],
+    });
+    expect(parsed!.budget).toEqual({ min: 0, max: null });
+  });
+
+  it("round-trips a bounded budget and a no-limit budget", () => {
+    const bounded = validLoadedSession();
+    expect(parseSession(serializeSession(bounded))!.budget).toEqual({ min: 20, max: 60 });
+
+    const noLimit = { ...validLoadedSession(), budget: { min: 15, max: null } };
+    const persisted = serializeSession(noLimit);
+    expect(persisted.budgetMax).toBeNull();
+    expect(parseSession(persisted)!.budget).toEqual({ min: 15, max: null });
+  });
+
+  it("repairs a corrupt stored budget instead of dropping the session", () => {
+    const parsed = parseSession({
+      inebriationLevel: 3,
+      drinks: [],
+      budgetMin: -40,
+      budgetMax: "sixty",
+    });
+    expect(parsed).not.toBeNull();
+    expect(parsed!.budget).toEqual({ min: 0, max: null });
   });
 
   it("returns null for non-object payloads and missing inebriationLevel", () => {

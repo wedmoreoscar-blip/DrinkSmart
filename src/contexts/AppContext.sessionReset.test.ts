@@ -29,6 +29,7 @@ describe("resetActiveSessionState", () => {
       consumedTimelineEntries: [{ entryId: "old:unit:1" }],
       delayedEntryMinutes: { "old:unit:1": 15 },
       effectivePlanEndTime: new Date("2026-08-15T22:15:00Z"),
+      budget: { min: 30, max: 80 },
     } as unknown as Parameters<typeof resetActiveSessionState>[0];
     const now = new Date("2026-08-16T12:30:00Z");
 
@@ -36,6 +37,9 @@ describe("resetActiveSessionState", () => {
 
     expect(next.userMetrics).toBe(previous.userMetrics);
     expect(next.inebriationLevel).toBe(4);
+    // Duration is a habit and is retained; what you will spend is not, so the
+    // next night starts maximally wide.
+    expect(next.budget).toEqual({ min: 0, max: null });
     expect(next.targetBAC).toBe(previous.targetBAC);
     expect(next.drinks).toEqual([
       { id: "1", category: "", drink: "", quantity: "", unit: "ml", isCustom: false },
@@ -136,6 +140,8 @@ describe("loadSessionSnapshotState", () => {
         { id: "saved-a", category: "Beer & cider", drink: "Lager", quantity: "568", unit: "ml" as const },
         { id: "saved-b", category: "Spirits", drink: "Vodka", quantity: "25", unit: "ml" as const },
       ],
+      budget_min: 25,
+      budget_max: 70,
     };
 
     const next = loadSessionSnapshotState(previous, snapshot, now);
@@ -153,5 +159,49 @@ describe("loadSessionSnapshotState", () => {
     expect(next.drinkingStartTime).toEqual(now);
     expect(next.drinkingTargetTime).toEqual(new Date("2026-08-16T16:00:00Z"));
     expect(next.timeDelta).toBe(3.5);
+  });
+
+  it("carries the snapshot's budget range back with the rest of the settings", () => {
+    const previous = { budget: { min: 0, max: null } } as unknown as Parameters<
+      typeof loadSessionSnapshotState
+    >[0];
+    const next = loadSessionSnapshotState(
+      previous,
+      {
+        id: "s",
+        user_id: "u",
+        duration_minutes: 180,
+        buzz_level: 3,
+        completed_at: "2026-08-15T22:00:00Z",
+        drinks: [],
+        budget_min: 25,
+        budget_max: 70,
+      },
+      new Date("2026-08-16T12:30:00Z"),
+    );
+    expect(next.budget).toEqual({ min: 25, max: 70 });
+  });
+
+  // Nights recorded before the budget columns existed carry nulls; they had no
+  // band, so they restore as the wide default rather than as £0–£0.
+  it("restores a pre-budget snapshot as the wide default", () => {
+    const previous = { budget: { min: 30, max: 80 } } as unknown as Parameters<
+      typeof loadSessionSnapshotState
+    >[0];
+    const next = loadSessionSnapshotState(
+      previous,
+      {
+        id: "s",
+        user_id: "u",
+        duration_minutes: 180,
+        buzz_level: 3,
+        completed_at: "2026-08-15T22:00:00Z",
+        drinks: [],
+        budget_min: null,
+        budget_max: null,
+      },
+      new Date("2026-08-16T12:30:00Z"),
+    );
+    expect(next.budget).toEqual({ min: 0, max: null });
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppContext } from "@/contexts/AppContext";
 import { useUserMetrics } from "@/hooks/useUserMetrics";
@@ -28,6 +29,14 @@ import {
   type GeneratePlanInput,
 } from "@/lib/generatePlan";
 import { buildActiveVenueCatalog } from "@/lib/planCatalog";
+import {
+  budgetRangeToSlider,
+  formatBudgetRange,
+  isWideBudgetRange,
+  sliderToBudgetRange,
+  BUDGET_SLIDER_MAX_POUNDS,
+  BUDGET_STEP_POUNDS,
+} from "@/lib/budget";
 
 const DEFAULT_DURATION_MINUTES = 180;
 const MIN_DURATION = 60;
@@ -145,6 +154,7 @@ const PlanTab = ({
     updateDrinkingStartTime,
     updateDrinkingTargetTime,
     updateDrinks,
+    updateBudget,
     loadSessionSnapshot,
   } = useAppContext();
   const { preferences } = useUserMetrics();
@@ -244,6 +254,11 @@ const PlanTab = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duration, state.drinkingStartTime]);
+
+  const budgetSliderValue = useMemo(
+    () => budgetRangeToSlider(state.budget),
+    [state.budget],
+  );
 
   const targetEthanolMl = useMemo(
     () => computeTargetEthanolMl(state.userMetrics, state.targetBAC, state.timeDelta),
@@ -522,7 +537,33 @@ const PlanTab = ({
         </div>
       </div>
 
-      <div className="mt-auto flex items-center gap-4 rounded-[14px] bg-[#1c1e2c] py-[14px] px-[18px]">
+      {/* Budget — a property of tonight, beside duration and buzz. The top
+          stop is "no limit", which is where a fresh session starts, so an
+          untouched budget constrains nothing. Carries the `mt-auto` that used
+          to sit on the target vessel, so the pair still bottoms out the column. */}
+      <div className="mt-auto pt-[18px]">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-label font-medium uppercase text-muted-foreground">Budget</span>
+          <span className="text-[28px] font-medium leading-[1.1] tabular-nums text-foreground">
+            {formatBudgetRange(state.budget)}
+          </span>
+        </div>
+        <Slider
+          className="mt-[10px]"
+          value={budgetSliderValue}
+          onValueChange={(value) => updateBudget(sliderToBudgetRange(value))}
+          min={0}
+          max={BUDGET_SLIDER_MAX_POUNDS}
+          step={BUDGET_STEP_POUNDS}
+        />
+        <div className="mt-[6px] text-[15px] leading-[1.3] text-muted-foreground">
+          {isWideBudgetRange(state.budget)
+            ? "no limit either way — set a floor to keep the night off the cheapest shelf"
+            : "the floor shapes what fills your target, never how much you drink"}
+        </div>
+      </div>
+
+      <div className="mt-[18px] flex items-center gap-4 rounded-[14px] bg-[#1c1e2c] py-[14px] px-[18px]">
         <div className="relative h-[88px] w-[38px] flex-none overflow-hidden rounded-[12px] bg-[#161826] shadow-[0_0_0_1px_#383a46]">
           <div
             className="absolute inset-x-0 bottom-0 bg-primary opacity-[0.85]"
