@@ -16,6 +16,7 @@ interface CatalogItem {
   abv: number;
   typical_ml: number;
   category: string;
+  price: number | null;
 }
 
 interface LockedDrink {
@@ -28,6 +29,8 @@ interface LockedDrink {
 interface Preferences {
   sweet: number;
   strong: number;
+  budget_min: number;
+  budget_max: number | null;
   categories_liked: string[];
   categories_avoided: string[];
 }
@@ -52,6 +55,7 @@ interface PlanResponse {
   drinks: PlanDrink[];
   notes: string;
   actual_total_ethanol_ml?: number;
+  plan_cost_pounds?: number | null;
 }
 
 const SYSTEM_INSTRUCTIONS = `You are a drink planning assistant for the DrinkSmart app.
@@ -60,7 +64,7 @@ You will receive:
 - A pure-ethanol budget in mL (target_ethanol_ml) — the total alcohol the user should consume
 - A drinking duration in minutes
 - Per-call user preferences (sweet 0-1, strong 0-1, categories liked/avoided)
-- A catalog of available drinks. Each row gives (id | name | abv% | typical_ml | ethanol_ml | category) where ethanol_ml is the pure-ethanol contribution of ONE typical serving.
+- A catalog of available drinks. Each row gives (id | name | abv% | typical_ml | ethanol_ml | price | category) where ethanol_ml is the pure-ethanol contribution of ONE typical serving and price is the cost of one typical serving in pounds. A price of `-` means the price is unknown; never treat an unknown price as cheap.
 
 Your job: select drinks from the catalog so that the total ethanol reaches target_ethanol_ml (aim within ±5%, never undershoot by more than 10%), and order them.
 
@@ -89,6 +93,13 @@ Selection bias from preferences (soft):
 - categories_liked → boost these
 - categories_avoided → exclude entirely (hard rule above)
 
+Budget (soft, never overrides the ethanol target):
+- Reaching target_ethanol_ml is the first priority; budget never justifies undershooting it.
+- With prices known, aim for a total plan cost inside budget_min–budget_max.
+- budget_min is not a minimum spend to pad out: prefer better drinks at similar ethanol, not more drinks.
+- budget_min 0 and budget_max null mean the budget is unset — do not let it influence selection at all.
+- A price of - means unknown: never prefer or avoid a drink on unknown cost.
+
 Workflow: draft your picks, call calculate_ethanol to verify, adjust if needed, then call submit_plan.`;
 
 function ethanolPerServing(item: CatalogItem): number {
@@ -97,10 +108,10 @@ function ethanolPerServing(item: CatalogItem): number {
 
 function buildCatalogBlock(catalog: CatalogItem[]): string {
   return [
-    "Drink catalog (id | name | abv% | typical_ml | ethanol_ml | category):",
+    "Drink catalog (id | name | abv% | typical_ml | ethanol_ml | price | category):",
     ...catalog.map(
       (c) =>
-        `${c.id} | ${c.name} | ${c.abv}% | ${c.typical_ml}ml | ${ethanolPerServing(c).toFixed(1)}ml | ${c.category}`
+        `${c.id} | ${c.name} | ${c.abv}% | ${c.typical_ml}ml | ${ethanolPerServing(c).toFixed(1)}ml | ${c.price == null ? "-" : "£" + c.price} | ${c.category}`
     ),
   ].join("\n");
 }
@@ -128,7 +139,7 @@ function validateSubmittedPlan(
   plan: PlanResponse,
   catalogById: Map<string, CatalogItem>,
   targetEthanolMl: number
-): { ok: true; totalEthanolMl: number } | { ok: false; reason: string } {
+): { ok: true; totalEthanolMl: number; totalCostPounds: number | null } | { ok: false; reason: string } {
   if (!plan || typeof plan !== "object") {
     return { ok: false, reason: "submitted plan is not an object" };
   }
@@ -137,6 +148,7 @@ function validateSubmittedPlan(
   }
 
   let total = 0;
+  let totalCost: number | null = 0;
   for (const drink of plan.drinks) {
     if (!drink || typeof drink !== "object") {
       return { ok: false, reason: "malformed drink row" };
@@ -169,6 +181,16 @@ function validateSubmittedPlan(
       return { ok: false, reason: "ethanol must be finite and non-negative" };
     }
     total += ethanol;
+    // Plan cost, recomputed from catalog prices — never from a figure the
+    // model supplies. Any unpriced pick makes the whole total null rather
+    // than a partial sum presented as complete.
+    if (totalCost !== null) {
+      if (item.price === null || item.price === undefined) {
+        totalCost = null;
+      } else {
+        totalCost += item.price * drink.quantity;
+      }
+    }
   }
 
   if (targetEthanolMl > 0 && Math.abs(total - targetEthanolMl) / targetEthanolMl > 0.1) {
@@ -178,7 +200,7 @@ function validateSubmittedPlan(
     };
   }
 
-  return { ok: true, totalEthanolMl: total };
+  return { ok: true, totalEthanolMl: total, totalCostPounds: totalCost };
 }
 
 function buildUserMessage(req: GeneratePlanRequest): string {
@@ -188,6 +210,8 @@ function buildUserMessage(req: GeneratePlanRequest): string {
     `preferences:`,
     `  sweet: ${req.preferences.sweet}`,
     `  strong: ${req.preferences.strong}`,
+    `  budget_min: ${req.preferences.budget_min}`,
+    `  budget_max: ${req.preferences.budget_max}`,
     `  categories_liked: [${req.preferences.categories_liked.join(", ")}]`,
     `  categories_avoided: [${req.preferences.categories_avoided.join(", ")}]`,
     "",
@@ -333,7 +357,27 @@ function validateRequest(body: unknown): GeneratePlanRequest | string {
     return "preferences is required";
   }
 
-  return body as unknown as GeneratePlanRequest;
+  // Budget arrives on the request (whole pounds); absent or unreadable means
+  // unset — £0 – no limit — which must constrain nothing. It is carried on the
+  // Preferences object that reaches the model.
+  const budgetMin =
+    typeof b.budget_min === "number" && Number.isFinite(b.budget_min)
+      ? Math.max(0, b.budget_min)
+      : 0;
+  const budgetMax =
+    typeof b.budget_max === "number" && Number.isFinite(b.budget_max)
+      ? Math.max(0, b.budget_max)
+      : null;
+  const preferences = {
+    ...(b.preferences as Record<string, unknown>),
+    budget_min: budgetMin,
+    budget_max: budgetMax,
+  };
+
+  return {
+    ...(body as unknown as GeneratePlanRequest),
+    preferences: preferences as unknown as Preferences,
+  };
 }
 
 function jsonResponse(payload: unknown, status = 200): Response {
@@ -399,6 +443,7 @@ export default {
 
       let plan: PlanResponse | null = null;
       let acceptedEthanolMl = 0;
+      let acceptedCostPounds: number | null = null;
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
 
@@ -544,6 +589,7 @@ export default {
             }
             plan = submitted;
             acceptedEthanolMl = validation.totalEthanolMl;
+            acceptedCostPounds = validation.totalCostPounds;
             messages.push({
               role: "tool",
               tool_call_id: tc.id,
@@ -575,13 +621,14 @@ export default {
       }
 
       console.log(
-        `plan: drinks=${plan.drinks.length} actual=${acceptedEthanolMl.toFixed(1)}ml target=${validated.target_ethanol_ml.toFixed(1)}ml`
+        `plan: drinks=${plan.drinks.length} actual=${acceptedEthanolMl.toFixed(1)}ml target=${validated.target_ethanol_ml.toFixed(1)}ml cost=${acceptedCostPounds === null ? "unknown" : "£" + acceptedCostPounds}`
       );
 
       return jsonResponse({
         drinks: plan.drinks,
         notes: plan.notes ?? "",
         actual_total_ethanol_ml: acceptedEthanolMl,
+        plan_cost_pounds: acceptedCostPounds,
       } satisfies PlanResponse);
     } catch (error) {
       console.error("Error in generate-plan function:", error);

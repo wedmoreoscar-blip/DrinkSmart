@@ -12,6 +12,8 @@ export type CatalogItem = {
   abv: number;
   typical_ml: number;
   category: string;
+  /** Price of one typical serving, in pounds. Absent when unknown. */
+  price?: number | null;
 };
 
 // Default serving sizes per static category. Used when neither the AI nor the
@@ -92,6 +94,7 @@ export function buildCatalogFromDrinks(drinks: EstablishmentDrink[]): CatalogIte
     abv: drink.abv ?? fallbackAbv(drink.category, drink.category_label),
     typical_ml: databaseVolumeMl(drink) ?? fallbackServeMl(drink.category, drink.category_label),
     category: catalogCategoryKey(drink),
+    price: drink.price,
   }));
 }
 
@@ -105,6 +108,7 @@ export function buildStaticCatalog(): CatalogItem[] {
       abv: option.abv,
       typical_ml: typicalMl,
       category: categoryKey,
+      price: null,
     }));
   });
 }
