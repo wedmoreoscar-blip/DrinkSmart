@@ -73,7 +73,7 @@ describe("Wave 5 picker serving contract", () => {
     const kept = drink("kept", "House negroni", 24, 90, "ml", "custom", "Other");
 
     expect(servingOptionsFor(kept)).toEqual([
-      { id: "saved", label: "90 ml", ml: 90 },
+      { id: "serve", label: "90 ml", ml: 90 },
       { id: "custom", label: "Custom", ml: null },
     ]);
     expect(defaultServingFor(kept).ml).toBe(90);
@@ -83,15 +83,14 @@ describe("Wave 5 picker serving contract", () => {
     expect(servingPrice(kept, defaultServingFor(kept).id, null)).toBe(5);
   });
 
-  it("falls back to the generic pair for an uncategorised row with no volume", () => {
+  it("falls back to the unknown-row 330 for an uncategorised row with no volume", () => {
     const unknown = drink("unknown", "Mystery", 5, null, "bottle", "custom", "Other");
 
     expect(servingOptionsFor(unknown)).toEqual([
-      { id: "database", label: "DB volume", ml: 330 },
-      { id: "standard", label: "Standard", ml: 330 },
+      { id: "serve", label: "330 ml", ml: 330 },
       { id: "custom", label: "Custom", ml: null },
     ]);
-    expect(defaultServingFor(unknown).id).toBe("database");
+    expect(defaultServingFor(unknown).id).toBe("serve");
   });
 
   // The seeded Wetherspoons rows carry no volume and no volume_unit at all: the
@@ -101,20 +100,36 @@ describe("Wave 5 picker serving contract", () => {
     const seeded = drink("lit", "Long Island Iced Tea", 22, null, "", "cocktails", "Cocktails");
 
     expect(databaseVolumeMl(seeded)).toBeNull();
-    expect(defaultServingFor(seeded).id).toBe("database");
+    expect(defaultServingFor(seeded).id).toBe("serve");
     expect(defaultServingFor(seeded).ml).toBe(250);
     // 250 × 22% = 55 ml of ethanol, not the 72.6 that 330 ml produced.
     expect(pureAlcoholMl(seeded, defaultServingFor(seeded).id, null)).toBeCloseTo(55, 6);
   });
 
-  it("keeps Database and Standard distinct even when both resolve to 330 ml", () => {
+  // A ladderless row has exactly one fixed serve — its own volume when it has
+  // one — plus Custom. The old "DB volume + Standard 330" pair pretended there
+  // was a stored figure to differ from, and for a cocktail it was one tap back
+  // to a bottle-sized pour.
+  it("offers one serving plus Custom for a row with no serving ladder", () => {
     const cocktail = drink("can", "Cocktail can", 5, 330, "ml", "cocktails", "Cocktails");
-
     expect(servingOptionsFor(cocktail)).toEqual([
-      { id: "database", label: "DB volume", ml: 330 },
-      { id: "standard", label: "Standard", ml: 330 },
+      { id: "serve", label: "330 ml", ml: 330 },
       { id: "custom", label: "Custom", ml: null },
     ]);
+
+    // Low and no-alcohol keep the 330 bottle; only cocktails moved to 250.
+    const lowAlcohol = drink("zero", "Alcohol-free lager", 0.5, null, "", "low-alcohol", "Low alcohol");
+    expect(servingOptionsFor(lowAlcohol)[0].ml).toBe(330);
+
+    // Custom survives on every category, ladder or not.
+    for (const row of [
+      cocktail,
+      drink("beer", "Carling", 4, 568, "ml"),
+      drink("gin", "Gordon's", 40, 25, "ml", "gin", "Gin"),
+      drink("wine", "Merlot", 12, 175, "ml", "wine_red", "Red Wine"),
+    ]) {
+      expect(servingOptionsFor(row).at(-1)).toEqual({ id: "custom", label: "Custom", ml: null });
+    }
   });
 
   it("converts database units, including fractional and half-pint servings", () => {
@@ -229,7 +244,7 @@ describe("Wave 5 picker serving contract", () => {
         drink={drink("gap", "Unknown strength", null, null, "bottle", "unknown", "Unknown")}
         selected
         quantity={1}
-        servingId="database"
+        servingId="serve"
         customMl={null}
         onSelect={() => {}}
         onQuantityChange={() => {}}
@@ -240,11 +255,12 @@ describe("Wave 5 picker serving contract", () => {
 
     expect(html).toContain("Decrease quantity");
     expect(html).toContain("Increase quantity");
-    expect(html).toContain("DB volume");
-    expect(html).toContain("Standard");
+    // One serving control, labelled with its ml, plus Custom.
+    expect(html).toContain("330 ml");
     expect(html).toContain("Custom");
+    expect(html).not.toContain("DB volume");
+    expect(html).not.toContain("Standard");
     expect(html).toContain("—% · 330 ml · 0.0 ml ethanol");
-    expect(html).not.toContain("—% · DB volume ·");
     expect(html).not.toContain("0.0% · 330 ml");
   });
 
