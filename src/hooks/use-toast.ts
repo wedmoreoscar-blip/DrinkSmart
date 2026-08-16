@@ -3,7 +3,12 @@ import * as React from "react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+// How long a dismissed toast lingers in state before being dropped — just long
+// enough to cover the exit animation. The shadcn template ships this as
+// 1000000 (16.7 minutes): Radix closes the toast visually after `duration`, but
+// the entry stays mounted, so its viewport keeps intercepting clicks long after
+// the toast is invisible.
+const TOAST_REMOVE_DELAY = 3000;
 
 type ToasterToast = ToastProps & {
   id: string;

@@ -71,7 +71,7 @@ vi.mock("@/hooks/useNotifications", () => ({
 vi.mock("@/hooks/useWebDrinkReminders", () => ({ useWebDrinkReminders: vi.fn() }));
 vi.mock("@dnd-kit/core", () => ({
   DndContext: ({ children }: { children: React.ReactNode }) => children,
-  closestCenter: vi.fn(),
+  closestCorners: vi.fn(),
   KeyboardSensor: class {},
   PointerSensor: class {},
   useSensor: vi.fn(),

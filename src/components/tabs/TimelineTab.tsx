@@ -37,7 +37,7 @@ import WindDownScreen from "./WindDownScreen";
 import { OZ_ML, PINT_ML, SHOT_ML, GLASS_ML } from "@/lib/drinkConstants";
 import {
   DndContext,
-  closestCenter,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -165,7 +165,9 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
   useWebDrinkReminders(state.drinkTimeline, !isNative && webRemindersEnabled);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 125, tolerance: 8 } }),
+    // 62ms long-press to enter drag mode (halved from 125ms). `tolerance` is the
+    // slop allowed during that press, not the reorder threshold.
+    useSensor(PointerSensor, { activationConstraint: { delay: 62, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -533,7 +535,11 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          // closestCorners, not closestCenter: with centre-to-centre distance a
+          // tall tile must travel past the neighbour's midpoint before it swaps,
+          // which reads as dragging too far in both directions. Corner distance
+          // registers the swap as soon as the tiles meaningfully overlap.
+          collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
