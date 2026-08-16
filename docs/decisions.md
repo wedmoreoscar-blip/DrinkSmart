@@ -1212,8 +1212,9 @@ recorded rather than left as a bug fix.
 
 ## LOCKED — Budget is a range, it belongs to the night, and the floor is the quality dial (2026-08-16)
 
-Settled by Oscar. **Specified, not built** — the full plan is the Traycer artifact
-`price-and-account-value`.
+Settled by Oscar, and **built 2026-08-16** (`55e3545`). The full plan is the Traycer artifact
+`price-and-account-value`; `src/lib/budget.ts` owns the range, its slider mapping and its
+formatting.
 
 - **A range, `budget_min`/`budget_max`**, not a ceiling. I argued for a ceiling first and was wrong.
   With the ethanol target fixed, the cheapest way to hit it is to maximise ethanol per pound — value
@@ -1231,9 +1232,10 @@ Settled by Oscar. **Specified, not built** — the full plan is the Traycer arti
 - **Rounds bought for other people are out of scope.** A single-user app first. The cost readout
   therefore understates the night for anyone buying rounds: a known, accepted limitation.
 
-## PENDING — An account must be the only thing that persists (2026-08-16)
+## LOCKED — An account must be the only thing that persists (2026-08-16)
 
-Settled in principle by Oscar, **not built**. Detail in `price-and-account-value` §4.G.
+Settled by Oscar and **built** in Wave 6 (leg W6-1, plus the spine). Was PENDING earlier the same
+day. Detail in `price-and-account-value` §4.G.
 
 `useUserMetrics` derives its user id from `session?.user?.id` **with no anonymous check**, so an
 anonymous user's stats *and* preferences are written to `profiles` and survive restarts.
@@ -1267,9 +1269,13 @@ re-run inside E.
   for every seeded row and starts working when A lands; C still needs its stated null-price sort
   rule (sort last, visibly) so the inert period is honest rather than silently mis-ordered.
 
-## PENDING — Price capture, and the one open decision (2026-08-16)
+## PARTLY BUILT — Price capture, and the one open decision (2026-08-16)
 
-Specified in `price-and-account-value`; **nothing built**. Settled within it: a single
+Specified in `price-and-account-value`. **Built in Wave 6**: the `user_drink_overrides` table, the
+resolver (`src/lib/drinkOverrides.ts`), the picker's price control and remembered serve, tray and
+plan cost, `Cheapest first`, the scanner's write path, and the model's price column and budget.
+**Workstream A — real prices in the seed — remains unbuilt, and its one open decision remains
+open.** Settled within it: a single
 `user_drink_overrides` table carries both a user's price and their remembered custom serve for a
 drink at an establishment (one record, because a remembered serve is a preference about a drink, not
 another drink); a remembered serve drives sorting and swap eligibility too.
@@ -1278,3 +1284,63 @@ another drink); a remembered serve drives sorting and swap eligibility too.
 inside the repo — either an approximate list is drafted and corrected, or a real menu is scanned. It
 blocks workstream A only; D, G and B do not depend on it. Whatever is used needs a stated source and
 date, or it becomes another 330 ml.
+
+## LOCKED — Changing body stats clears the plan, and asks first (2026-08-16)
+
+Found by Oscar in use: after changing stats the tray read **226 of 127 ml**. The target is recomputed
+from the new body; the drinks were chosen for the old one, and nothing connected them.
+
+- **A material stats change drops the planned drinks.** Material means any field the Widmark engine
+  reads: weight, height, age, sex, body fat, metric type, and the units. A change to anything else on
+  the profile is not material.
+- **Already-drunk drinks survive.** A stats edit does not un-drink them.
+- **The night survives** — buzz level, duration, window and budget. Those are choices about the
+  evening, not about the body.
+- **A lock does not protect a drink here**, per *A lock only stops regeneration, and nothing else*.
+- **It is confirmed before saving, not announced after.** The clear is destructive and the user
+  cannot undo it. A change with no planned drinks to lose asks nothing, so the ordinary edit is
+  unchanged; cancelling abandons the save rather than leaving stats saved against a stale plan.
+- **The first population is not a change.** `MetricsSync` pushes stats into `AppContext` after the
+  profile loads, so treating empty-to-populated as material would wipe the plan on every page load —
+  a worse version of the bug being fixed. Pinned by test.
+- Rejected: reloads wiping everything for anonymous users. `sessionStore` exists to survive refresh,
+  restart and tab-kill; the locked rule is that nothing persists *between sessions*, and a reload is
+  the same night continuing. Losing a night to a refresh would be the worse failure, and today it
+  would hit every user, because nobody has an account yet.
+
+## LOCKED — `Done` finishes the night; a category screen offers `Apply` (2026-08-16)
+
+Found by Oscar in use. Inside a category card the tray's idle action called `onNext`, which routes to
+the Timeline — so the most prominent control on screen ended the night while the user was still
+choosing drinks, having pressed it expecting to go back and add more.
+
+- **`Done` belongs only to the plan root.** It finishes the plan and moves to the Timeline.
+- **A category screen's tray reads `Apply`** and returns to the plan. The back button already did
+  this; the tray did not.
+- **A pending selection still reads `Add N`.** `Apply` replaces the idle label only.
+- Swap mode keeps its own primary action, unchanged.
+
+## LOCKED — A shared spine is built inline so a wave's legs can be disjoint (2026-08-16)
+
+From Wave 6, and the reason it fanned out four ways instead of running serially. Recorded because it
+generalises beyond this wave. The partition itself is the artifact
+`price-and-account-value/wave-6-partition`.
+
+- **Workstream letters are a dependency order, not a partition.** Delegating one leg per letter would
+  have handed three agents `DrinksTab.tsx` — `handleSelect`, the tray wiring and the custom-drink add
+  are three different letters in one file. Partition by **file ownership** instead, and let each leg
+  own its files outright.
+- **Pay the shared contract inline, before dispatch.** Four legs cannot compile against a resolver
+  that does not exist. The orchestrator built the table, the pure resolver, the hook and the resolved
+  read path first; the legs then only *called* them. This is also what the inline threshold wants
+  anyway — dense shared logic and schema decisions are exactly what should not be delegated.
+- **Legs calling a module is a shared dependency; legs editing it is a shared file.** Only the second
+  breaks disjointness.
+- **The batch's most valuable finding was invisible to every leg.** `PlanTab` never sent the budget:
+  leg 4 owned the request type, leg 2 owned the call site, and no spec named the wiring. Both legs
+  were complete and correct against their own specs, and the feature was inert. Two lines to fix.
+  Four separate integrations would each have been green — this is the case for batched fan-in and one
+  post-merge baseline, not an argument against the partition.
+- **`.env` is gitignored and does not come with a worktree.** Provisioning must copy it, or five
+  suites fail to *load* rather than fail an assertion, and the implementer cannot reach the stated
+  test baseline. Add it to the provisioning step, not to the spec.
