@@ -12,18 +12,19 @@ export type GapTarget = {
 
 const GAP_FIELDS: ReviewField[] = ["abv", "serve", "price"];
 
-const fieldValue = (drink: ParsedDrink, field: ReviewField): number | null => {
+/** Read a review field off a drink; `serve` is stored as `volume`. */
+export const reviewFieldValue = (drink: ParsedDrink, field: ReviewField): number | null => {
   if (field === "serve") return drink.volume;
   return drink[field];
 };
 
 export const drinkHasGap = (drink: ParsedDrink): boolean =>
-  GAP_FIELDS.some((field) => fieldValue(drink, field) == null);
+  GAP_FIELDS.some((field) => reviewFieldValue(drink, field) == null);
 
 export const countDrinkGaps = (drinks: ParsedDrink[]): number =>
   drinks.reduce(
     (count, drink) =>
-      count + GAP_FIELDS.filter((field) => fieldValue(drink, field) == null).length,
+      count + GAP_FIELDS.filter((field) => reviewFieldValue(drink, field) == null).length,
     0,
   );
 
@@ -39,7 +40,7 @@ export const orderDrinkIndices = (
   );
 
 export const firstGapField = (drink: ParsedDrink): ReviewField | null =>
-  GAP_FIELDS.find((field) => fieldValue(drink, field) == null) ?? null;
+  GAP_FIELDS.find((field) => reviewFieldValue(drink, field) == null) ?? null;
 
 export const nextGapTarget = (
   drinks: ParsedDrink[],
@@ -50,7 +51,7 @@ export const nextGapTarget = (
     const fieldStart = drinkIndex === current.drinkIndex ? startField + 1 : 0;
     for (let fieldIndex = fieldStart; fieldIndex < GAP_FIELDS.length; fieldIndex += 1) {
       const field = GAP_FIELDS[fieldIndex];
-      if (fieldValue(drinks[drinkIndex], field) == null) return { drinkIndex, field };
+      if (reviewFieldValue(drinks[drinkIndex], field) == null) return { drinkIndex, field };
     }
   }
   return null;

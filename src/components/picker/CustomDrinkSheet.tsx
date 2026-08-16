@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { KeypadFieldGroup } from "@/components/ui/keypad-field-group";
 import { cn } from "@/lib/utils";
+import {
+  NO_NUMBER_SPINNER,
+  NUMERIC_FIELD_INPUT_MODE,
+  numericFieldText,
+  parseNumericField,
+  type NumericFieldKey,
+} from "@/lib/numericField";
 import type { SavedDrink } from "@/hooks/useSavedDrinks";
 import { CUSTOM_COPY, CUSTOM_ERRORS } from "./picker-copy";
 
@@ -31,7 +37,11 @@ type CustomDrinkSheetProps = {
   savedDrinks: SavedDrink[];
 };
 
-const EMPTY_VALUES: Record<string, number | null> = { abv: null, serve: null, price: null };
+// Tab order, and the order Enter walks: strength, serve, then price submits.
+const FIELD_ORDER: NumericFieldKey[] = ["abv", "serve", "price"];
+
+const EMPTY_VALUES: Record<NumericFieldKey, number | null> = { abv: null, serve: null, price: null };
+const EMPTY_TEXTS: Record<NumericFieldKey, string> = { abv: "", serve: "", price: "" };
 
 const ChevronIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="flex-none">
@@ -51,16 +61,22 @@ export const CustomDrinkSheet = ({
   savedDrinks,
 }: CustomDrinkSheetProps) => {
   const [name, setName] = useState("");
-  const [values, setValues] = useState<Record<string, number | null>>(EMPTY_VALUES);
+  const [values, setValues] = useState<Record<NumericFieldKey, number | null>>(EMPTY_VALUES);
+  // The committed number is clamped on every keystroke, so the raw text is kept
+  // alongside it: without this a half-typed "4." or a below-minimum "5" would be
+  // rewritten under the user mid-entry.
+  const [texts, setTexts] = useState<Record<NumericFieldKey, string>>(EMPTY_TEXTS);
   const [keepIt, setKeepIt] = useState(false);
   const [saveToAccount, setSaveToAccount] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [savedListOpen, setSavedListOpen] = useState(false);
+  const fieldRefs = useRef<Partial<Record<NumericFieldKey, HTMLInputElement | null>>>({});
 
   useEffect(() => {
     if (open) {
       setName("");
       setValues(EMPTY_VALUES);
+      setTexts(EMPTY_TEXTS);
       setKeepIt(false);
       setSaveToAccount(false);
       setErrors({});
@@ -85,14 +101,38 @@ export const CustomDrinkSheet = ({
     });
   };
 
-  const handleCommit = (key: string, value: number | null) => {
-    setValues((current) => ({ ...current, [key]: value }));
+  const handleChange = (key: NumericFieldKey, text: string) => {
+    setTexts((current) => ({ ...current, [key]: text }));
+    setValues((current) => ({ ...current, [key]: parseNumericField(key, text) }));
     clearError(key);
+  };
+
+  // Resolve the divergence the per-keystroke clamp allows: once the user leaves
+  // the field, show them the number that was actually committed.
+  const normalizeField = (key: NumericFieldKey) => {
+    setTexts((current) => ({
+      ...current,
+      [key]: numericFieldText(parseNumericField(key, current[key])),
+    }));
+  };
+
+  const handleFieldKeyDown = (event: KeyboardEvent<HTMLInputElement>, key: NumericFieldKey) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const next = FIELD_ORDER[FIELD_ORDER.indexOf(key) + 1];
+    if (next) fieldRefs.current[next]?.focus();
+    else attemptAdd();
   };
 
   const applySaved = (drink: SavedDrink) => {
     setName(drink.drink_name);
-    setValues({ abv: drink.abv, serve: drink.serving_ml, price: null });
+    const savedPrice = drink.price ?? null;
+    setValues({ abv: drink.abv, serve: drink.serving_ml, price: savedPrice });
+    setTexts({
+      abv: numericFieldText(drink.abv),
+      serve: numericFieldText(drink.serving_ml),
+      price: numericFieldText(savedPrice),
+    });
     setErrors({});
     setSavedListOpen(false);
   };
@@ -178,18 +218,33 @@ export const CustomDrinkSheet = ({
               <div className="absolute left-[calc(50%+5px)] top-11 w-[calc(50%-5px)] text-right">ml</div>
               <div className="absolute left-0 top-[8.75rem] w-full text-right">£</div>
             </div>
-            <KeypadFieldGroup
-              fields={[
-                { key: "abv", unit: "%", value: abv },
-                { key: "serve", unit: "ml", value: serve, integer: true },
-                { key: "price", unit: "£", value: price },
-              ]}
-              onCommit={handleCommit}
-              onAdvance={attemptAdd}
-              emptyIsAllowed={false}
-              fieldLayout="custom-drink"
-              className="bg-transparent px-0 pb-0 pt-[26px] [&>div:first-of-type]:mt-0 [&>div:first-of-type]:gap-x-2.5 [&>div:first-of-type]:gap-y-10 [&>div:first-of-type>button]:justify-between [&>div:first-of-type>button]:px-4 [&>div:first-of-type>button]:text-[22px] [&>div:nth-of-type(2)]:hidden"
-            />
+            {/* Geometry is load-bearing: the label and unit overlays above are
+                absolutely positioned against this exact grid — 26px of top
+                padding, two 56px rows 40px apart, price spanning both columns. */}
+            <div className="grid grid-cols-2 gap-x-2.5 gap-y-10 pt-[26px]">
+              {FIELD_ORDER.map((key) => (
+                <Input
+                  key={key}
+                  ref={(element) => {
+                    fieldRefs.current[key] = element;
+                  }}
+                  type="number"
+                  inputMode={NUMERIC_FIELD_INPUT_MODE[key]}
+                  aria-label={CUSTOM_COPY.fields[key]}
+                  value={texts[key]}
+                  onChange={(event) => handleChange(key, event.target.value)}
+                  onBlur={() => normalizeField(key)}
+                  onWheel={(event) => event.currentTarget.blur()}
+                  onKeyDown={(event) => handleFieldKeyDown(event, key)}
+                  className={cn(
+                    "pr-8 text-[22px] tabular-nums",
+                    NO_NUMBER_SPINNER,
+                    key === "price" && "col-span-2",
+                    errors[key] && "border-warning",
+                  )}
+                />
+              ))}
+            </div>
           </div>
           {(errors.abv || errors.serve) && (
             <div className="flex flex-col gap-1">

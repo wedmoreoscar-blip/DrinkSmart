@@ -66,6 +66,34 @@ describe("Wave 5 picker serving contract", () => {
     expect(defaultServingFor(wine).id).toBe("wine-175");
   });
 
+  // A drink kept on a venue via "keep it" stores category "custom", which
+  // pickerCategoryFor maps to null. One step of the quantity stepper must be one
+  // of that drink's own saved serves, never the generic 330 ml standard.
+  it("offers a kept custom drink its own saved serve, and defaults to it", () => {
+    const kept = drink("kept", "House negroni", 24, 90, "ml", "custom", "Other");
+
+    expect(servingOptionsFor(kept)).toEqual([
+      { id: "saved", label: "90 ml", ml: 90 },
+      { id: "custom", label: "Custom", ml: null },
+    ]);
+    expect(defaultServingFor(kept).ml).toBe(90);
+    // Three taps of + are three saved serves, not three 330 ml bottles.
+    expect(pureAlcoholMl(kept, defaultServingFor(kept).id, null) * 3).toBeCloseTo(64.8, 6);
+    // The saved price is the price of one saved serve, so it scales 1:1.
+    expect(servingPrice(kept, defaultServingFor(kept).id, null)).toBe(5);
+  });
+
+  it("falls back to the generic pair for an uncategorised row with no volume", () => {
+    const unknown = drink("unknown", "Mystery", 5, null, "bottle", "custom", "Other");
+
+    expect(servingOptionsFor(unknown)).toEqual([
+      { id: "database", label: "DB volume", ml: 330 },
+      { id: "standard", label: "Standard", ml: 330 },
+      { id: "custom", label: "Custom", ml: null },
+    ]);
+    expect(defaultServingFor(unknown).id).toBe("database");
+  });
+
   it("keeps Database and Standard distinct even when both resolve to 330 ml", () => {
     const cocktail = drink("can", "Cocktail can", 5, 330, "ml", "cocktails", "Cocktails");
 

@@ -3,15 +3,26 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { isAnonymousSession } from "@/lib/anonymousAuth";
+import type { Database } from "@/integrations/supabase/types";
 
 export type SavedDrink = {
   id: string;
   drink_name: string;
   abv: number;
   serving_ml: number | null;
+  price: number | null;
   created_at: string;
   isSessionOnly?: boolean;
 };
+
+type SavedDrinksTable = Database["public"]["Tables"]["saved_custom_drinks"];
+
+// `price` reaches the generated types only once 20260816000000 has been applied
+// and `npm run db:types` re-run. Declaring it optional here lets the client read
+// and write it either side of that without hand-editing a generated file; drop
+// these two aliases for the plain Row/Insert types after the regeneration.
+type SavedDrinkRow = SavedDrinksTable["Row"] & { price?: number | null };
+type SavedDrinkInsert = SavedDrinksTable["Insert"] & { price?: number | null };
 
 const savedDrinksKey = (userId: string | null) => ["savedDrinks", userId] as const;
 const sessionDrinksKey = ["sessionDrinks"] as const;
@@ -47,7 +58,17 @@ export const useSavedDrinks = () => {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as SavedDrink[];
+      const rows: SavedDrinkRow[] = data ?? [];
+      // Normalize at the boundary: a legacy row, or any row read before the
+      // price migration is applied, becomes null rather than undefined.
+      return rows.map((row) => ({
+        id: row.id,
+        drink_name: row.drink_name,
+        abv: row.abv,
+        serving_ml: row.serving_ml,
+        price: row.price ?? null,
+        created_at: row.created_at,
+      }));
     },
   });
 
@@ -64,23 +85,24 @@ export const useSavedDrinks = () => {
   const saveDrinkMut = useMutation<
     boolean,
     Error,
-    { drinkName: string; abv: number; servingMl: number }
+    { drinkName: string; abv: number; servingMl: number; price: number | null }
   >({
-    mutationFn: async ({ drinkName, abv, servingMl }) => {
+    mutationFn: async ({ drinkName, abv, servingMl, price }) => {
       if (!userId) throw new Error("Not authenticated");
 
       // Upsert on the (user_id, drink_name) unique index: saving an edited
       // preset updates the account record instead of dead-ending on the
       // duplicate-name constraint.
-      const { error } = await supabase.from("saved_custom_drinks").upsert(
-        {
-          user_id: userId,
-          drink_name: drinkName,
-          abv,
-          serving_ml: servingMl,
-        },
-        { onConflict: "user_id,drink_name" }
-      );
+      const payload: SavedDrinkInsert = {
+        user_id: userId,
+        drink_name: drinkName,
+        abv,
+        serving_ml: servingMl,
+        price,
+      };
+      const { error } = await supabase.from("saved_custom_drinks").upsert(payload, {
+        onConflict: "user_id,drink_name",
+      });
 
       if (error) throw error;
 
@@ -131,7 +153,12 @@ export const useSavedDrinks = () => {
   });
 
   const saveDrink = useCallback(
-    async (input: { drinkName: string; abv: number; servingMl: number }): Promise<boolean> => {
+    async (input: {
+      drinkName: string;
+      abv: number;
+      servingMl: number;
+      price: number | null;
+    }): Promise<boolean> => {
       if (!userId) {
         toast({
           title: "Not logged in",
@@ -179,6 +206,7 @@ export const useSavedDrinks = () => {
         drink_name: drinkName,
         abv,
         serving_ml: null,
+        price: null,
         created_at: new Date().toISOString(),
         isSessionOnly: true,
       };

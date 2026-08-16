@@ -34,7 +34,9 @@ React + Vite + TypeScript + Supabase. Helps users pace drinks to hit a target BA
 - `*.tsbuildinfo` is gitignored; `tsc -b` emits it.
 - `npm test` (Vitest) — **PASSES, 128 tests across 14 files** (2026-08-13; was 119/11, was 93). Covers the
   planner contracts (W3-A1), the deterministic session engine in `src/lib/sessionEngine.ts`
-  (W3-A2), and Wave 4's `4o` keypad primitive and onboarding preference families. Note that Vitest
+  (W3-A2), the shared numeric-field parse/clamp rules in `src/lib/numericField.ts` (which inherited
+  the clamp table from the deleted `4o` keypad primitive), and Wave 4's onboarding preference
+  families. Note that Vitest
   transforms with esbuild and does **not** typecheck: a green suite says nothing about types, so
   `npm run typecheck` is not redundant with it. Demonstrated 2026-08-09.
 - **Every count on this list goes stale.** Derive them by running the command when writing a spec;

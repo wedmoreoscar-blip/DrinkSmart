@@ -1,6 +1,6 @@
 import { OZ_ML, PINT_ML, SHOT_ML } from "@/lib/drinkConstants";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
-import { pickerCategoryFor, type PickerCategoryLabel } from "./picker-copy";
+import { fmtMl, pickerCategoryFor, type PickerCategoryLabel } from "./picker-copy";
 
 /**
  * One selectable serving for a venue drink. `ml` is the fixed serving volume;
@@ -36,15 +36,30 @@ export function databaseVolumeMl(drink: EstablishmentDrink): number | null {
 
 const CUSTOM: ServingOption = { id: "custom", label: "Custom", ml: null };
 
+/** The serving id a custom row's own saved volume is offered under. */
+export const SAVED_SERVING_ID = "saved";
+
 /**
  * The serving choices per picker category. Beer/cider offer half pint and
  * pint; spirits offer single and double; wine offers 125/175/250 ml; every
- * other row (cocktails, bottled low/no/soft, unknown fallback rows) offers
- * the database volume and the standard 330 ml bottle as separate choices,
- * even when their numeric values happen to match.
+ * other row (cocktails, bottled low/no/soft) offers the database volume and the
+ * standard 330 ml bottle as separate choices, even when their numeric values
+ * happen to match.
+ *
+ * A row with no picker category is a drink the user added themselves and kept
+ * on the venue. Its serve is the one they saved with it, so that — and not a
+ * category default — is the only fixed choice: one step of the quantity
+ * stepper is then exactly one saved serve. Such a row carrying no usable
+ * volume falls back to the generic pair.
  */
 export function servingOptionsFor(drink: EstablishmentDrink): ServingOption[] {
   const label = pickerCategoryFor(drink.category, drink.category_label);
+  if (label === null) {
+    const savedMl = databaseVolumeMl(drink);
+    if (savedMl != null) {
+      return [{ id: SAVED_SERVING_ID, label: `${fmtMl(savedMl)} ml`, ml: savedMl }, CUSTOM];
+    }
+  }
   if (label === "Beer & cider") {
     return [
       { id: "half", label: "Half pint", ml: PINT_ML / 2 },
@@ -86,8 +101,14 @@ const DEFAULT_SERVING_IDS: Record<PickerCategoryLabel, string> = {
 export function defaultServingFor(drink: EstablishmentDrink): ServingOption {
   const options = servingOptionsFor(drink);
   const label = pickerCategoryFor(drink.category, drink.category_label);
-  const preferred = label ? DEFAULT_SERVING_IDS[label] : "database";
-  return options.find((option) => option.id === preferred) ?? options[0];
+  // An uncategorised row defaults to its own saved serve; if it has none, the
+  // generic options are in play and "database" is the right preference again.
+  const preferred = label ? DEFAULT_SERVING_IDS[label] : SAVED_SERVING_ID;
+  return (
+    options.find((option) => option.id === preferred) ??
+    options.find((option) => option.id === "database") ??
+    options[0]
+  );
 }
 
 export function servingOptionFor(drink: EstablishmentDrink, servingId: string): ServingOption | null {

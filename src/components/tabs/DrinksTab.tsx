@@ -477,7 +477,12 @@ const DrinksTab = ({
       });
     }
     if (draft.saveToAccount && draft.abv != null && draft.serve != null && hasAccount) {
-      await saveDrink({ drinkName: draft.name, abv: draft.abv, servingMl: draft.serve });
+      await saveDrink({
+        drinkName: draft.name,
+        abv: draft.abv,
+        servingMl: draft.serve,
+        price: draft.price,
+      });
     }
     setCustomOpen(false);
   };

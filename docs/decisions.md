@@ -1103,3 +1103,51 @@ plans the server already accepted, and the symmetric ±10% gate rejects a 16% un
 the case the repair was built for drops to greedy instead. Not changed: the ±10% rejection is locked
 and the observed failure rate with `calculate_ethanol` in place is 0/60. Revisit only if rejections
 are seen in production.
+
+## LOCKED — The app renders no number pad; every value is typed on the device keyboard (2026-08-16)
+
+Settled by Oscar, confirmed 2026-08-16. **This reverses design `4o` and supersedes the W4-1 spec**
+(`docs/specs/2026-08-12-w4-1-keypad-field-group.md`, handoff frame
+`design_handoffs/.../screens/4o-keypad-field-group.html`), which built an in-app numeric keypad
+precisely so the OS keyboard would never appear. Recorded here because rank 0 of the precedence
+ladder — this ledger — is the only thing that can overrule a drawn Claude Design primitive; see
+**The written spec outranks the drawings**.
+
+- **Every numeric *value* is typed on the user's own device keyboard.** The app renders no number pad
+  of its own, on any screen.
+- **`+`/`−` steppers stay, but only for incremental adjustment** (a quantity), never as a way to
+  enter a value digit by digit. The distinction is the rule: a stepper nudges an amount, a keypad
+  composes a number.
+- `src/components/ui/keypad-field-group.tsx` and its test are **deleted**. Both consumers — the
+  custom-drink sheet (`4f`) and the scanner review (`4i`) — now use `<Input type="number">` with an
+  `inputMode` hint, matching the idiom `StatsSheet`/`StatsForm` already used. Do not reintroduce the
+  primitive, and do not add a second numeric-entry idiom alongside the native inputs.
+- The clause of `4o` worth keeping was its **clamp table**, which now lives in
+  `src/lib/numericField.ts` (abv 0–60, serve 25–1000, price 0–999) and is shared by both surfaces.
+  The gap glyph survives too, as the `—` placeholder on a scanner gap.
+- Two `type="number"` hazards are guarded at every call site and must stay guarded: `onWheel` blurs
+  the field so a scroll cannot silently change a committed value, and the raw text is held in
+  component state so a half-typed decimal is not rewritten by the per-keystroke clamp.
+- What is lost, knowingly: the keypad's own 64px keys and its `Next gap` / `Done` action. Enter
+  replaces the traversal — it walks to the card's next gap and submits once none remain — and the
+  screen keeps exactly one 64px primary, which was the locked rule the keypad's action strained.
+
+## PENDING — A custom drink kept on a venue is unreachable in the picker (2026-08-16)
+
+Found while making the quantity stepper step by a custom drink's own saved serve. The model change
+is done: an uncategorised venue row now offers **its saved volume** as its only fixed serving and
+defaults to it (`servingOptionsFor`/`defaultServingFor` in `src/components/picker/picker-model.ts`),
+so `+1` adds one saved serve rather than the generic 330 ml standard.
+
+**It is not yet observable, because such a row never reaches `DrinkRow`.** "Keep it on <venue>"
+stores the drink as `category: "custom"`, `pickerCategoryFor` maps that to `null`, and both gates
+that lead to a row require a non-null label: `CategoryScreen`'s `drinkCategory !== null` filter, and
+`DrinksTab`'s `categories` (`if (!label) continue`), which is what builds the card that opens the
+screen. So a kept custom drink can only be re-added through the Custom drink sheet's saved-drink
+dropdown, one serve at a time.
+
+**Undecided, and Oscar's call: where a kept custom drink should be pickable.** The null mapping is
+deliberate and load-bearing — it is what routes these entries to the Custom drink panel instead of
+dropping them, and `DrinksTab.planCards.test.ts` guards it — so the fix is a placement decision, not
+a change to `pickerCategoryFor`. The candidates are a pickable list inside the existing Custom drink
+panel, or a sixth root card. Neither is drawn or specified, so nothing was built.
