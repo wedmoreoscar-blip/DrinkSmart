@@ -3,6 +3,11 @@ import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { Input } from "@/components/ui/input";
 import { CATEGORY_COPY, money } from "./picker-copy";
 import {
+  NUMERIC_FIELD_INPUT_MODE,
+  numericFieldText,
+  parseNumericField,
+} from "@/lib/numericField";
+import {
   basePriceFromServingPrice,
   pureAlcoholMl,
   servingMl,
@@ -48,6 +53,17 @@ export const DrinkRow = ({
   useEffect(() => {
     setPriceDraft(perUnitPrice != null ? perUnitPrice.toFixed(2) : "");
   }, [perUnitPrice]);
+
+  // The serve field keeps the half-typed text, exactly as the custom-drink
+  // sheet and the scanner review do. Driving the input's `value` from the
+  // parsed number instead means any keystroke that briefly makes the text
+  // unparseable — backspacing "1.25e-8" to "1.25e-" — commits null, the parent
+  // rejects it, and the unchanged prop re-renders the character the user just
+  // deleted. The field then cannot be edited out of a bad value at all.
+  const [serveDraft, setServeDraft] = useState<string>("");
+  useEffect(() => {
+    setServeDraft(numericFieldText(customMl));
+  }, [customMl]);
 
   const sub =
     selected && quantity > 1
@@ -139,19 +155,18 @@ export const DrinkRow = ({
               {serving.id === "custom" && (
                 <input
                   type="text"
-                  inputMode="numeric"
+                  inputMode={NUMERIC_FIELD_INPUT_MODE.serve}
                   aria-label="Custom serving ml"
                   placeholder="ml"
-                  value={customMl ?? ""}
+                  value={serveDraft}
                   onChange={(event) => {
-                    const raw = event.target.value.trim();
-                    if (raw === "") {
-                      onCustomMlChange(null);
-                      return;
-                    }
-                    const parsed = Number(raw);
-                    onCustomMlChange(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+                    const text = event.target.value;
+                    setServeDraft(text);
+                    // Shared clamp table: a serve is 25–1000 ml. Parsing raw
+                    // here instead let `1.25e-8` through as a valid volume.
+                    onCustomMlChange(parseNumericField("serve", text));
                   }}
+                  onBlur={() => setServeDraft(numericFieldText(customMl))}
                   className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
                 />
               )}

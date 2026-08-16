@@ -521,7 +521,14 @@ const DrinksTab = ({
     const drink = venueDrinks.find((candidate) => candidate.id === drinkId);
     if (!drink || ml == null || !Number.isFinite(ml) || ml <= 0) return;
     updatePlannedEntry(drinkId, (entry) => ({
-      ...withServings({ ...entry, quantity: String(ml) }, entryServingCount(entry)),
+      // Floor the count at one serving. `withServings` returns the entry
+      // untouched when it is asked for fewer than one, so an entry that has
+      // reached a zero or unparseable quantity would refuse every serving
+      // button and every ml edit — the row traps itself with no way back.
+      ...withServings(
+        { ...entry, quantity: String(ml) },
+        Math.max(1, entryServingCount(entry)),
+      ),
       pricePerUnit: servingPrice(drink, servingId, ml),
     }));
   };
