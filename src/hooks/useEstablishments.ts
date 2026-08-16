@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isAnonymousSession } from "@/lib/anonymousAuth";
 import { useDrinkOverrides } from "@/hooks/useDrinkOverrides";
 import { resolveDrinks, type ResolvedDrink } from "@/lib/drinkOverrides";
 
@@ -82,12 +83,18 @@ export const useEstablishments = () => {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUserId(session?.user?.id || null);
+      // Account-only, the same derivation useSavedDrinks uses. An anonymous
+      // user's scanned venue and its drinks stay in the session cache instead
+      // of being written to Postgres: an account is what makes things persist.
+      setUserId(session && !isAnonymousSession(session) ? session.user.id : null);
     };
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUserId(session?.user?.id || null);
+      // Account-only, the same derivation useSavedDrinks uses. An anonymous
+      // user's scanned venue and its drinks stay in the session cache instead
+      // of being written to Postgres: an account is what makes things persist.
+      setUserId(session && !isAnonymousSession(session) ? session.user.id : null);
     });
 
     return () => subscription.unsubscribe();
