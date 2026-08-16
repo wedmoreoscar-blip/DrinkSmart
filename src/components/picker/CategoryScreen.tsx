@@ -3,7 +3,7 @@ import { Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DrinkFilterPopover, type DrinkFilters } from "@/components/DrinkFilterPopover";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
-import { CATEGORY_COPY, pickerCategoryFor } from "./picker-copy";
+import { CATEGORY_COPY, pickerScreenCategoryFor } from "./picker-copy";
 import { defaultServingFor } from "./picker-model";
 import { DrinkRow } from "./DrinkRow";
 import { pureAlcoholMl } from "./picker-model";
@@ -52,9 +52,8 @@ export const CategoryScreen = ({
   const visibleDrinks = useMemo(() => {
     const abvActive = filters.abvRange.min > 0 || filters.abvRange.max < 100;
     const filtered = drinks.filter((d) => {
-      const drinkCategory = pickerCategoryFor(d.category, d.category_label);
-      const categoryMatches =
-        drinkCategory !== null && filters.selectedCategories.includes(drinkCategory);
+      const drinkCategory = pickerScreenCategoryFor(d.category, d.category_label);
+      const categoryMatches = filters.selectedCategories.includes(drinkCategory);
       const abvMatches =
         d.abv == null
           ? !abvActive

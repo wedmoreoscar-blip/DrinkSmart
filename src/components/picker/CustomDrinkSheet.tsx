@@ -21,6 +21,8 @@ export type CustomDrinkDraft = {
   abv: number | null;
   serve: number | null;
   price: number | null;
+  /** How many of this serve to add to the plan. At least 1. */
+  quantity: number;
   keepIt: boolean;
   saveToAccount: boolean;
 };
@@ -66,6 +68,7 @@ export const CustomDrinkSheet = ({
   // alongside it: without this a half-typed "4." or a below-minimum "5" would be
   // rewritten under the user mid-entry.
   const [texts, setTexts] = useState<Record<NumericFieldKey, string>>(EMPTY_TEXTS);
+  const [quantity, setQuantity] = useState(1);
   const [keepIt, setKeepIt] = useState(false);
   const [saveToAccount, setSaveToAccount] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -77,6 +80,7 @@ export const CustomDrinkSheet = ({
       setName("");
       setValues(EMPTY_VALUES);
       setTexts(EMPTY_TEXTS);
+      setQuantity(1);
       setKeepIt(false);
       setSaveToAccount(false);
       setErrors({});
@@ -87,7 +91,8 @@ export const CustomDrinkSheet = ({
   const abv = values.abv ?? null;
   const serve = values.serve ?? null;
   const price = values.price ?? null;
-  const ml = ((serve ?? 0) * (abv ?? 0)) / 100;
+  const perServingMl = ((serve ?? 0) * (abv ?? 0)) / 100;
+  const ml = perServingMl * quantity;
   const pct = targetMl && targetMl > 0 ? (ml / targetMl) * 100 : 0;
 
   const overCeiling = ceilingMl != null && ml > 0 && committedMl + ml > ceilingMl;
@@ -146,7 +151,7 @@ export const CustomDrinkSheet = ({
       setErrors(next);
       return;
     }
-    onAdd({ name: name.trim(), abv, serve, price, keepIt, saveToAccount });
+    onAdd({ name: name.trim(), abv, serve, price, quantity, keepIt, saveToAccount });
   };
 
   return (
@@ -252,6 +257,33 @@ export const CustomDrinkSheet = ({
               {errors.serve && <div className="text-note text-warning">{errors.serve}</div>}
             </div>
           )}
+          {/* Steps the count of this serve, never the serve itself: the number
+              of ml stays typed on the keyboard above. */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex-1 text-label leading-[1.2] uppercase text-muted-foreground">
+              {CUSTOM_COPY.fields.quantity}
+            </div>
+            <button
+              type="button"
+              aria-label="One fewer"
+              disabled={quantity <= 1}
+              onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+              className="flex h-14 w-14 flex-none items-center justify-center rounded-ctl text-[28px] leading-none text-foreground shadow-[0_0_0_1px_#383a46] disabled:pointer-events-none disabled:opacity-50"
+            >
+              −
+            </button>
+            <div className="min-w-11 flex-none text-center text-[28px] font-medium leading-none tabular-nums text-foreground">
+              {quantity}
+            </div>
+            <button
+              type="button"
+              aria-label="One more"
+              onClick={() => setQuantity((current) => current + 1)}
+              className="flex h-14 w-14 flex-none items-center justify-center rounded-ctl text-[28px] leading-none text-foreground shadow-[0_0_0_1px_#383a46]"
+            >
+              +
+            </button>
+          </div>
           <div className="flex min-h-14 items-center gap-3.5">
             <Checkbox
               id="keep-it"
@@ -266,10 +298,13 @@ export const CustomDrinkSheet = ({
             </Label>
           </div>
           <div className="flex min-h-14 items-center gap-3.5">
+            {/* Keeping a drink on a venue saves it to the account too, so the
+                box reads as ticked and locked rather than silently disagreeing
+                with what the save actually does. */}
             <Checkbox
               id="save-to-account"
-              checked={saveToAccount}
-              disabled={!canSaveToAccount}
+              checked={canSaveToAccount && (saveToAccount || keepIt)}
+              disabled={!canSaveToAccount || keepIt}
               onCheckedChange={(checked) => setSaveToAccount(!!checked)}
             />
             <Label

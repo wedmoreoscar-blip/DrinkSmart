@@ -15,6 +15,7 @@ import {
   PICKER_CATEGORY_ORDER,
   PICKER_COPY,
   pickerCategoryFor,
+  pickerScreenCategoryFor,
 } from "@/components/picker/picker-copy";
 import {
   defaultServingFor,
@@ -144,8 +145,9 @@ const DrinksTab = ({
   const categories = useMemo(() => {
     const map = new Map<string, { count: number; minPrice: number | null }>();
     for (const drink of venueDrinks) {
-      const label = pickerCategoryFor(drink.category, drink.category_label);
-      if (!label) continue;
+      // Screen placement, not plan grouping: a custom drink kept on this venue
+      // counts toward its Cocktails card, the tab it is selectable from.
+      const label = pickerScreenCategoryFor(drink.category, drink.category_label);
       const entry = map.get(label) ?? { count: 0, minPrice: null };
       entry.count += 1;
       if (drink.price != null) {
@@ -305,8 +307,7 @@ const DrinksTab = ({
   const swapGroups = useMemo(() => {
     const groups = new Map<string, (typeof venueDrinks)[number][]>();
     for (const drink of venueDrinks) {
-      const label = pickerCategoryFor(drink.category, drink.category_label);
-      if (!label) continue;
+      const label = pickerScreenCategoryFor(drink.category, drink.category_label);
       const servingEthanolMl = pureAlcoholMl(drink, defaultServingFor(drink).id, null);
       if (servingEthanolMl > swapCapMl) continue;
       if (targetMl != null && swapCommittedMl + servingEthanolMl > targetMl * 1.2) continue;
@@ -322,10 +323,9 @@ const DrinksTab = ({
 
   const omittedStronger = useMemo(
     () =>
-      venueDrinks.filter((drink) => {
-        const label = pickerCategoryFor(drink.category, drink.category_label);
-        return label !== null && pureAlcoholMl(drink, defaultServingFor(drink).id, null) > swapCapMl;
-      }).length,
+      venueDrinks.filter(
+        (drink) => pureAlcoholMl(drink, defaultServingFor(drink).id, null) > swapCapMl,
+      ).length,
     [venueDrinks, swapCapMl],
   );
 
@@ -420,6 +420,42 @@ const DrinksTab = ({
     updateDrinks(drinks.filter((d) => d.id !== id));
   };
 
+  /**
+   * Step a planned entry by one of its own servings. The per-serving volume is
+   * whatever the entry was committed with — a custom drink's saved serve, or a
+   * venue row's chosen serving — so one tap is always one more of that drink,
+   * never a category default. Editing here never touches the saved drink.
+   */
+  const handleStepDrink = (entry: AlcoholTimelineEntryInput, delta: number) => {
+    if (consumedSourceIds.has(entry.id)) return;
+    const total = parseFloat(entry.quantity ?? "");
+    if (!Number.isFinite(total) || total <= 0) return;
+    const servings = entryServingCount(entry);
+    if (servings <= 0) return;
+    const perServing = total / servings;
+    const nextServings = servings + delta;
+    if (nextServings < 1) return;
+    if (delta > 0 && targetMl != null) {
+      const nextEthanol = entryEthanolMl(
+        { ...entry, quantity: String(perServing * nextServings) },
+        entryAbv(entry),
+      );
+      const withoutEntry = committedMl - entryEthanolMl(entry, entryAbv(entry));
+      if (withoutEntry + nextEthanol > targetMl * 1.2) return;
+    }
+    updateDrinks(
+      drinks.map((candidate) =>
+        candidate.id === entry.id
+          ? {
+              ...candidate,
+              quantity: String(perServing * nextServings),
+              portions: nextServings > 1 ? nextServings : undefined,
+            }
+          : candidate,
+      ),
+    );
+  };
+
   // ---- Add/ceiling ----------------------------------------------------------
 
   const overCeiling = targetMl != null && committedMl + pendingMl > targetMl * 1.2;
@@ -437,7 +473,15 @@ const DrinksTab = ({
     if (targetMl != null && committedMl + pendingMl > targetMl * 1.2) return;
     const entry: AlcoholTimelineEntryInput = {
       id: crypto.randomUUID(),
-      category: selectedDrink.category,
+      // Where the drink was picked from decides which plan panel it lands in. A
+      // custom drink kept on the venue is picked from Cocktails, so it groups
+      // under Cocktails; the same drink added through the Custom drink sheet
+      // carries isCustom and groups under Custom drink. Two entries for the same
+      // drink from the two places are just two ordinary entries.
+      category:
+        pickerCategoryFor(selectedDrink.category, selectedDrink.category_label) === null
+          ? pickerScreenCategoryFor(selectedDrink.category, selectedDrink.category_label)
+          : selectedDrink.category,
       drink: selectedDrink.drink_name,
       customABV: selectedDrink.abv == null ? undefined : String(selectedDrink.abv),
       quantity: String(selectedServingMl * selected.quantity),
@@ -451,7 +495,8 @@ const DrinksTab = ({
   };
 
   const handleAddCustom = async (draft: CustomDrinkDraft) => {
-    const customMl = ((draft.serve ?? 0) * (draft.abv ?? 0)) / 100;
+    const servings = Math.max(1, draft.quantity);
+    const customMl = (((draft.serve ?? 0) * servings) * (draft.abv ?? 0)) / 100;
     if (targetMl != null && committedMl + customMl > targetMl * 1.2) return;
     const entry: AlcoholTimelineEntryInput = {
       id: crypto.randomUUID(),
@@ -460,9 +505,10 @@ const DrinksTab = ({
       isCustom: true,
       customName: draft.name,
       customABV: String(draft.abv),
-      quantity: String(draft.serve),
+      quantity: String((draft.serve ?? 0) * servings),
       unit: "ml",
       pricePerUnit: draft.price,
+      portions: servings > 1 ? servings : undefined,
     };
     addUnplannedDrink(entry);
     if (draft.keepIt && draft.abv != null && venue) {
@@ -476,7 +522,9 @@ const DrinksTab = ({
         volume_unit: "ml",
       });
     }
-    if (draft.saveToAccount && draft.abv != null && draft.serve != null && hasAccount) {
+    // Keeping a drink on a venue saves it to the account too: the venue copy and
+    // the account copy are the same drink, so "both" is the same as "keep it".
+    if ((draft.saveToAccount || draft.keepIt) && draft.abv != null && draft.serve != null && hasAccount) {
       await saveDrink({
         drinkName: draft.name,
         abv: draft.abv,
@@ -520,6 +568,23 @@ const DrinksTab = ({
           )}
         </div>
       </div>
+      <button
+        type="button"
+        aria-label="One fewer"
+        disabled={entryServingCount(entry) <= 1}
+        onClick={() => handleStepDrink(entry, -1)}
+        className="flex h-14 w-11 flex-none items-center justify-center text-[24px] leading-none text-foreground disabled:pointer-events-none disabled:opacity-40"
+      >
+        −
+      </button>
+      <button
+        type="button"
+        aria-label="One more"
+        onClick={() => handleStepDrink(entry, 1)}
+        className="flex h-14 w-11 flex-none items-center justify-center text-[24px] leading-none text-foreground"
+      >
+        +
+      </button>
       <button
         type="button"
         aria-label={state.lockedDrinkIds.includes(entry.id) ? "Unlock" : "Lock"}

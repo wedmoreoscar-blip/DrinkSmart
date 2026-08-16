@@ -13,7 +13,7 @@ import {
   servingOptionsFor,
   servingPrice,
 } from "./picker-model";
-import { pickerCategoryFor } from "./picker-copy";
+import { pickerCategoryFor, pickerScreenCategoryFor } from "./picker-copy";
 
 const drink = (
   id: string,
@@ -128,6 +128,54 @@ describe("Wave 5 picker serving contract", () => {
     expect(servingPrice(beer, "pint", null)).toBe(5);
     expect(servingPrice(beer, "half", null)).toBe(2.5);
     expect((servingPrice(beer, "half", null) ?? 0) * 3).toBe(7.5);
+  });
+
+  // Two different questions, deliberately answered by two functions: which tab a
+  // venue row is selectable from, and which plan panel an entry groups under.
+  it("places a kept custom row in Cocktails while keeping its plan category null", () => {
+    expect(pickerScreenCategoryFor("custom", "Other")).toBe("Cocktails");
+    expect(pickerScreenCategoryFor("custom", null)).toBe("Cocktails");
+    expect(pickerScreenCategoryFor("", null)).toBe("Cocktails");
+    expect(pickerCategoryFor("custom", "Other")).toBeNull();
+
+    // Editorial categories are untouched by the placement rule.
+    expect(pickerScreenCategoryFor("beer_pint", "Beer (Pint)")).toBe("Beer & cider");
+    expect(pickerScreenCategoryFor("vodka", "Vodka")).toBe("Spirits");
+  });
+
+  it("shows a kept custom drink in the venue's Cocktails tab, at its saved serve", () => {
+    const filters: DrinkFilters = {
+      abvRange: { min: 0, max: 100 },
+      selectedCategories: ["Cocktails"],
+    };
+    const html = renderToStaticMarkup(
+      <CategoryScreen
+        categoryLabel="Cocktails"
+        availableCategories={["Cocktails"]}
+        drinks={[drink("kept", "House negroni", 24, 90, "ml", "custom", "Other")]}
+        filters={filters}
+        onFiltersChange={() => {}}
+        sort="Cheapest first"
+        onSortChange={() => {}}
+        selectedId="kept"
+        quantity={1}
+        servingId="saved"
+        customMl={null}
+        onSelect={() => {}}
+        onQuantityChange={() => {}}
+        onServingChange={() => {}}
+        onCustomMlChange={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(html).toContain("House negroni");
+    // Its own serve, and the Custom control that edits ml per entry without
+    // touching the saved drink.
+    expect(html).toContain("90 ml");
+    expect(html).toContain("Custom");
+    expect(html).not.toContain("Standard");
+    expect(html).toContain("Increase quantity");
   });
 
   it("sorts least alcohol by the default serving volume × ABV", () => {

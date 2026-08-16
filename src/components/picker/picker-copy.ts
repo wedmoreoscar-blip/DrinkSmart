@@ -41,6 +41,22 @@ export const pickerCategoryFor = (
   return "Soft & low-alcohol";
 };
 
+/**
+ * Where a venue row appears in the picker. A drink the user created and kept on
+ * the venue carries no editorial category, and joins that venue's Cocktails tab
+ * rather than becoming a card of its own — it is a venue drink like any other
+ * once it is saved there.
+ *
+ * This is a *placement* rule and deliberately separate from `pickerCategoryFor`,
+ * which still maps custom to null so a custom plan entry groups under the Custom
+ * drink panel. Rows kept before this rule existed are placed by it too, since it
+ * reads the stored category rather than rewriting it.
+ */
+export const pickerScreenCategoryFor = (
+  category: string | null | undefined,
+  categoryLabel: string | null | undefined,
+): PickerCategoryLabel => pickerCategoryFor(category, categoryLabel) ?? "Cocktails";
+
 export const PICKER_COPY = {
   screenLabel: "Add a drink",
   venueSub: (n: number) => n + " drinks",
@@ -71,7 +87,7 @@ export const CATEGORY_COPY = {
 
 export const CUSTOM_COPY = {
   title: "Custom drink",
-  fields: { name: "Name", abv: "Strength", serve: "Serve", price: "Price" },
+  fields: { name: "Name", abv: "Strength", serve: "Serve", price: "Price", quantity: "How many" },
   keepIt: (venue: string) => "Keep it on " + venue,
   saveToAccount: "Save drink to account",
   savedRow: (abv: number, servingMl: number | null) =>
