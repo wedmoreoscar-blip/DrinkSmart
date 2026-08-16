@@ -389,6 +389,11 @@ const PlanTab = ({
       target_ethanol_ml: budget,
       duration_minutes: duration,
       preferences,
+      // W6 repair: leg 4 added the budget to the request type and the edge
+      // function reads it, but no leg owned this call site, so the night's
+      // range never actually reached the model.
+      budget_min: state.budget.min,
+      budget_max: state.budget.max,
       catalog,
       locked_drinks: lockedEntries,
       exclude,

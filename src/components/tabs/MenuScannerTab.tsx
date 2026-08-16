@@ -344,14 +344,22 @@ const MenuScannerTab = ({
                   toEstablishmentDrinkInsert(drink, savedEstablishmentId, userId),
                 ),
               )
-              .select("id");
+              .select("id, drink_name");
             if (insertError) throw insertError;
-            newDrinks.forEach((drink, index) => {
-              const insertedId = (insertedRows ?? [])[index]?.id;
+            // Match returned rows by name, not by array index. Row order on a
+            // bulk insert is a property of the driver, not a guarantee, and
+            // getting it wrong attaches each scanned price to the wrong drink
+            // — silently, and only for users who scan.
+            const insertedIdByKey = new Map<string, string>();
+            for (const row of insertedRows ?? []) {
+              insertedIdByKey.set(row.drink_name.trim().toLowerCase(), row.id);
+            }
+            for (const drink of newDrinks) {
+              const insertedId = insertedIdByKey.get(drink.name.trim().toLowerCase());
               if (drink.price !== null && insertedId) {
                 writeTasks.push(setOverride(insertedId, { price: drink.price }));
               }
-            });
+            }
           }
 
           const settled = await Promise.allSettled(writeTasks);

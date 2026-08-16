@@ -57,6 +57,7 @@ describe("Wave 5 active venue contract", () => {
         abv: 12,
         typical_ml: 250,
         category: "wine_white",
+        price: 6.5,
       },
     ]);
   });
@@ -87,6 +88,7 @@ describe("Wave 5 active venue contract", () => {
         abv: 40,
         typical_ml: 25,
         category: "vodka",
+        price: 6.5,
       },
       {
         id: "my-bar-drink-1",
@@ -94,6 +96,7 @@ describe("Wave 5 active venue contract", () => {
         abv: 12,
         typical_ml: 250,
         category: "wine_white",
+        price: 6.5,
       },
     ]);
   });

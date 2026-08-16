@@ -123,7 +123,7 @@ export function servingOptionFor(drink: EstablishmentDrink, servingId: string): 
  * else yields null (no commitable serving).
  */
 export function servingMl(
-  drink: EstablishmentDrink,
+  drink: EstablishmentDrink & { rememberedServingMl?: number | null },
   servingId: string,
   customMl: number | null
 ): number | null {
@@ -131,6 +131,12 @@ export function servingMl(
   if (!option) return null;
   if (option.ml != null) return option.ml;
   if (customMl != null && Number.isFinite(customMl) && customMl > 0) return customMl;
+  // A Custom serving with no typed amount resolves to the user's remembered
+  // serve. Without this, `defaultServingFor` returning Custom for a remembered
+  // drink makes every such drink measure zero ethanol in the `Least alcohol
+  // first` sort and in swap eligibility — ranking it as the weakest drink on
+  // the screen regardless of how much the user actually pours.
+  if (drink.rememberedServingMl != null) return drink.rememberedServingMl;
   return null;
 }
 
@@ -139,7 +145,7 @@ export function servingMl(
  * is not commitable.
  */
 export function pureAlcoholMl(
-  drink: EstablishmentDrink,
+  drink: EstablishmentDrink & { rememberedServingMl?: number | null },
   servingId: string,
   customMl: number | null
 ): number {
@@ -153,6 +159,22 @@ export function pureAlcoholMl(
  * database serving, its default rung, and the category fallback as the base
  * the scaling divides by.
  */
+/**
+ * The volume a drink's stored `price` is the price *of*. The user's remembered
+ * serve wins: it is the volume they actually buy, so it is what their price
+ * refers to.
+ */
+export function pricedVolumeMl(
+  drink: EstablishmentDrink & { rememberedServingMl?: number | null },
+): number {
+  return (
+    drink.rememberedServingMl ??
+    databaseVolumeMl(drink) ??
+    defaultServingFor(drink).ml ??
+    fallbackServeMl(drink.category, drink.category_label)
+  );
+}
+
 export function servingPrice(
   drink: EstablishmentDrink & { rememberedServingMl?: number | null },
   servingId: string,
@@ -161,10 +183,26 @@ export function servingPrice(
   if (drink.price == null) return null;
   const selectedMl = servingMl(drink, servingId, customMl);
   if (selectedMl === null) return null;
-  const pricedMl =
-    drink.rememberedServingMl ??
-    databaseVolumeMl(drink) ??
-    defaultServingFor(drink).ml ??
-    fallbackServeMl(drink.category, drink.category_label);
-  return drink.price * (selectedMl / pricedMl);
+  return drink.price * (selectedMl / pricedVolumeMl(drink));
+}
+
+/**
+ * The inverse of `servingPrice`: convert a price the user typed against the
+ * serving currently on screen back into the stored per-`pricedVolumeMl` figure.
+ *
+ * Without this the value drifts. The row displays `servingPrice` — the stored
+ * price scaled to the selected serving — so storing that displayed figure
+ * unchanged means the next render scales an already-scaled number, and the
+ * price moves by the same ratio again on every edit whenever the selected
+ * serving is not the priced volume.
+ */
+export function basePriceFromServingPrice(
+  drink: EstablishmentDrink & { rememberedServingMl?: number | null },
+  servingId: string,
+  customMl: number | null,
+  typedPrice: number,
+): number | null {
+  const selectedMl = servingMl(drink, servingId, customMl);
+  if (selectedMl === null || selectedMl <= 0) return null;
+  return typedPrice * (pricedVolumeMl(drink) / selectedMl);
 }

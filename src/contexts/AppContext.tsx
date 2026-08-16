@@ -23,6 +23,7 @@ import {
   type BudgetRange,
 } from "@/lib/budget";
 import { clearAnonymousOverrides } from "@/lib/anonymousOverrideStore";
+import { clearAnonymousProfile } from "@/lib/anonymousProfileStore";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -607,10 +608,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // during saveSession's debounce window. The state effect then persists the
     // new blank session.
     clearSession();
-    // An anonymous user's remembered prices and serves belong to the night,
-    // not to the device. An account's overrides live in Postgres and are
-    // untouched by this.
+    // An anonymous user's remembered prices, serves, stats and preferences
+    // belong to the night, not to the device — without this the localStorage
+    // record simply survives, which is the behaviour the account switch exists
+    // to remove. An account's data lives in Postgres and is untouched by this.
     clearAnonymousOverrides();
+    clearAnonymousProfile();
     setState((prev) => resetActiveSessionState(prev,now ?? new Date()));
   };
 
@@ -619,10 +622,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // session before resetting state, then the persist effect writes the
     // fresh blank session. No account history snapshot is written.
     clearSession();
-    // An anonymous user's remembered prices and serves belong to the night,
-    // not to the device. An account's overrides live in Postgres and are
-    // untouched by this.
+    // An anonymous user's remembered prices, serves, stats and preferences
+    // belong to the night, not to the device — without this the localStorage
+    // record simply survives, which is the behaviour the account switch exists
+    // to remove. An account's data lives in Postgres and is untouched by this.
     clearAnonymousOverrides();
+    clearAnonymousProfile();
     setState((prev) => resetActiveSessionState(prev,new Date()));
   }, []);
 

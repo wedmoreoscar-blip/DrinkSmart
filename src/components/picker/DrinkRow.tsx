@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { Input } from "@/components/ui/input";
 import { CATEGORY_COPY, money } from "./picker-copy";
 import {
+  basePriceFromServingPrice,
   pureAlcoholMl,
   servingMl,
   servingOptionsFor,
@@ -38,6 +40,14 @@ export const DrinkRow = ({
   const perUnitVolumeMl = servingMl(drink, serving.id, customMl) ?? 0;
   const perUnitPureMl = pureAlcoholMl(drink, serving.id, customMl);
   const perUnitPrice = servingPrice(drink, serving.id, customMl);
+
+  // The price field is edited as text and committed on blur. It must be a
+  // controlled input with an onChange: a `value` prop without one makes the
+  // field read-only, so the control renders but cannot be typed into at all.
+  const [priceDraft, setPriceDraft] = useState<string>("");
+  useEffect(() => {
+    setPriceDraft(perUnitPrice != null ? perUnitPrice.toFixed(2) : "");
+  }, [perUnitPrice]);
 
   const sub =
     selected && quantity > 1
@@ -150,7 +160,8 @@ export const DrinkRow = ({
                 inputMode="decimal"
                 aria-label="Price"
                 placeholder="£"
-                value={perUnitPrice != null ? String(perUnitPrice) : ""}
+                value={priceDraft}
+                onChange={(event) => setPriceDraft(event.target.value)}
                 onBlur={(event) => {
                   const raw = event.target.value.trim();
                   if (raw === "") {
@@ -158,7 +169,17 @@ export const DrinkRow = ({
                     return;
                   }
                   const parsed = Number(raw);
-                  onPriceCommit(Number.isFinite(parsed) && parsed >= 0 ? parsed : null);
+                  if (!Number.isFinite(parsed) || parsed < 0) {
+                    onPriceCommit(null);
+                    return;
+                  }
+                  // The user types the price of the serving in front of them;
+                  // what is stored is the price of the priced volume. Commit
+                  // the converted figure so re-reading it does not rescale an
+                  // already-scaled number.
+                  onPriceCommit(
+                    basePriceFromServingPrice(drink, serving.id, customMl, parsed),
+                  );
                 }}
                 className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
               />
