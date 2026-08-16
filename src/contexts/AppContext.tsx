@@ -255,7 +255,87 @@ function deriveAbandonedSessionExpiryAt(state: AppState): Date | null {
   return new Date(stableEnd.getTime() + SESSION_ABANDON_GRACE_MS);
 }
 
+/**
+ * The stats the Widmark engine actually reads. A change to any of them means
+ * the target was computed for a different body; a change to anything else on
+ * the profile does not.
+ */
+const BAC_RELEVANT_METRIC_KEYS = [
+  "metricType",
+  "heightUnit",
+  "weightUnit",
+  "heightCm",
+  "heightFt",
+  "heightIn",
+  "weight",
+  "bodyFat",
+  "age",
+  "sex",
+] as const satisfies readonly (keyof UserMetrics)[];
+
+/**
+ * Whether these stats can produce a target at all. The engine needs a weight
+ * and a sex; without them there is nothing to invalidate.
+ */
+function statsAreUsable(metrics: UserMetrics): boolean {
+  return metrics.weight.trim() !== "" && metrics.sex !== "";
+}
+
+/**
+ * Replace the planned drinks when the user's body stats materially change.
+ *
+ * A plan is a set of drinks chosen to reach a target computed from a body. If
+ * the body changes the target moves but the drinks do not, which is how a plan
+ * ends up reading 226 ml against a 127 ml target — over the tray's ceiling,
+ * with no way to see why.
+ *
+ * Two things are deliberately kept. **Consumed drinks survive**: they already
+ * happened, and no stats edit un-drinks them. **The night survives** — buzz
+ * level, duration and the drinking window are choices about the evening, not
+ * about the body. A lock does not protect a drink here: locks stop
+ * regeneration and nothing else (`docs/decisions.md`).
+ *
+ * The first population is not a change. `MetricsSync` pushes stats in after
+ * the profile loads, so treating empty-to-populated as material would wipe the
+ * plan on every page load — the exact bug this is meant to fix.
+ */
+function applyChangedStatsToPlanState(prev: AppState, next: UserMetrics): AppState {
+  const materiallyChanged = BAC_RELEVANT_METRIC_KEYS.some(
+    (key) => prev.userMetrics[key] !== next[key],
+  );
+  if (!statsAreUsable(prev.userMetrics) || !materiallyChanged) {
+    return { ...prev, userMetrics: next };
+  }
+
+  const protectedSourceIds = prev.consumedTimelineEntries.map(
+    (snapshot) => snapshot.sourceDrinkId,
+  );
+  const retained = applyRegenerationToDrinks(prev.drinks, protectedSourceIds, []);
+  const drinks =
+    retained.length === 0 ? initialState.drinks.map((drink) => ({ ...drink })) : retained;
+  const pruned = pruneStaleActionState(drinks, {
+    consumed: prev.consumedTimelineEntries,
+    delayed: prev.delayedEntryMinutes,
+    locked: prev.lockedDrinkIds,
+  });
+
+  return {
+    ...prev,
+    userMetrics: next,
+    drinks,
+    lockedDrinkIds: pruned.locked,
+    consumedTimelineEntries: pruned.consumed,
+    delayedEntryMinutes: pruned.delayed,
+    drinkTimeline: [],
+    drinkCalculations: [],
+    adjustedTargetMl: null,
+    isTargetAdjusted: false,
+    effectivePlanEndTime: null,
+  };
+}
+
 export const appSessionStateTransitions = {
+  applyChangedStatsToPlanState,
   resetActiveSessionState,
   loadSessionSnapshotState,
   deriveAbandonedSessionExpiryAt,
@@ -334,10 +414,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   ]);
 
   const updateUserMetrics = useCallback((metrics: Partial<UserMetrics>) => {
-    setState((prev) => ({
-      ...prev,
-      userMetrics: { ...prev.userMetrics, ...metrics },
-    }));
+    setState((prev) =>
+      applyChangedStatsToPlanState(prev, { ...prev.userMetrics, ...metrics }),
+    );
   }, []);
 
   const updateInebriationLevel = (level: number) => {

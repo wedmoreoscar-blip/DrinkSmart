@@ -1037,10 +1037,20 @@ const DrinksTab = ({
         pendingQuantity={swapMode ? 1 : (selected?.quantity ?? 0)}
         hasPending={swapMode ? swapHasPending : normalHasPending}
         cost={committedCost}
-        onDone={onNext}
+        // Inside a category the idle action returns to the plan; only the plan
+        // root finishes the night. `Done` there took the user to the Timeline
+        // mid-selection, when they had pressed it expecting to go back and add
+        // more drinks.
+        onDone={!swapMode && category !== null ? () => setCategory(null) : onNext}
         onAdd={swapMode ? handleCommitSwap : handleAddSelected}
         addDisabled={swapMode ? !swapHasPending : overCeiling}
-        actionLabel={swapMode ? SWAP_COPY.trayPrimary : undefined}
+        actionLabel={
+          swapMode
+            ? SWAP_COPY.trayPrimary
+            : category !== null && !normalHasPending
+              ? PICKER_COPY.trayApply
+              : undefined
+        }
         traySub={
           swapMode
             ? targetMl != null

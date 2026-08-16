@@ -64,7 +64,14 @@ export const PICKER_COPY = {
   customCategory: { name: "Custom drink", sub: "add your own drink" },
   trayReading: (ml: number, target: number) => fmtMl(ml) + " of " + fmtMl(target) + " ml",
   traySub: (n: number) => "pure alcohol · " + n + (n === 1 ? " drink" : " drinks") + " so far",
+  /**
+   * `Done` finishes the night's plan and moves to the Timeline, so it belongs
+   * only on the plan root. Inside a category screen the same button reads
+   * `Apply` and returns to the plan, because a user part-way through picking
+   * drinks is not done — they are finished with this category.
+   */
   trayIdle: "Done",
+  trayApply: "Apply",
   trayPending: (n: number) => "Add " + n,
 };
 
