@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppContext } from "@/contexts/AppContext";
 import type { AlcoholTimelineEntryInput } from "@/lib/sessionEngine";
 import { getWeightInKg, getHeightInCm, getTBWGrams } from "@/lib/unitConversions";
-import { useEstablishments } from "@/hooks/useEstablishments";
+import { useEstablishments, type EstablishmentDrink } from "@/hooks/useEstablishments";
 import { useSavedDrinks } from "@/hooks/useSavedDrinks";
 import type { DrinkFilters } from "@/components/DrinkFilterPopover";
-import { CategoryScreen } from "@/components/picker/CategoryScreen";
+import { CategoryScreen, type PlannedRow } from "@/components/picker/CategoryScreen";
 import { CustomDrinkSheet, type CustomDrinkDraft } from "@/components/picker/CustomDrinkSheet";
 import { PickerTray } from "@/components/picker/PickerTray";
 import {
@@ -21,8 +21,15 @@ import {
   defaultServingFor,
   pureAlcoholMl,
   servingMl,
+  servingOptionsFor,
   servingPrice,
 } from "@/components/picker/picker-model";
+import {
+  isSamePlannedDrink,
+  mergePlanDuplicates,
+  perServingMl,
+  withServings,
+} from "@/lib/planMerge";
 import {
   entryEthanolMl,
   entryEthanolLabel,
@@ -57,6 +64,18 @@ function filterActionablePlanEntries<T extends { id: string }>(
   consumedSourceIds: ReadonlySet<string>,
 ): T[] {
   return entries.filter((entry) => !consumedSourceIds.has(entry.id));
+}
+
+/**
+ * The category a pick from this venue row is recorded under. A custom drink kept
+ * on the venue is picked from Cocktails, so it groups under Cocktails; the same
+ * drink added through the Custom drink sheet carries isCustom and groups under
+ * Custom drink.
+ */
+function plannedCategoryFor(drink: EstablishmentDrink): string {
+  return pickerCategoryFor(drink.category, drink.category_label) === null
+    ? pickerScreenCategoryFor(drink.category, drink.category_label)
+    : drink.category;
 }
 
 const LockIcon = ({ locked }: { locked: boolean }) => (
@@ -420,6 +439,90 @@ const DrinksTab = ({
     updateDrinks(drinks.filter((d) => d.id !== id));
   };
 
+  /** The planned entry a new pick should fold into, per the merge rules. */
+  const mergeTargetFor = (candidate: AlcoholTimelineEntryInput): AlcoholTimelineEntryInput | null =>
+    unconsumedEntries.find((entry) => isSamePlannedDrink(entry, candidate)) ?? null;
+
+  const addServingsToEntry = (entry: AlcoholTimelineEntryInput, extraServings: number) => {
+    updateDrinks(
+      drinks.map((candidate) =>
+        candidate.id === entry.id
+          ? withServings(candidate, entryServingCount(candidate) + extraServings)
+          : candidate,
+      ),
+    );
+  };
+
+  /**
+   * Venue rows that already have a planned entry, so the category tab opens
+   * showing what is in the plan instead of a fresh, empty pick. Matched on name
+   * and category; the entry's own per-serving volume selects which serving
+   * button reads as active, falling back to Custom for a volume no fixed option
+   * offers.
+   */
+  const plannedRows = useMemo(() => {
+    const rows: Record<string, PlannedRow & { entryId: string }> = {};
+    for (const drink of venueDrinks) {
+      const entry = unconsumedEntries.find(
+        (candidate) =>
+          !candidate.isCustom &&
+          candidate.drink === drink.drink_name &&
+          candidate.category === plannedCategoryFor(drink),
+      );
+      if (!entry) continue;
+      const ml = perServingMl(entry);
+      if (ml === null) continue;
+      const option = servingOptionsFor(drink).find(
+        (candidate) => candidate.ml != null && Math.abs(candidate.ml - ml) < 0.01,
+      );
+      rows[drink.id] = {
+        entryId: entry.id,
+        servings: entryServingCount(entry),
+        servingId: option?.id ?? "custom",
+        customMl: option ? null : ml,
+      };
+    }
+    return rows;
+  }, [venueDrinks, unconsumedEntries]);
+
+  /** Rewrite a planned row's entry, then restore the no-duplicates invariant. */
+  const updatePlannedEntry = (
+    drinkId: string,
+    change: (entry: AlcoholTimelineEntryInput) => AlcoholTimelineEntryInput,
+  ) => {
+    const row = plannedRows[drinkId];
+    if (!row) return;
+    const next = drinks.map((entry) => (entry.id === row.entryId ? change(entry) : entry));
+    updateDrinks(mergePlanDuplicates(next, (entry) => !consumedSourceIds.has(entry.id)));
+  };
+
+  const handlePlannedQuantityChange = (drinkId: string, quantity: number) => {
+    if (quantity < 1) return;
+    updatePlannedEntry(drinkId, (entry) => withServings(entry, quantity));
+  };
+
+  /** Changing a planned row's serving re-prices and re-sizes it in place. */
+  const setPlannedServingMl = (drinkId: string, servingId: string, ml: number | null) => {
+    const drink = venueDrinks.find((candidate) => candidate.id === drinkId);
+    if (!drink || ml == null || !Number.isFinite(ml) || ml <= 0) return;
+    updatePlannedEntry(drinkId, (entry) => ({
+      ...withServings({ ...entry, quantity: String(ml) }, entryServingCount(entry)),
+      pricePerUnit: servingPrice(drink, servingId, ml),
+    }));
+  };
+
+  const handlePlannedServingChange = (drinkId: string, servingId: string) => {
+    const drink = venueDrinks.find((candidate) => candidate.id === drinkId);
+    if (!drink) return;
+    const option = servingOptionsFor(drink).find((candidate) => candidate.id === servingId);
+    // Custom has no volume of its own; it waits for the ml the user types.
+    if (!option || option.ml == null) return;
+    setPlannedServingMl(drinkId, servingId, option.ml);
+  };
+
+  const handlePlannedCustomMlChange = (drinkId: string, ml: number | null) =>
+    setPlannedServingMl(drinkId, "custom", ml);
+
   /**
    * Step a planned entry by one of its own servings. The per-serving volume is
    * whatever the entry was committed with — a custom drink's saved serve, or a
@@ -471,17 +574,10 @@ const DrinksTab = ({
     if (!selectedDrink || !selected) return;
     if (selectedServingMl == null) return;
     if (targetMl != null && committedMl + pendingMl > targetMl * 1.2) return;
+    const category = plannedCategoryFor(selectedDrink);
     const entry: AlcoholTimelineEntryInput = {
       id: crypto.randomUUID(),
-      // Where the drink was picked from decides which plan panel it lands in. A
-      // custom drink kept on the venue is picked from Cocktails, so it groups
-      // under Cocktails; the same drink added through the Custom drink sheet
-      // carries isCustom and groups under Custom drink. Two entries for the same
-      // drink from the two places are just two ordinary entries.
-      category:
-        pickerCategoryFor(selectedDrink.category, selectedDrink.category_label) === null
-          ? pickerScreenCategoryFor(selectedDrink.category, selectedDrink.category_label)
-          : selectedDrink.category,
+      category,
       drink: selectedDrink.drink_name,
       customABV: selectedDrink.abv == null ? undefined : String(selectedDrink.abv),
       quantity: String(selectedServingMl * selected.quantity),
@@ -489,9 +585,43 @@ const DrinksTab = ({
       pricePerUnit: servingPrice(selectedDrink, selected.servingId, customMl),
       portions: selected.quantity > 1 ? selected.quantity : undefined,
     };
-    addUnplannedDrink(entry);
+    // Picking a drink already in the plan at the same serving adds to it rather
+    // than opening a second identical card.
+    const existing = mergeTargetFor(entry);
+    if (existing) addServingsToEntry(existing, selected.quantity);
+    else addUnplannedDrink(entry);
     setSelected(null);
     setCustomMl(null);
+  };
+
+  /** Save a custom drink to the venue and the account, per the draft's boxes. */
+  const persistCustomDrink = async (draft: CustomDrinkDraft) => {
+    if (draft.keepIt && draft.abv != null && venue) {
+      await addEstablishmentDrink(venue.id, {
+        drink_name: draft.name,
+        abv: draft.abv,
+        category: "custom",
+        category_label: "Other",
+        price: draft.price,
+        volume: draft.serve,
+        volume_unit: "ml",
+      });
+    }
+    // Keeping a drink on a venue saves it to the account too: the venue copy and
+    // the account copy are the same drink, so "both" is the same as "keep it".
+    if (
+      (draft.saveToAccount || draft.keepIt) &&
+      draft.abv != null &&
+      draft.serve != null &&
+      hasAccount
+    ) {
+      await saveDrink({
+        drinkName: draft.name,
+        abv: draft.abv,
+        servingMl: draft.serve,
+        price: draft.price,
+      });
+    }
   };
 
   const handleAddCustom = async (draft: CustomDrinkDraft) => {
@@ -510,28 +640,12 @@ const DrinksTab = ({
       pricePerUnit: draft.price,
       portions: servings > 1 ? servings : undefined,
     };
-    addUnplannedDrink(entry);
-    if (draft.keepIt && draft.abv != null && venue) {
-      await addEstablishmentDrink(venue.id, {
-        drink_name: draft.name,
-        abv: draft.abv,
-        category: "custom",
-        category_label: "Other",
-        price: draft.price,
-        volume: draft.serve,
-        volume_unit: "ml",
-      });
-    }
-    // Keeping a drink on a venue saves it to the account too: the venue copy and
-    // the account copy are the same drink, so "both" is the same as "keep it".
-    if ((draft.saveToAccount || draft.keepIt) && draft.abv != null && draft.serve != null && hasAccount) {
-      await saveDrink({
-        drinkName: draft.name,
-        abv: draft.abv,
-        servingMl: draft.serve,
-        price: draft.price,
-      });
-    }
+    // Adding the same custom drink again folds into the card already there; a
+    // pick from a category tab stays separate, being a different origin.
+    const existing = mergeTargetFor(entry);
+    if (existing) addServingsToEntry(existing, servings);
+    else addUnplannedDrink(entry);
+    await persistCustomDrink(draft);
     setCustomOpen(false);
   };
 
@@ -715,6 +829,10 @@ const DrinksTab = ({
             quantity={selected?.quantity ?? 1}
             servingId={selected?.servingId ?? ""}
             customMl={customMl}
+            plannedRows={plannedRows}
+            onPlannedQuantityChange={handlePlannedQuantityChange}
+            onPlannedServingChange={handlePlannedServingChange}
+            onPlannedCustomMlChange={handlePlannedCustomMlChange}
             onSelect={handleSelect}
             onQuantityChange={(n) =>
               setSelected((current) => (current ? { ...current, quantity: n } : current))

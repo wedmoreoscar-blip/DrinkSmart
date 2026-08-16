@@ -36,7 +36,10 @@ const FALLBACK_SERVE_ML: Record<FallbackDrinkClassification, number> = {
   beer: 568,
   wine: 175,
   spirit: 25,
-  cocktail: 330,
+  // A cocktail is a highball, not a bottle. 330 was a leaked can/bottle figure
+  // that disagreed with CATEGORY_TYPICAL_ML's 250 and, at 22% ABV, made a Long
+  // Island read as 72.6 ml of ethanol — about nine units in one glass.
+  cocktail: 250,
   soft: 330,
   low: 330,
   alcopop: 330,

@@ -87,7 +87,15 @@ export const CATEGORY_COPY = {
 
 export const CUSTOM_COPY = {
   title: "Custom drink",
-  fields: { name: "Name", abv: "Strength", serve: "Serve", price: "Price", quantity: "How many" },
+  // Price is not validated by attemptAdd; say so rather than leaving the user
+  // to guess which of the four fields they are allowed to skip.
+  fields: {
+    name: "Name",
+    abv: "Strength",
+    serve: "Serve",
+    price: "Price · optional",
+    quantity: "How many",
+  },
   keepIt: (venue: string) => "Keep it on " + venue,
   saveToAccount: "Save drink to account",
   savedRow: (abv: number, servingMl: number | null) =>

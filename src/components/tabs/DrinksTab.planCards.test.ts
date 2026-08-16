@@ -32,11 +32,35 @@ describe("Custom drinks behave like standard drinks", () => {
   // Cocktails tab and from the Custom drink sheet is two ordinary entries in two
   // panels — never merged.
   it("records a custom row picked from a category screen under that screen", () => {
-    const start = source.indexOf("const handleAddSelected");
-    const add = source.slice(start, source.indexOf("addUnplannedDrink(entry);", start));
+    const start = source.indexOf("function plannedCategoryFor");
+    const helper = source.slice(start, source.indexOf("\n}", start));
 
-    expect(add).toContain("pickerScreenCategoryFor(selectedDrink.category, selectedDrink.category_label)");
-    expect(add).toContain("crypto.randomUUID()");
+    expect(helper).toContain("pickerCategoryFor(drink.category, drink.category_label) === null");
+    expect(helper).toContain("pickerScreenCategoryFor(drink.category, drink.category_label)");
+    expect(source).toContain("const category = plannedCategoryFor(selectedDrink);");
+  });
+
+  // Picking a drink already in the plan at the same serving adds to it; the
+  // merge rules themselves are covered in planMerge.test.ts.
+  it("folds a repeat pick into the existing card rather than opening a second", () => {
+    for (const handler of ["const handleAddSelected", "const handleAddCustom"]) {
+      const start = source.indexOf(handler);
+      const body = source.slice(start, source.indexOf("setCustom", start));
+      expect(body).toContain("const existing = mergeTargetFor(entry);");
+      expect(body).toContain("if (existing) addServingsToEntry(existing,");
+    }
+  });
+
+  // The category tab must read back what the Plan tab holds, so a planned row
+  // opens showing its count and edits the entry rather than staging a new pick.
+  it("opens a planned row against the plan entry, not a pending selection", () => {
+    expect(source).toContain("plannedRows={plannedRows}");
+    expect(source).toContain("onPlannedQuantityChange={handlePlannedQuantityChange}");
+
+    const start = source.indexOf("const updatePlannedEntry");
+    const update = source.slice(start, source.indexOf("const handlePlannedQuantityChange", start));
+    // Editing restores the no-duplicates invariant, and never rewrites history.
+    expect(update).toContain("mergePlanDuplicates(next, (entry) => !consumedSourceIds.has(entry.id))");
   });
 
   it("steps a plan row by that row's own serving, not a category default", () => {

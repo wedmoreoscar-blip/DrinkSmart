@@ -8,7 +8,7 @@ describe("menu scanner deterministic drink fallbacks", () => {
     ["cider", "Cider", "beer", 5, 568],
     ["red-wine", "Red wine", "wine", 13, 175],
     ["shots", "Tequila shot", "spirit", 40, 25],
-    ["cocktails", "House cocktail", "cocktail", 15, 330],
+    ["cocktails", "House cocktail", "cocktail", 15, 250],
     ["soft-drinks", "Soft drink", "soft", 0, 330],
     ["no-alcohol", "Alcohol-free beer", "soft", 0, 330],
     ["low-alcohol", "Low alcohol", "low", 1.2, 330],

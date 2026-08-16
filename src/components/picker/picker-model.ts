@@ -1,4 +1,5 @@
 import { OZ_ML, PINT_ML, SHOT_ML } from "@/lib/drinkConstants";
+import { fallbackServeMl } from "@/lib/drinkFallbacks";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { fmtMl, pickerCategoryFor, type PickerCategoryLabel } from "./picker-copy";
 
@@ -83,7 +84,16 @@ export function servingOptionsFor(drink: EstablishmentDrink): ServingOption[] {
     ];
   }
   return [
-    { id: "database", label: "DB volume", ml: databaseVolumeMl(drink) ?? 330 },
+    // The seeded venue catalogue carries no volumes at all — the seed migration
+    // predates the volume column — so this fallback is what most cocktail and
+    // soft rows actually render. It routes through the shared deterministic
+    // table rather than a literal, so the picker, the scanner and the AI
+    // catalogue cannot disagree about the same missing serve.
+    {
+      id: "database",
+      label: "DB volume",
+      ml: databaseVolumeMl(drink) ?? fallbackServeMl(drink.category, drink.category_label),
+    },
     { id: "standard", label: "Standard", ml: 330 },
     CUSTOM,
   ];
@@ -154,6 +164,9 @@ export function servingPrice(
   if (drink.price == null) return null;
   const selectedMl = servingMl(drink, servingId, customMl);
   if (selectedMl === null) return null;
-  const pricedMl = databaseVolumeMl(drink) ?? defaultServingFor(drink).ml ?? 330;
+  const pricedMl =
+    databaseVolumeMl(drink) ??
+    defaultServingFor(drink).ml ??
+    fallbackServeMl(drink.category, drink.category_label);
   return drink.price * (selectedMl / pricedMl);
 }

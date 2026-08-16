@@ -20,11 +20,26 @@ type CategoryScreenProps = {
   quantity: number;
   servingId: string;
   customMl: number | null;
+  /**
+   * Rows already in the plan, keyed by venue drink id. Such a row opens showing
+   * what is planned and edits the plan directly, so the tab always reads back
+   * what the Plan tab holds.
+   */
+  plannedRows?: Record<string, PlannedRow>;
+  onPlannedQuantityChange?: (drinkId: string, quantity: number) => void;
+  onPlannedServingChange?: (drinkId: string, servingId: string) => void;
+  onPlannedCustomMlChange?: (drinkId: string, ml: number | null) => void;
   onSelect: (drinkId: string) => void;
   onQuantityChange: (quantity: number) => void;
   onServingChange: (servingId: string) => void;
   onCustomMlChange: (ml: number | null) => void;
   onBack: () => void;
+};
+
+export type PlannedRow = {
+  servings: number;
+  servingId: string;
+  customMl: number | null;
 };
 
 export const CategoryScreen = ({
@@ -39,6 +54,10 @@ export const CategoryScreen = ({
   quantity,
   servingId,
   customMl,
+  plannedRows,
+  onPlannedQuantityChange,
+  onPlannedServingChange,
+  onPlannedCustomMlChange,
   onSelect,
   onQuantityChange,
   onServingChange,
@@ -147,20 +166,33 @@ export const CategoryScreen = ({
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {visibleDrinks.map((drink) => (
-          <DrinkRow
-            key={drink.id}
-            drink={drink}
-            selected={selectedId === drink.id}
-            quantity={quantity}
-            servingId={servingId}
-            customMl={customMl}
-            onSelect={() => onSelect(drink.id)}
-            onQuantityChange={onQuantityChange}
-            onServingChange={onServingChange}
-            onCustomMlChange={onCustomMlChange}
-          />
-        ))}
+        {visibleDrinks.map((drink) => {
+          // A planned row is already open, and its controls act on the plan
+          // rather than on a pending selection — there is nothing to "add".
+          const planned = plannedRows?.[drink.id];
+          return (
+            <DrinkRow
+              key={drink.id}
+              drink={drink}
+              selected={planned ? true : selectedId === drink.id}
+              quantity={planned ? planned.servings : quantity}
+              servingId={planned ? planned.servingId : servingId}
+              customMl={planned ? planned.customMl : customMl}
+              onSelect={() => {
+                if (!planned) onSelect(drink.id);
+              }}
+              onQuantityChange={(next) =>
+                planned ? onPlannedQuantityChange?.(drink.id, next) : onQuantityChange(next)
+              }
+              onServingChange={(next) =>
+                planned ? onPlannedServingChange?.(drink.id, next) : onServingChange(next)
+              }
+              onCustomMlChange={(next) =>
+                planned ? onPlannedCustomMlChange?.(drink.id, next) : onCustomMlChange(next)
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );
