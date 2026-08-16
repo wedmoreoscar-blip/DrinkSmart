@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
+import { useDrinkOverrides } from "@/hooks/useDrinkOverrides";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -52,6 +53,7 @@ const MenuScannerTab = ({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addSessionEstablishment, refetch, isLoggedIn } = useEstablishments();
+  const { setOverride } = useDrinkOverrides();
 
   const [screen, setScreen] = useState<ScannerScreen>("capture");
   const [photo, setPhoto] = useState<PhotoItem | null>(null);
@@ -263,27 +265,108 @@ const MenuScannerTab = ({
       if (isLoggedIn) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.id) throw new Error("Not authenticated");
+        const userId = session.user.id;
 
-        const { data: estData, error: estError } = await supabase
+        // Re-scanning a venue updates it instead of duplicating it: reuse the
+        // user's existing venue with the same trimmed name (case-insensitive);
+        // insert only when none is found.
+        const { data: userVenues, error: venuesError } = await supabase
           .from("establishments")
-          .insert({ name: venueName, user_id: session.user.id })
-          .select("id")
-          .single();
+          .select("id, name")
+          .eq("user_id", userId);
+        if (venuesError) throw venuesError;
 
-        if (estError) throw estError;
+        const venueNameKey = venueName.toLowerCase();
+        const existingVenue = (userVenues ?? []).find(
+          (venue) => venue.name.trim().toLowerCase() === venueNameKey,
+        );
 
-        const { error: drinksError } = await supabase
-          .from("establishment_drinks")
-          .insert(
-            parsedDrinks.map((drink) =>
-              toEstablishmentDrinkInsert(drink, estData.id, session.user.id),
-            ),
+        if (existingVenue) {
+          savedEstablishmentId = existingVenue.id;
+        } else {
+          const { data: estData, error: estError } = await supabase
+            .from("establishments")
+            .insert({ name: venueName, user_id: userId })
+            .select("id")
+            .single();
+          if (estError) throw estError;
+          savedEstablishmentId = estData.id;
+        }
+
+        // Re-scanning a drink updates its row (abv, volume, volume_unit) rather
+        // than adding a duplicate; only genuinely new names are inserted. A
+        // scanned price is written as an override, never onto an existing row.
+        try {
+          const { data: existingDrinks, error: existingError } = await supabase
+            .from("establishment_drinks")
+            .select("id, drink_name")
+            .eq("establishment_id", savedEstablishmentId);
+          if (existingError) throw existingError;
+
+          const drinkIdByKey = new Map<string, string>();
+          for (const row of existingDrinks ?? []) {
+            drinkIdByKey.set(row.drink_name.trim().toLowerCase(), row.id);
+          }
+
+          const newDrinks = parsedDrinks.filter(
+            (drink) => !drinkIdByKey.has(drink.name.trim().toLowerCase()),
+          );
+          const existingMatches = parsedDrinks.filter((drink) =>
+            drinkIdByKey.has(drink.name.trim().toLowerCase()),
           );
 
-        if (drinksError) throw drinksError;
+          const writeTasks: Promise<void>[] = [];
+
+          for (const drink of existingMatches) {
+            const drinkId = drinkIdByKey.get(drink.name.trim().toLowerCase());
+            if (!drinkId) continue;
+            writeTasks.push(
+              (async () => {
+                const { error: updateError } = await supabase
+                  .from("establishment_drinks")
+                  .update({
+                    abv: drink.abv,
+                    volume: drink.volume,
+                    volume_unit: drink.volumeUnit,
+                  })
+                  .eq("id", drinkId);
+                if (updateError) throw updateError;
+                if (drink.price !== null) await setOverride(drinkId, { price: drink.price });
+              })(),
+            );
+          }
+
+          if (newDrinks.length > 0) {
+            const { data: insertedRows, error: insertError } = await supabase
+              .from("establishment_drinks")
+              .insert(
+                newDrinks.map((drink) =>
+                  toEstablishmentDrinkInsert(drink, savedEstablishmentId, userId),
+                ),
+              )
+              .select("id");
+            if (insertError) throw insertError;
+            newDrinks.forEach((drink, index) => {
+              const insertedId = (insertedRows ?? [])[index]?.id;
+              if (drink.price !== null && insertedId) {
+                writeTasks.push(setOverride(insertedId, { price: drink.price }));
+              }
+            });
+          }
+
+          const settled = await Promise.allSettled(writeTasks);
+          const failures = settled.filter((result) => result.status === "rejected");
+          if (failures.length > 0) throw failures[0].reason;
+        } catch (drinkWriteError) {
+          console.error("Some drinks failed to save:", drinkWriteError);
+          toast({
+            title: "Scan partially saved",
+            description: "Some drinks couldn't be saved. Tap Save to try again.",
+          });
+          return;
+        }
 
         await refetch();
-        savedEstablishmentId = estData.id;
       } else {
         savedEstablishmentId = addSessionEstablishment(
           venueName,
