@@ -29,6 +29,10 @@ A merge that genuinely integrates no delegation bypasses the guard with the lite
 | 2026-08-15 | W5-9 reusable saved custom drinks | ~45k | spec + commission 10k, handback 5k, clause map + migration/copy tests 20k, shared baseline 10k |
 | 2026-08-15 | W5-10 AI planner hardening | ~75k | spec + commission 15k, handback + clause map 25k, hidden-ID/re-plan contract tests and repair 27k, shared baseline 8k |
 | 2026-08-15 | W5-11 active-session lifecycle | ~55k | spec + commission 10k, handback + clause map 17k, stable-expiry/Plan-card tests and repair 20k, shared baseline 8k |
+| 2026-08-16 | W6-1 anonymous stops persisting | ~55k | spec + commission 12k, handback 8k, clause map 12k, unwired-clear repair + store/wiring tests 15k, shared baseline 8k |
+| 2026-08-16 | W6-2 picker price and remembered serve | ~85k | spec + commission 14k, handback 9k, clause map 16k, read-only-input/zero-ethanol/price-drift repairs + 14 tests 38k, shared baseline 8k |
+| 2026-08-16 | W6-3 menu scanner dedupe and overrides | ~45k | spec + commission 12k, handback 8k, clause map 10k, insert-order repair 7k, shared baseline 8k |
+| 2026-08-16 | W6-4 model price column and budget | ~50k | spec + commission 13k, handback 8k, clause map 11k, catalog-test repair + cross-leg budget wiring 10k, shared baseline 8k |
 
 Wave 5 rows are estimates split from one Codex TUI batch. The acceptance repair commit names the
 routine spec gaps that required checker-owned inline work: generation hint/state sync; consumed
@@ -51,3 +55,15 @@ correct:
   true cost of this batch is higher than recorded. A clean run would not pay the handover.
 - **The single largest line is repairs, not the spec.** That is the shape delegation.md predicts for
   work at this size, and it is the half the checker pays regardless of who implements.
+
+Wave 6 was four disjoint legs fanned in as one batch: one clause map, one repair loop, one
+baseline. The rows exclude the spine — the overrides table, resolver, hook, anonymous store and
+resolved read path — which the orchestrator built inline before dispatch precisely so the four
+specs could be disjoint. That inline cost is real and is not delegation overhead; counting it
+against these rows would overstate them.
+
+The batch's most expensive finding cost almost nothing to fix and could not have been found by any
+leg: PlanTab never sent the budget, because leg 4 owned the request type and leg 2 owned the call
+site. Two lines. This is the semantic clash between file-disjoint branches that the single
+post-merge baseline exists to catch, and the clearest evidence so far that batched fan-in earns
+its place — four separate integrations would each have been green.
