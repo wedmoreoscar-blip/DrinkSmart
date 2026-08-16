@@ -299,11 +299,26 @@ function statsAreUsable(metrics: UserMetrics): boolean {
  * the profile loads, so treating empty-to-populated as material would wipe the
  * plan on every page load — the exact bug this is meant to fix.
  */
+function isMaterialStatsChange(prev: UserMetrics, next: UserMetrics): boolean {
+  if (!statsAreUsable(prev)) return false;
+  return BAC_RELEVANT_METRIC_KEYS.some((key) => prev[key] !== next[key]);
+}
+
+/**
+ * How many planned drinks a material stats change would drop. Consumed drinks
+ * and blank placeholder rows are not at risk, so this is what the user is
+ * actually being warned about losing.
+ */
+function plannedDrinksAtRisk(state: AppState): number {
+  const consumed = new Set(state.consumedTimelineEntries.map((s) => s.sourceDrinkId));
+  return state.drinks.filter(
+    (drink) =>
+      !consumed.has(drink.id) && Boolean(drink.drink || (drink.isCustom && drink.customName)),
+  ).length;
+}
+
 function applyChangedStatsToPlanState(prev: AppState, next: UserMetrics): AppState {
-  const materiallyChanged = BAC_RELEVANT_METRIC_KEYS.some(
-    (key) => prev.userMetrics[key] !== next[key],
-  );
-  if (!statsAreUsable(prev.userMetrics) || !materiallyChanged) {
+  if (!isMaterialStatsChange(prev.userMetrics, next)) {
     return { ...prev, userMetrics: next };
   }
 
@@ -336,6 +351,11 @@ function applyChangedStatsToPlanState(prev: AppState, next: UserMetrics): AppSta
 
 export const appSessionStateTransitions = {
   applyChangedStatsToPlanState,
+  // Bundled rather than exported individually: a second named export from this
+  // file adds another react-refresh warning apiece, and the lint baseline is
+  // held flat deliberately.
+  isMaterialStatsChange,
+  plannedDrinksAtRisk,
   resetActiveSessionState,
   loadSessionSnapshotState,
   deriveAbandonedSessionExpiryAt,

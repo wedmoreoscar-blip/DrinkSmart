@@ -27,7 +27,17 @@ import { PreferencesCard } from "@/components/profile/PreferencesCard";
 import { AccountCard } from "@/components/profile/AccountCard";
 import { AdminGroup } from "@/components/profile/AdminGroup";
 import { SessionHistory } from "@/components/profile/SessionHistory";
-import { countMovedDrinks } from "@/components/profile/replan";
+import { useAppContext, appSessionStateTransitions } from "@/contexts/AppContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type ProfileRow = {
   username: string | null;
@@ -65,6 +75,13 @@ const Profile = ({ onOpenPlan }: ProfileProps) => {
   const [savingMetrics, setSavingMetrics] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const { state } = useAppContext();
+  // The stats change awaiting confirmation, with the number of planned drinks
+  // it would drop. Null when nothing is pending.
+  const [pendingMetrics, setPendingMetrics] = useState<{
+    metrics: UserMetricsData;
+    dropped: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetch = async () => {
@@ -101,18 +118,37 @@ const Profile = ({ onOpenPlan }: ProfileProps) => {
 
   const isDark = theme === "dark";
 
-  const handleMetricsSave = async (metrics: UserMetricsData) => {
+  const commitMetrics = async (metrics: UserMetricsData, dropped: number) => {
     setSavingMetrics(true);
     const ok = await saveMetrics(metrics);
     setSavingMetrics(false);
     if (!ok) return;
     setStatsOpen(false);
-    const moved = savedMetrics ? countMovedDrinks(savedMetrics, metrics) : null;
-    if (moved !== null && moved > 0) {
-      toast({ title: `Timeline re-planned — ${moved} drinks moved`, variant: "destructive" });
-    } else {
-      toast({ title: "Stats saved" });
+    toast(
+      dropped > 0
+        ? {
+            title: `Stats saved — plan cleared`,
+            description: `${dropped} planned drink${dropped === 1 ? "" : "s"} removed. Build the night again for your new target.`,
+          }
+        : { title: "Stats saved" },
+    );
+  };
+
+  /**
+   * Changing a stat the BAC engine reads moves the target, and the drinks
+   * chosen for the old target are dropped. That is destructive and irreversible
+   * from the user's side, so it is confirmed first rather than announced after.
+   * A change with no planned drinks to lose asks nothing.
+   */
+  const handleMetricsSave = async (metrics: UserMetricsData) => {
+    const atRisk = appSessionStateTransitions.isMaterialStatsChange(state.userMetrics, metrics)
+      ? appSessionStateTransitions.plannedDrinksAtRisk(state)
+      : 0;
+    if (atRisk > 0) {
+      setPendingMetrics({ metrics, dropped: atRisk });
+      return;
     }
+    await commitMetrics(metrics, 0);
   };
 
   const handlePreferencesChange = (prefs: PreferenceData) => {
@@ -254,6 +290,38 @@ const Profile = ({ onOpenPlan }: ProfileProps) => {
         saving={savingMetrics}
         onSave={handleMetricsSave}
       />
+
+      <AlertDialog
+        open={pendingMetrics !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingMetrics(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>This will clear tonight's plan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your drinks were chosen to reach a target worked out from your old stats. Saving
+              these removes {pendingMetrics?.dropped ?? 0} planned{" "}
+              {pendingMetrics?.dropped === 1 ? "drink" : "drinks"} so you can build the night
+              again for the new target. Anything you have already drunk stays, and so do your
+              buzz level, timings and budget.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep my plan</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const pending = pendingMetrics;
+                setPendingMetrics(null);
+                if (pending) void commitMetrics(pending.metrics, pending.dropped);
+              }}
+            >
+              Save stats
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
