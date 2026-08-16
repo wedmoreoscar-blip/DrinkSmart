@@ -46,7 +46,7 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
   const [statsAttempted, setStatsAttempted] = useState(false);
   const [prefs, setPrefs] = useState<PreferenceData>(defaultPreferences);
   const [submitting, setSubmitting] = useState(false);
-  const { completeOnboarding, isLoggedIn } = useUserMetrics();
+  const { completeOnboarding } = useUserMetrics();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -75,15 +75,6 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
 
   const handleFinishClick = async (finalPrefs: PreferenceData) => {
     if (!stats) return;
-    if (!isLoggedIn) {
-      toast({
-        title: "Not signed in",
-        description:
-          "Anonymous session hasn't been bootstrapped — refresh the page.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setSubmitting(true);
     const ok = await completeOnboarding(stats, finalPrefs);
@@ -145,6 +136,10 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
               </Button>
               <p className="mt-3 text-center text-micro text-[#75798c]">
                 {ONBOARD1_COPY.footnote}
+              </p>
+              <p className="mt-2 text-center text-micro text-[#75798c]">
+                An account saves your custom drinks, stats, preferences, and last
+                night's session for quick fill.
               </p>
             </div>
           </>
