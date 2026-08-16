@@ -3,6 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+import { isAnonymousSession } from "@/lib/anonymousAuth";
+import {
+  loadAnonymousProfile,
+  saveAnonymousProfile,
+} from "@/lib/anonymousProfileStore";
 import {
   defaultPreferences,
   parsePreferences,
@@ -95,13 +100,13 @@ export const useUserMetrics = () => {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUserId(session?.user?.id || null);
+      setUserId(session && !isAnonymousSession(session) ? session.user.id : null);
       setAuthResolved(true);
     };
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUserId(session?.user?.id || null);
+      setUserId(session && !isAnonymousSession(session) ? session.user.id : null);
       setAuthResolved(true);
     });
 
@@ -112,10 +117,12 @@ export const useUserMetrics = () => {
 
   const query = useQuery<ProfileQueryData>({
     queryKey,
-    enabled: !!userId,
     staleTime: 1000 * 60 * 5,
     queryFn: async () => {
-      if (!userId) return emptySnapshot;
+      // No account: the profile resolves from the session-scoped store, not
+      // from Supabase. Theme stays on the profile row, so an anonymous user
+      // always reads "system".
+      if (!userId) return { ...loadAnonymousProfile(), theme: "system" };
 
       const { data, error } = await supabase
         .from("profiles")
@@ -141,8 +148,15 @@ export const useUserMetrics = () => {
 
   const saveMetricsMut = useMutation<UserMetricsData, Error, UserMetricsData>({
     mutationFn: async (metrics) => {
-      if (!userId) return metrics;
       const { columns, effectiveMetricType } = metricsToColumns(metrics);
+
+      if (!userId) {
+        saveAnonymousProfile({
+          ...loadAnonymousProfile(),
+          metrics: { ...metrics, metricType: effectiveMetricType },
+        });
+        return { ...metrics, metricType: effectiveMetricType };
+      }
 
       const { data: existingProfile } = await supabase
         .from("profiles")
@@ -180,7 +194,10 @@ export const useUserMetrics = () => {
     { previous?: ProfileQueryData }
   >({
     mutationFn: async (preferences) => {
-      if (!userId) return preferences;
+      if (!userId) {
+        saveAnonymousProfile({ ...loadAnonymousProfile(), preferences });
+        return preferences;
+      }
       const { error } = await supabase
         .from("profiles")
         .update({ preferences: preferences as unknown as Json })
@@ -248,10 +265,18 @@ export const useUserMetrics = () => {
     { metrics: UserMetricsData; preferences: PreferenceData }
   >({
     mutationFn: async ({ metrics, preferences }) => {
-      if (!userId) throw new Error("Not authenticated");
-
-      const { columns } = metricsToColumns(metrics);
+      const { columns, effectiveMetricType } = metricsToColumns(metrics);
       const onboardedAt = new Date().toISOString();
+
+      if (!userId) {
+        saveAnonymousProfile({
+          ...loadAnonymousProfile(),
+          metrics: { ...metrics, metricType: effectiveMetricType },
+          preferences,
+          onboardedAt,
+        });
+        return;
+      }
 
       const { data: existingProfile } = await supabase
         .from("profiles")
@@ -288,7 +313,6 @@ export const useUserMetrics = () => {
 
   const saveMetrics = useCallback(
     async (metrics: UserMetricsData): Promise<boolean> => {
-      if (!userId) return true;
       try {
         await saveMetricsMut.mutateAsync(metrics);
         return true;
@@ -296,12 +320,11 @@ export const useUserMetrics = () => {
         return false;
       }
     },
-    [userId, saveMetricsMut]
+    [saveMetricsMut]
   );
 
   const savePreferences = useCallback(
     async (preferences: PreferenceData): Promise<boolean> => {
-      if (!userId) return true;
       try {
         await savePreferencesMut.mutateAsync(preferences);
         return true;
@@ -309,7 +332,7 @@ export const useUserMetrics = () => {
         return false;
       }
     },
-    [userId, savePreferencesMut]
+    [savePreferencesMut]
   );
 
   const saveTheme = useCallback(
@@ -327,7 +350,6 @@ export const useUserMetrics = () => {
 
   const completeOnboarding = useCallback(
     async (metrics: UserMetricsData, preferences: PreferenceData): Promise<boolean> => {
-      if (!userId) return false;
       try {
         await completeOnboardingMut.mutateAsync({ metrics, preferences });
         return true;
@@ -335,7 +357,7 @@ export const useUserMetrics = () => {
         return false;
       }
     },
-    [userId, completeOnboardingMut]
+    [completeOnboardingMut]
   );
 
   const refetch = useCallback(async () => {

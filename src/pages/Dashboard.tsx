@@ -7,6 +7,7 @@ import TimelineTab from "@/components/tabs/TimelineTab";
 import Profile from "@/pages/Profile";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { useUserMetrics } from "@/hooks/useUserMetrics";
+import { loadAnonymousProfile } from "@/lib/anonymousProfileStore";
 import { MetricsSync } from "@/components/MetricsSync";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import { buildActiveVenueCatalog } from "@/lib/planCatalog";
@@ -15,7 +16,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("plan");
   const [planFullScreen, setPlanFullScreen] = useState(false);
   const [swapDrinkId, setSwapDrinkId] = useState<string | null>(null);
-  const { isOnboarded, loading: metricsLoading, refetch } = useUserMetrics();
+  const { isLoggedIn, isOnboarded, loading: metricsLoading, refetch } = useUserMetrics();
   const { activeVenue, getEstablishmentDrinks } = useEstablishments();
   const [onboardingClosed, setOnboardingClosed] = useState(false);
 
@@ -28,7 +29,13 @@ const Dashboard = () => {
     [activeVenue, activeVenueDrinks],
   );
 
-  const showOnboarding = !metricsLoading && !isOnboarded && !onboardingClosed;
+  // An anonymous user has no profile row to carry onboarded_at, so their
+  // marker lives in the session-scoped store; an account reads it from the
+  // profile through the hook. Read whichever source applies to this session.
+  const anonymousOnboardedAt = !isLoggedIn ? loadAnonymousProfile().onboardedAt : null;
+
+  const showOnboarding =
+    !metricsLoading && !isOnboarded && !anonymousOnboardedAt && !onboardingClosed;
 
   return (
     <AppProvider>
