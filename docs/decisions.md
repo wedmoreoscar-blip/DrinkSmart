@@ -1132,7 +1132,12 @@ ladder — this ledger — is the only thing that can overrule a drawn Claude De
   replaces the traversal — it walks to the card's next gap and submits once none remain — and the
   screen keeps exactly one 64px primary, which was the locked rule the keypad's action strained.
 
-## PENDING — A custom drink kept on a venue is unreachable in the picker (2026-08-16)
+## RESOLVED — A custom drink kept on a venue is unreachable in the picker (2026-08-16)
+
+> **Answered the same day by Oscar and built.** Neither candidate below was taken: a kept custom
+> drink joins that venue's **Cocktails tab**. See **Custom drinks are venue drinks** immediately
+> after this entry. The entry is kept because it records why the null mapping was not simply
+> changed.
 
 Found while making the quantity stepper step by a custom drink's own saved serve. The model change
 is done: an uncategorised venue row now offers **its saved volume** as its only fixed serving and
@@ -1151,3 +1156,103 @@ deliberate and load-bearing — it is what routes these entries to the Custom dr
 dropping them, and `DrinksTab.planCards.test.ts` guards it — so the fix is a placement decision, not
 a change to `pickerCategoryFor`. The candidates are a pickable list inside the existing Custom drink
 panel, or a sixth root card. Neither is drawn or specified, so nothing was built.
+
+## LOCKED — Custom drinks are venue drinks, and picker cards read the plan (2026-08-16)
+
+Settled by Oscar while testing, and built. Corrects a guess the previous handoff carried.
+
+- **Keeping a drink on a venue saves it to the account too.** They were independent checkboxes;
+  "both" is the same act as "keep it". The account box reads ticked and locked while "keep it" is on.
+- **A kept custom drink appears in that venue's Cocktails tab** — not a new card, not a list inside
+  the Custom drink panel. Placement is a separate rule, `pickerScreenCategoryFor`, and **not** a
+  change to `pickerCategoryFor`, which still maps custom to null so custom *plan entries* group under
+  the Custom drink panel. Because placement reads the stored category rather than rewriting it,
+  drinks kept before this change became visible too.
+- **Where a drink was picked from decides its plan panel.** From the Cocktails tab it groups under
+  Cocktails; from the Custom drink sheet it carries `isCustom` and groups under Custom drink. The
+  same drink from both places is two ordinary entries.
+- **A category tab reads back what the Plan tab holds.** A drink already planned opens showing its
+  count, and its `+`/`−`, serving buttons and custom ml edit that entry in place. Editing restores
+  the no-duplicates invariant and never touches a consumed row.
+- **Editing ml never writes back to the saved drink** — the sheet's Serve field and `DrinkRow`'s
+  Custom control are both per-entry.
+
+## LOCKED — Merge identity is the per-serving volume (2026-08-16)
+
+Settled by Oscar. Rules and folding live in `src/lib/planMerge.ts`, tested directly.
+
+Two picks are the same drink when they share an **origin, name, category and per-serving volume**.
+
+- The serving's *name* is irrelevant. A pint and a half pint are two drinks; a single and a double
+  are two drinks; two servings that resolve to the same ml are one drink.
+- **Origin separates.** A custom drink added from the Custom drink sheet never folds into the same
+  drink picked from a category tab — two deliberate choices in two places.
+- A consumed entry is history: it never absorbs a new pick and is never folded into one.
+
+## LOCKED — A cocktail is 250 ml, and a drink without a ladder has one serving (2026-08-16)
+
+Found by Oscar querying a 3 × Long Island Iced Tea reading. **This changes BAC output**, so it is
+recorded rather than left as a bug fix.
+
+- **The seeded Wetherspoons catalogue carries no volumes and no prices.** The seed
+  (`20251202161508`) inserts only `establishment_id, category, category_label, drink_name, abv`; the
+  `volume`/`volume_unit`/`price` columns arrived a month later (`20260101231723`) and nothing
+  backfilled them. Every cocktail and soft row therefore fell through to a hardcoded `?? 330` in
+  `servingOptionsFor`. At 22% that made a Long Island **72.6 ml of ethanol, about nine units in one
+  glass**.
+- **`FALLBACK_SERVE_ML.cocktail` is 250, not 330.** A cocktail is a highball, not a bottle. This also
+  settles its long-standing disagreement with `CATEGORY_TYPICAL_ML.cocktails`. Low, no-alcohol and
+  alcopop keep 330. The picker now routes its fallback through the shared table rather than a
+  literal, so the picker, the scanner and the AI catalogue cannot disagree about a missing serve.
+- **Beer, wine and spirits have real serving ladders** where each rung is a different drink. Everything
+  else does not: a cocktail, a bottled soft/low drink and a kept custom drink come in **one** serve —
+  the row's own volume, or its category's fallback. The old "DB volume + Standard 330" pair pretended
+  there was a stored figure to differ from and put a bottle-sized pour one tap from the corrected
+  250. `Custom` remains available on every category.
+
+## LOCKED — Budget is a range, it belongs to the night, and the floor is the quality dial (2026-08-16)
+
+Settled by Oscar. **Specified, not built** — the full plan is the Traycer artifact
+`price-and-account-value`.
+
+- **A range, `budget_min`/`budget_max`**, not a ceiling. I argued for a ceiling first and was wrong.
+  With the ethanol target fixed, the cheapest way to hit it is to maximise ethanol per pound — value
+  lager, cheap strong cider, bare spirit measures. A ceiling is only ever satisfied *more* by going
+  cheaper. **The floor is what stops that**, and nothing else in the app can express it: Strength is
+  ABV preference and cheap strong cider scores well on it, Sweetness is a taste axis, and the chips
+  choose category not tier. There is no quality field on any drink. Price is a crude but real proxy.
+- **It belongs to the night, not the user.** It sits on the **Plan tab** beside duration and buzz, not
+  in onboarding, so `PreferenceData` is untouched and the locked `5f` rails are not disturbed.
+- **A fresh session starts maximally wide (£0 – no limit)** so an unset budget constrains nothing.
+  `use last night` carries the previous range; that path is already account-only.
+- **The server does not gate on budget.** One hard gate only — the ±10% ethanol admission gate stays
+  the single rejection. Budget shapes *which* drinks fill the target and is never a reason to
+  underfill it.
+- **Rounds bought for other people are out of scope.** A single-user app first. The cost readout
+  therefore understates the night for anyone buying rounds: a known, accepted limitation.
+
+## PENDING — An account must be the only thing that persists (2026-08-16)
+
+Settled in principle by Oscar, **not built**. Detail in `price-and-account-value` §4.G.
+
+`useUserMetrics` derives its user id from `session?.user?.id` **with no anonymous check**, so an
+anonymous user's stats *and* preferences are written to `profiles` and survive restarts.
+`useSavedDrinks` and `useSessionHistory` correctly exclude anonymous. The account incentive is
+therefore half-built: an account is supposed to buy saved custom drinks, saved stats, saved
+preferences and history-based quick fill, and today two of those come free.
+
+Changing it **deletes working behaviour for existing anonymous users**, so it is a deliberate,
+announced switch rather than a silent regression. The anonymous → account upgrade must still carry
+the row over, which it does today via `user_id` preservation.
+
+## PENDING — Price capture, and the one open decision (2026-08-16)
+
+Specified in `price-and-account-value`; **nothing built**. Settled within it: a single
+`user_drink_overrides` table carries both a user's price and their remembered custom serve for a
+drink at an establishment (one record, because a remembered serve is a preference about a drink, not
+another drink); a remembered serve drives sorting and swap eligibility too.
+
+**The one open decision is the source of the Wetherspoons price list.** It cannot be resolved from
+inside the repo — either an approximate list is drafted and corrected, or a real menu is scanned. It
+blocks workstream A only; D, G and B do not depend on it. Whatever is used needs a stated source and
+date, or it becomes another 330 ml.

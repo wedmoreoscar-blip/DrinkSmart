@@ -1,139 +1,120 @@
-# Session kickoff — three approved tasks, run autonomously
+# Session kickoff — implement the price / budget / account plan
 
-Written 2026-08-16 04:00 BST by normal handoff. Substantively identical to `HANDOFF.md`.
+Written 2026-08-16 20:00 BST by normal handoff. Substantively identical to `HANDOFF.md`.
 
-`main` is at `d3e80c8`. The live `generate-plan` 502 is fixed and verified on deployed v11 (HTTP 200,
-real plans, 3.3-5.5s); routing is `only: ["coreweave","wafer"]` after a CN jurisdiction guardrail was
-found to block DeepSeek's endpoint permanently. Also fixed this session: custom drinks vanishing from
-the Plan tab, the app-wide toast viewport blocking taps, and timeline reorder feel.
+`main` is at `4bf31fc`. Branch `main`, clean apart from Oscar's unstaged package.json /
+package-lock.json (Supabase CLI devDependency) which must be preserved.
 
-Baseline at handoff: `npx vitest run` 209 passed / 36 files; `npm run typecheck` passes;
-`npm run build` passes; `npm run lint` known-failing at exactly 11 errors and 12 warnings.
-Re-derive these; never quote them.
+## Completed
 
-Preserve Oscar's unstaged `package.json` / `package-lock.json` (Supabase CLI devDependency).
+The previous handoff's three approved tasks are **done and committed**, and a second body of work
+followed from Oscar testing the result.
 
-Read first: `AGENTS.md`; `docs/decisions.md`; `supabase/functions/generate-plan/index.ts`; Traycer
-artifact `generate-plan-502-diagnosis`.
+- `ea9637d` — **the `4o` numeric keypad is deleted.** Every numeric value is typed on the device
+  keyboard; the app renders no number pad. Both consumers use `<Input type="number">` with an
+  `inputMode` hint. The clamp table moved to `src/lib/numericField.ts`. Also: custom-drink price
+  persists (migration `20260816000000`), and the wind-down sober time carries a "tomorrow" qualifier.
+- `f7f7587` — **a kept custom drink is a venue drink.** "Keep it on <venue>" now saves to the account
+  too; a kept custom drink appears in that venue's Cocktails tab; where you picked it from decides
+  its plan panel; the custom-drink sheet gained a quantity stepper; plan panel rows gained `+`/`−`.
+- `5ea3713` — **migration applied by Oscar and types regenerated.** `saved_custom_drinks.price` is
+  live; the temporary widening aliases in `useSavedDrinks.ts` are gone.
+- `3d72aa9`, `1e02ce7`, `168cc49` — **the 330 ml cocktail bug, duplicate merging, and picker cards
+  that read the plan.** A cocktail's fallback serve is now 250 ml, drinks without a serving ladder
+  offer one serving rather than a meaningless "DB volume + Standard" pair, repeat picks merge on
+  per-serving volume, and a category tab opens showing what the Plan tab already holds.
+- `4bf31fc` — CLAUDE.md's session-history entries corrected (`useLastSession.ts` did not exist;
+  pitfall 6 described the wrong table).
 
-The three tasks below are approved and specified. Work them in order without checking back.
+## Verification at handoff
+
+Re-derived on `4bf31fc`. **Never quote these — run them.**
+
+- `npm run typecheck` (`tsc -b --noEmit`) — passed.
+- `npx vitest run` — **232 passed, 39 files.**
+- `npm run lint` — **23 problems (11 errors, 12 warnings)**, the known baseline, held all session.
+- `npm run build` — passed.
+- Live: `20260816000000` applied to the linked project; `supabase migration list --linked` clean.
+
+**Do not stage `package.json` / `package-lock.json`.** They carry Oscar's Supabase CLI devDependency
+and are deliberately uncommitted.
 
 ---
 
-# NEXT SESSION — three tasks, run autonomously
+# NEXT SESSION — implement the price / budget / account plan
 
-All three are approved and specified. Work through them in order, verify against the baseline
-above, and commit. Do not deploy, apply migrations to the remote database, rotate secrets, or push.
+**The plan is fully specified in the Traycer artifact `price-and-account-value`.** Read it first; it
+is the spec, and this file only summarises it. Its §2 records what is true in the code today, verified
+rather than assumed, and its §6 records why the budget floor matters.
 
-## Task 1 — Delete the numeric keypad, use native inputs
+Seven workstreams, lettered A–G in the artifact. Build order:
 
-Oscar chose **remove it entirely** when told this reverses the `4o` Claude Design primitive
-(spec `docs/specs/2026-08-12-w4-1-keypad-field-group.md`, handoff
-`design_handoffs/design_handoff_drinksmart/screens/4o-keypad-field-group.html`). That choice is
-made; do not re-litigate it, but **do** record the reversal via `update-decisions`, since
-`docs/decisions.md` makes Claude Design ground truth for UI.
+| Order | Workstream | State |
+| --- | --- | --- |
+| 1 | **D** — budget range on the Plan tab | Fully specced, nothing blocks it |
+| 2 | **G** — anonymous users stop persisting | Fully specced; decides who gets an override row |
+| 3 | **B** — `user_drink_overrides`: price + remembered custom serve | Fully specced, largest piece |
+| 4 | **C** / **F** — tray cost and `Cheapest first`; scanner writes through B's resolver | Follow B |
+| 5 | **E** — the model gets price and budget | Last; **budget a benchmark re-run into it** |
+| — | **A** — real Wetherspoons prices in the seed | **One open decision**, see below |
 
-**The principle, confirmed by Oscar 2026-08-16:** every numeric *value* is typed on the user's own
-device keyboard; the app renders no number pad of its own. `+`/`-` steppers stay, but only for
-incremental adjustment (quantity), never as a way to enter a value digit by digit.
+**The one open decision is A's price list source.** It cannot be resolved from inside the repo:
+either draft an approximate list and have Oscar correct it, or scan a real menu with the app's own
+scanner. Oscar's instruction is that this is dealt with **at build time**, not before starting. A
+blocks only C's `Cheapest first` and E's usefulness; **D, G and B do not depend on it.**
 
-Scope is fully known — `KeypadFieldGroup` is the **only** in-app numeric entry surface in the
-codebase. `src/components/profile/StatsSheet.tsx` already uses native inputs, and the only steppers
-are `DrinkRow`'s quantity controls, which Task 3 extends rather than removes. After this task no
-app-rendered number pad remains.
+Two things to carry that are easy to get wrong:
 
-Replace with native inputs the user can type into with the OS keyboard:
+- **E re-opens benchmarked ground.** The current routing, tool set and prompt are backed by 30 trials
+  per provider through the ±10% admission gate. Adding a price column and a budget changes the prompt,
+  so that evidence stops describing what ships.
+- **The ethanol target stays the highest priority.** Budget shapes *which* drinks fill the target and
+  is never a reason to underfill it. The server keeps exactly one hard gate.
 
-- `src/components/picker/CustomDrinkSheet.tsx:181` — the ABV / serve / price group.
-- `src/components/scanner/ScannerReview.tsx:109` — the same primitive.
-- Delete `src/components/ui/keypad-field-group.tsx` and
-  `src/components/ui/keypad-field-group.test.tsx`.
-
-Match the pattern `src/components/profile/StatsSheet.tsx:79-155` already uses — `<Input type="number">`
-with an `inputMode` hint (`"decimal"` for ABV and price, `"numeric"` for serve in whole ml) — rather
-than introducing a second idiom. Guard the two known `type="number"` annoyances: add
-`onWheel={(e) => e.currentTarget.blur()}` so scrolling cannot silently change a committed value, and
-keep the value in component state as a string so a half-typed decimal is not clobbered mid-entry.
-
-Keep every existing behaviour: the `%` / `ml` / `£` adornments
-and their absolute positioning, the `errors` map and warning styling, `onCommit`-equivalent state
-updates into `values`, `emptyIsAllowed={false}` semantics, and the `attemptAdd` validation path
-(`CUSTOM_ERRORS.name` / `.abv` / `.serve`). `KeypadFieldGroup` currently owns the `onAdvance`
-behaviour wired to `attemptAdd` — preserve that as Enter-to-submit on the last field.
-
-Expect the test count to drop by whatever `keypad-field-group.test.tsx` contributed; that is
-expected, not a regression. Update the CLAUDE.md line that cites the keypad in the test inventory.
-
-## Task 2 — Persist a custom drink's price as well as its volume
-
-Volume already persists (`saved_custom_drinks.serving_ml`); **price does not** — there is no column,
-and `CustomDrinkSheet.applySaved` hard-codes `price: null`. Oscar wants both restored on reselect.
-
-1. **Migration** — new file `supabase/migrations/20260816000000_saved_custom_drink_price.sql`.
-   Model it on `20260815000001_saved_custom_drink_serving_ml.sql`, which adds a nullable numeric with
-   a CHECK constraint. Add `price numeric` plus
-   `CHECK (price IS NULL OR (price >= 0 AND price <= 1000))`. Legacy rows keep NULL.
-   **Note:** that earlier migration writes its policy as `auth.uid() = user_id`, which violates the
-   locked `(select auth.uid())` RLS pattern (CLAUDE.md 23e). Do not copy that mistake; you are not
-   adding a policy here anyway.
-   **Write the migration only — do not apply it.** Oscar applies it and runs `npm run db:types`.
-2. **Types** — `src/integrations/supabase/types.ts` is generated. Do not hand-edit it; note in the
-   commit that `npm run db:types` is required after the migration is applied.
-3. **Client** — add `price: number | null` to `SavedDrink` in `src/hooks/useSavedDrinks.ts`, thread it
-   through `saveDrinkMut` (the upsert on `user_id,drink_name`) and the `saveDrink` callback signature,
-   then pass `draft.price` from `DrinksTab.handleAddCustom` (`src/components/tabs/DrinksTab.tsx:473`).
-   In `CustomDrinkSheet.applySaved`, restore `price: drink.price ?? null` instead of the hard-coded
-   `null`.
-
-Because the column will not exist until Oscar applies the migration, the client must tolerate a
-missing/NULL `price` without throwing.
-
-## Task 3 — +/- on a custom drink steps by its saved volume
-
-The stepper lives in `src/components/picker/DrinkRow.tsx:90-103` (`onQuantityChange(quantity ± 1)`),
-where `quantity` is a count of servings and the serving comes from the venue row. For a custom drink
-the increment must be **that drink's own saved volume** (`serving_ml`), so +1 adds exactly one saved
-serve rather than a category default.
-
-Trace how a custom/saved drink reaches `DrinkRow` and make the per-serving volume come from the saved
-row. Beware the interaction fixed earlier this session: entries created by `handleAddSelected` do not
-set `isCustom`, and `pickerCategoryFor` maps category `custom` to `null` — `planGroups` in
-`DrinksTab.tsx:372` now falls back to the Custom drink panel rather than dropping them. Keep that
-fallback working; `DrinksTab.planCards.test.ts` guards it.
-
-## Optional, if time allows
-
-`WindDownScreen`'s `formatClock` renders `HH:mm` with no day indicator, so a sober-time that lands
-on the following day is ambiguous (a 21:00 last drink plus 19 hours shows "16:00"). Add a "tomorrow"
-qualifier when the crossing date differs from the last-drink date. **The wind-down maths itself is
-correct** and was verified this session — do not change it.
+Read first: `AGENTS.md`; `docs/decisions.md` (the five 2026-08-16 entries at the end); the artifact
+`price-and-account-value`; `src/lib/planMerge.ts`; `src/components/picker/picker-model.ts`.
 
 ## PROMPT
 
 ```text
-Work autonomously through the three approved tasks in HANDOFF.md under "NEXT SESSION", in order:
-(1) delete the `4o` numeric keypad primitive and replace both consumers with native
-`<Input inputMode="decimal">` fields; (2) persist a custom drink's price alongside its volume,
-writing but NOT applying the migration; (3) make the +/- stepper on a custom drink add that drink's
-own saved volume. Each task's files, constraints and gotchas are spelled out there — follow them
-rather than re-deriving.
+Implement the price / budget / account plan specified in the Traycer artifact
+`price-and-account-value`. Read that artifact first — it is the spec, and its §2 records what is
+true in the code today, verified. HANDOFF.md summarises it but does not replace it.
 
-Read first: AGENTS.md; HANDOFF.md; docs/decisions.md (especially "Provider routing after the CN
-jurisdiction guardrail", and the Claude Design precedence ladder that Task 1 reverses).
+Build in this order, and check in with Oscar between workstreams rather than running all of them:
+(D) the budget range on the Plan tab — session state plus versioned localStorage, a two-handle
+slider beside duration and buzz, a fresh session defaulting maximally wide at £0–no limit, and two
+nullable columns on user_session_history so `use last night` carries it; (G) anonymous users stop
+persisting — useUserMetrics must derive its user id the way useSavedDrinks already does, with a
+session-scoped home for anonymous stats and preferences and onboarding re-gated accordingly;
+(B) a user_drink_overrides table carrying both a user's price and their remembered custom serve for
+a drink at an establishment, resolved in exactly one place; then (C/F) tray cost and the scanner;
+then (E) the model.
+
+Start with D. It is fully specified and nothing blocks it.
+
+Workstream A — real Wetherspoons prices in the seed — has one open decision, its price list source,
+which cannot be resolved from inside the repo. Oscar's instruction is to deal with it at build time:
+ask him whether to draft an approximate list for him to correct or to scan a real menu. Do not
+invent prices silently, and whatever is used needs a stated source and date. A blocks only C's
+`Cheapest first` and E's usefulness — D, G and B do not depend on it.
+
+Two things that are easy to get wrong. E re-opens benchmarked ground: the routing, tool set and
+prompt are backed by 30 trials per provider through the ±10% admission gate, so adding a price
+column and a budget invalidates that evidence and a re-run must be budgeted into the step. And the
+ethanol target stays the highest priority — budget shapes which drinks fill the target and is never
+a reason to underfill it; the server keeps exactly one hard gate.
 
 Do not re-pin the AI provider to DeepSeek: a CN jurisdiction guardrail makes that endpoint
-permanently unreachable from this OpenRouter account, and no privacy/ZDR setting or new API key
-changes it. Do not stage, revert or delete the unstaged package.json / package-lock.json - those are
-Oscar's Supabase CLI devDependency.
+permanently unreachable from this OpenRouter account. Do not stage, revert or delete the unstaged
+package.json / package-lock.json — those are Oscar's Supabase CLI devDependency.
 
 Verification baseline, re-derive rather than quote: `npm run typecheck` PASSES; `npx vitest run` is
-209 tests across 36 files and will legitimately drop when keypad-field-group.test.tsx is deleted;
-`npm run build` PASSES; `npm run lint` is known-failing at exactly 11 errors and 12 warnings and must
-not get worse. Edge functions sit outside the tsc project and Deno is absent, so
-supabase/functions/**/*.ts can only be inspection-checked. Deployed function logs are BLOCKED - the
-Management API analytics endpoint returns zero rows for every log table on this project.
+232 tests across 39 files; `npm run build` PASSES; `npm run lint` is known-failing at exactly 11
+errors and 12 warnings and must not get worse. Edge functions sit outside the tsc project and Deno
+is absent, so supabase/functions/**/*.ts can only be inspection-checked. Deployed function logs are
+BLOCKED — the Management API analytics endpoint returns zero rows for every log table.
 
-Run `update-decisions` for the keypad reversal (it overrides the Claude Design UI precedence) before
-finishing. Commit locally when the baseline holds. Never push, deploy, apply migrations to the remote
-database, or rotate secrets.
+Commit locally when the baseline holds. Never push, deploy, rotate secrets, or apply a migration to
+the remote database without asking — Oscar applies migrations himself.
 ```
