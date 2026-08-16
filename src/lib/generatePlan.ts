@@ -31,6 +31,12 @@ export type GeneratedPlan = {
   drinks: GeneratedDrink[];
   notes: string;
   actual_total_ethanol_ml?: number;
+  /**
+   * Total cost of the accepted plan in pounds, recomputed server-side from
+   * catalog prices. Null when any pick has no known price. Absent when the
+   * plan came from the offline greedy fallback.
+   */
+  plan_cost_pounds?: number | null;
 };
 
 const UNDERFILL_DEFICIT_THRESHOLD = 0.15;
@@ -52,6 +58,13 @@ export type GeneratePlanInput = {
   target_ethanol_ml: number;
   duration_minutes: number;
   preferences: PreferenceData;
+  /**
+   * The night's budget range in whole pounds. Absent means unset: £0 – no
+   * limit, constraining nothing. These flow into the request payload and the
+   * request fingerprint, so requests differing only by budget are distinct.
+   */
+  budget_min?: number;
+  budget_max?: number | null;
   catalog: CatalogItem[];
   locked_drinks?: LockedDrink[];
   exclude?: string[];
@@ -192,6 +205,7 @@ function topUpIfUnderfilled(
       drinks: greedy.drinks,
       notes: plan.notes || greedy.notes,
       actual_total_ethanol_ml: input.target_ethanol_ml - deficit,
+      plan_cost_pounds: plan.plan_cost_pounds,
     };
   }
 
@@ -231,6 +245,7 @@ function topUpIfUnderfilled(
     drinks,
     notes: plan.notes,
     actual_total_ethanol_ml: input.target_ethanol_ml - deficit,
+    plan_cost_pounds: plan.plan_cost_pounds,
   };
 }
 
