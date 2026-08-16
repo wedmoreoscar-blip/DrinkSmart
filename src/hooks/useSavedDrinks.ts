@@ -16,13 +16,8 @@ export type SavedDrink = {
 };
 
 type SavedDrinksTable = Database["public"]["Tables"]["saved_custom_drinks"];
-
-// `price` reaches the generated types only once 20260816000000 has been applied
-// and `npm run db:types` re-run. Declaring it optional here lets the client read
-// and write it either side of that without hand-editing a generated file; drop
-// these two aliases for the plain Row/Insert types after the regeneration.
-type SavedDrinkRow = SavedDrinksTable["Row"] & { price?: number | null };
-type SavedDrinkInsert = SavedDrinksTable["Insert"] & { price?: number | null };
+type SavedDrinkRow = SavedDrinksTable["Row"];
+type SavedDrinkInsert = SavedDrinksTable["Insert"];
 
 const savedDrinksKey = (userId: string | null) => ["savedDrinks", userId] as const;
 const sessionDrinksKey = ["sessionDrinks"] as const;
@@ -59,8 +54,8 @@ export const useSavedDrinks = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows: SavedDrinkRow[] = data ?? [];
-      // Normalize at the boundary: a legacy row, or any row read before the
-      // price migration is applied, becomes null rather than undefined.
+      // A row saved before the price column existed carries NULL, which is the
+      // shape callers already expect.
       return rows.map((row) => ({
         id: row.id,
         drink_name: row.drink_name,

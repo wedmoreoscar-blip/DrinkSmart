@@ -187,6 +187,7 @@ export type Database = {
           created_at: string
           drink_name: string
           id: string
+          price: number | null
           serving_ml: number | null
           user_id: string
         }
@@ -195,6 +196,7 @@ export type Database = {
           created_at?: string
           drink_name: string
           id?: string
+          price?: number | null
           serving_ml?: number | null
           user_id: string
         }
@@ -203,6 +205,7 @@ export type Database = {
           created_at?: string
           drink_name?: string
           id?: string
+          price?: number | null
           serving_ml?: number | null
           user_id?: string
         }
