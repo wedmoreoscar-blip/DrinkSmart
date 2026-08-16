@@ -1,4 +1,5 @@
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
+import { Input } from "@/components/ui/input";
 import { CATEGORY_COPY, money } from "./picker-copy";
 import {
   pureAlcoholMl,
@@ -17,6 +18,7 @@ type DrinkRowProps = {
   onQuantityChange: (quantity: number) => void;
   onServingChange: (servingId: string) => void;
   onCustomMlChange: (ml: number | null) => void;
+  onPriceCommit?: (price: number | null) => void;
 };
 
 export const DrinkRow = ({
@@ -29,6 +31,7 @@ export const DrinkRow = ({
   onQuantityChange,
   onServingChange,
   onCustomMlChange,
+  onPriceCommit = () => {},
 }: DrinkRowProps) => {
   const options = servingOptionsFor(drink);
   const serving = options.find((option) => option.id === servingId) ?? options[0];
@@ -142,6 +145,23 @@ export const DrinkRow = ({
                   className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
                 />
               )}
+              <Input
+                type="number"
+                inputMode="decimal"
+                aria-label="Price"
+                placeholder="£"
+                value={perUnitPrice != null ? String(perUnitPrice) : ""}
+                onBlur={(event) => {
+                  const raw = event.target.value.trim();
+                  if (raw === "") {
+                    onPriceCommit(null);
+                    return;
+                  }
+                  const parsed = Number(raw);
+                  onPriceCommit(Number.isFinite(parsed) && parsed >= 0 ? parsed : null);
+                }}
+                className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
+              />
             </div>
           </div>
           {quantity > 1 && (
