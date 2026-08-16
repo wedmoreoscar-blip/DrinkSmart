@@ -22,6 +22,7 @@ import {
   WIDE_BUDGET_RANGE,
   type BudgetRange,
 } from "@/lib/budget";
+import { clearAnonymousOverrides } from "@/lib/anonymousOverrideStore";
 
 type MetricType = "bmi" | "ffmi";
 type HeightUnit = "cm" | "ft";
@@ -606,7 +607,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // during saveSession's debounce window. The state effect then persists the
     // new blank session.
     clearSession();
-    setState((prev) => resetActiveSessionState(prev, now ?? new Date()));
+    // An anonymous user's remembered prices and serves belong to the night,
+    // not to the device. An account's overrides live in Postgres and are
+    // untouched by this.
+    clearAnonymousOverrides();
+    setState((prev) => resetActiveSessionState(prev,now ?? new Date()));
   };
 
   const expireAbandonedSession = useCallback(() => {
@@ -614,7 +619,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // session before resetting state, then the persist effect writes the
     // fresh blank session. No account history snapshot is written.
     clearSession();
-    setState((prev) => resetActiveSessionState(prev, new Date()));
+    // An anonymous user's remembered prices and serves belong to the night,
+    // not to the device. An account's overrides live in Postgres and are
+    // untouched by this.
+    clearAnonymousOverrides();
+    setState((prev) => resetActiveSessionState(prev,new Date()));
   }, []);
 
   // Expire an abandoned session six hours after its effective plan end. The

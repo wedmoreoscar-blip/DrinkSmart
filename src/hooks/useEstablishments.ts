@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useDrinkOverrides } from "@/hooks/useDrinkOverrides";
+import { resolveDrinks, type ResolvedDrink } from "@/lib/drinkOverrides";
 
 const ACTIVE_VENUE_STORAGE_KEY = "drinksmart.activeVenue.v1";
 const activeVenueKey = ["activeVenue"] as const;
@@ -172,15 +174,23 @@ export const useEstablishments = () => {
     [allEstablishments, activeVenueId]
   );
 
+  const { overrides } = useDrinkOverrides();
+
+  /**
+   * The one place a user's remembered price and serve are laid over the
+   * catalogue. Every consumer — picker, tray, sorts, swap screen, scanner, AI
+   * catalogue — reads through here, so none of them can disagree about what a
+   * drink costs or how much of it the user has.
+   */
   const getEstablishmentDrinks = useCallback(
-    (establishmentId: string): EstablishmentDrink[] => {
+    (establishmentId: string): ResolvedDrink[] => {
       const sessionDrinks = session.drinks.filter(
         (d) => d.establishment_id === establishmentId
       );
       const databaseDrinks = db.drinks.filter((d) => d.establishment_id === establishmentId);
-      return [...databaseDrinks, ...sessionDrinks];
+      return resolveDrinks([...databaseDrinks, ...sessionDrinks], overrides);
     },
-    [db.drinks, session.drinks]
+    [db.drinks, session.drinks, overrides]
   );
 
   const getGlobalEstablishments = useCallback(

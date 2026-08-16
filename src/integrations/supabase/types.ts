@@ -232,6 +232,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_drink_overrides: {
+        Row: {
+          created_at: string
+          establishment_drink_id: string
+          id: string
+          price: number | null
+          serving_ml: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_drink_id: string
+          id?: string
+          price?: number | null
+          serving_ml?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          establishment_drink_id?: string
+          id?: string
+          price?: number | null
+          serving_ml?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_drink_overrides_establishment_drink_id_fkey"
+            columns: ["establishment_drink_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_drinks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_session_history: {
         Row: {
           budget_max: number | null
