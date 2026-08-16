@@ -1,43 +1,139 @@
-# Session kickoff — generate-plan 502 resolved, provider routing settled
+# Session kickoff — three approved tasks, run autonomously
 
-Written 2026-08-16 03:25 BST by normal handoff. Identical in substance to `HANDOFF.md`.
+Written 2026-08-16 04:00 BST by normal handoff. Substantively identical to `HANDOFF.md`.
 
-The live `generate-plan` 502 is fixed and verified on deployed **v11**: HTTP 200, real AI plans,
-3.3-5.5s end to end. Root cause was a CN jurisdiction guardrail on the OpenRouter account blocking
-DeepSeek's endpoint, not a code defect. Routing is now `only: ["coreweave","wafer"]` with failover
-between those two only, chosen by a 30-trial-per-provider benchmark.
+`main` is at `d3e80c8`. The live `generate-plan` 502 is fixed and verified on deployed v11 (HTTP 200,
+real plans, 3.3-5.5s); routing is `only: ["coreweave","wafer"]` after a CN jurisdiction guardrail was
+found to block DeepSeek's endpoint permanently. Also fixed this session: custom drinks vanishing from
+the Plan tab, the app-wide toast viewport blocking taps, and timeline reorder feel.
 
-Session work is uncommitted in the working tree. Preserve Oscar's unstaged `package.json` and
-`package-lock.json` (Supabase CLI devDependency). Do not deploy, rotate secrets, apply migrations, or
-change locked decisions without explicit authorization.
+Baseline at handoff: `npx vitest run` 209 passed / 36 files; `npm run typecheck` passes;
+`npm run build` passes; `npm run lint` known-failing at exactly 11 errors and 12 warnings.
+Re-derive these; never quote them.
 
-Read first: `AGENTS.md`; `docs/decisions.md` ("Provider routing after the CN jurisdiction
-guardrail"); `supabase/functions/generate-plan/index.ts`; Traycer artifact
-`generate-plan-502-diagnosis`; `CLAUDE.md` pitfalls 20, 22, 22c, 22e.
+Preserve Oscar's unstaged `package.json` / `package-lock.json` (Supabase CLI devDependency).
+
+Read first: `AGENTS.md`; `docs/decisions.md`; `supabase/functions/generate-plan/index.ts`; Traycer
+artifact `generate-plan-502-diagnosis`.
+
+The three tasks below are approved and specified. Work them in order without checking back.
+
+---
+
+# NEXT SESSION — three tasks, run autonomously
+
+All three are approved and specified. Work through them in order, verify against the baseline
+above, and commit. Do not deploy, apply migrations to the remote database, rotate secrets, or push.
+
+## Task 1 — Delete the numeric keypad, use native inputs
+
+Oscar chose **remove it entirely** when told this reverses the `4o` Claude Design primitive
+(spec `docs/specs/2026-08-12-w4-1-keypad-field-group.md`, handoff
+`design_handoffs/design_handoff_drinksmart/screens/4o-keypad-field-group.html`). That choice is
+made; do not re-litigate it, but **do** record the reversal via `update-decisions`, since
+`docs/decisions.md` makes Claude Design ground truth for UI.
+
+**The principle, confirmed by Oscar 2026-08-16:** every numeric *value* is typed on the user's own
+device keyboard; the app renders no number pad of its own. `+`/`-` steppers stay, but only for
+incremental adjustment (quantity), never as a way to enter a value digit by digit.
+
+Scope is fully known — `KeypadFieldGroup` is the **only** in-app numeric entry surface in the
+codebase. `src/components/profile/StatsSheet.tsx` already uses native inputs, and the only steppers
+are `DrinkRow`'s quantity controls, which Task 3 extends rather than removes. After this task no
+app-rendered number pad remains.
+
+Replace with native inputs the user can type into with the OS keyboard:
+
+- `src/components/picker/CustomDrinkSheet.tsx:181` — the ABV / serve / price group.
+- `src/components/scanner/ScannerReview.tsx:109` — the same primitive.
+- Delete `src/components/ui/keypad-field-group.tsx` and
+  `src/components/ui/keypad-field-group.test.tsx`.
+
+Match the pattern `src/components/profile/StatsSheet.tsx:79-155` already uses — `<Input type="number">`
+with an `inputMode` hint (`"decimal"` for ABV and price, `"numeric"` for serve in whole ml) — rather
+than introducing a second idiom. Guard the two known `type="number"` annoyances: add
+`onWheel={(e) => e.currentTarget.blur()}` so scrolling cannot silently change a committed value, and
+keep the value in component state as a string so a half-typed decimal is not clobbered mid-entry.
+
+Keep every existing behaviour: the `%` / `ml` / `£` adornments
+and their absolute positioning, the `errors` map and warning styling, `onCommit`-equivalent state
+updates into `values`, `emptyIsAllowed={false}` semantics, and the `attemptAdd` validation path
+(`CUSTOM_ERRORS.name` / `.abv` / `.serve`). `KeypadFieldGroup` currently owns the `onAdvance`
+behaviour wired to `attemptAdd` — preserve that as Enter-to-submit on the last field.
+
+Expect the test count to drop by whatever `keypad-field-group.test.tsx` contributed; that is
+expected, not a regression. Update the CLAUDE.md line that cites the keypad in the test inventory.
+
+## Task 2 — Persist a custom drink's price as well as its volume
+
+Volume already persists (`saved_custom_drinks.serving_ml`); **price does not** — there is no column,
+and `CustomDrinkSheet.applySaved` hard-codes `price: null`. Oscar wants both restored on reselect.
+
+1. **Migration** — new file `supabase/migrations/20260816000000_saved_custom_drink_price.sql`.
+   Model it on `20260815000001_saved_custom_drink_serving_ml.sql`, which adds a nullable numeric with
+   a CHECK constraint. Add `price numeric` plus
+   `CHECK (price IS NULL OR (price >= 0 AND price <= 1000))`. Legacy rows keep NULL.
+   **Note:** that earlier migration writes its policy as `auth.uid() = user_id`, which violates the
+   locked `(select auth.uid())` RLS pattern (CLAUDE.md 23e). Do not copy that mistake; you are not
+   adding a policy here anyway.
+   **Write the migration only — do not apply it.** Oscar applies it and runs `npm run db:types`.
+2. **Types** — `src/integrations/supabase/types.ts` is generated. Do not hand-edit it; note in the
+   commit that `npm run db:types` is required after the migration is applied.
+3. **Client** — add `price: number | null` to `SavedDrink` in `src/hooks/useSavedDrinks.ts`, thread it
+   through `saveDrinkMut` (the upsert on `user_id,drink_name`) and the `saveDrink` callback signature,
+   then pass `draft.price` from `DrinksTab.handleAddCustom` (`src/components/tabs/DrinksTab.tsx:473`).
+   In `CustomDrinkSheet.applySaved`, restore `price: drink.price ?? null` instead of the hard-coded
+   `null`.
+
+Because the column will not exist until Oscar applies the migration, the client must tolerate a
+missing/NULL `price` without throwing.
+
+## Task 3 — +/- on a custom drink steps by its saved volume
+
+The stepper lives in `src/components/picker/DrinkRow.tsx:90-103` (`onQuantityChange(quantity ± 1)`),
+where `quantity` is a count of servings and the serving comes from the venue row. For a custom drink
+the increment must be **that drink's own saved volume** (`serving_ml`), so +1 adds exactly one saved
+serve rather than a category default.
+
+Trace how a custom/saved drink reaches `DrinkRow` and make the per-serving volume come from the saved
+row. Beware the interaction fixed earlier this session: entries created by `handleAddSelected` do not
+set `isCustom`, and `pickerCategoryFor` maps category `custom` to `null` — `planGroups` in
+`DrinksTab.tsx:372` now falls back to the Custom drink panel rather than dropping them. Keep that
+fallback working; `DrinksTab.planCards.test.ts` guards it.
+
+## Optional, if time allows
+
+`WindDownScreen`'s `formatClock` renders `HH:mm` with no day indicator, so a sober-time that lands
+on the following day is ambiguous (a 21:00 last drink plus 19 hours shows "16:00"). Add a "tomorrow"
+qualifier when the crossing date differs from the last-drink date. **The wind-down maths itself is
+correct** and was verified this session — do not change it.
 
 ## PROMPT
 
 ```text
-The live generate-plan 502 is fixed and verified on deployed v11 (HTTP 200, real plans, 3.3-5.5s).
-Do not re-pin the provider to DeepSeek: a CN jurisdiction guardrail on the OpenRouter account makes
-that endpoint permanently unreachable, and no privacy/ZDR setting or new API key changes it. Read
-`docs/decisions.md` "Provider routing after the CN jurisdiction guardrail" before touching
-`supabase/functions/generate-plan/index.ts`.
+Work autonomously through the three approved tasks in HANDOFF.md under "NEXT SESSION", in order:
+(1) delete the `4o` numeric keypad primitive and replace both consumers with native
+`<Input inputMode="decimal">` fields; (2) persist a custom drink's price alongside its volume,
+writing but NOT applying the migration; (3) make the +/- stepper on a custom drink add that drink's
+own saved volume. Each task's files, constraints and gotchas are spelled out there — follow them
+rather than re-deriving.
 
-Uncommitted session work sits in the working tree; `package.json` and `package-lock.json` carry
-Oscar's Supabase CLI devDependency, which must not be staged, reverted or deleted.
+Read first: AGENTS.md; HANDOFF.md; docs/decisions.md (especially "Provider routing after the CN
+jurisdiction guardrail", and the Claude Design precedence ladder that Task 1 reverses).
 
-Next, pick up whichever the user prefers:
-1. The duplicate-entry prompt gap - the model sometimes emits two entries of quantity 1 for the same
-   catalog_id instead of one of quantity 2, contrary to the system prompt's hard rules. Cosmetic
-   (two identical Plan cards), ethanol totals are correct.
-2. Benchmark the four ZDR-blocked providers with ZDR briefly disabled, in case one beats CoreWeave.
-3. Unrelated product work.
+Do not re-pin the AI provider to DeepSeek: a CN jurisdiction guardrail makes that endpoint
+permanently unreachable from this OpenRouter account, and no privacy/ZDR setting or new API key
+changes it. Do not stage, revert or delete the unstaged package.json / package-lock.json - those are
+Oscar's Supabase CLI devDependency.
 
-Verification baseline: `npm run typecheck` PASSES; `npx vitest run` 209 tests across 36 files;
+Verification baseline, re-derive rather than quote: `npm run typecheck` PASSES; `npx vitest run` is
+209 tests across 36 files and will legitimately drop when keypad-field-group.test.tsx is deleted;
 `npm run build` PASSES; `npm run lint` is known-failing at exactly 11 errors and 12 warnings and must
-not get worse. Re-derive every count rather than quoting it. Edge functions are outside the tsc
-project and Deno is absent, so index.ts can only be inspection-checked and live-probed. Deployed
-function logs are BLOCKED - the analytics endpoint returns zero rows for every log table. Do not
-deploy, rotate secrets, apply migrations, or change locked decisions without an explicit request.
+not get worse. Edge functions sit outside the tsc project and Deno is absent, so
+supabase/functions/**/*.ts can only be inspection-checked. Deployed function logs are BLOCKED - the
+Management API analytics endpoint returns zero rows for every log table on this project.
+
+Run `update-decisions` for the keypad reversal (it overrides the Claude Design UI precedence) before
+finishing. Commit locally when the baseline holds. Never push, deploy, apply migrations to the remote
+database, or rotate secrets.
 ```
