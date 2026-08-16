@@ -14,7 +14,11 @@ import type { PreferenceData } from "@/lib/preferences";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { greedyPlanFallback } from "@/lib/greedyPlanFallback";
 
-const EDGE_FUNCTION_TIMEOUT_MS = 15000;
+// Measured 2026-08-16 against Decart with reasoning disabled and submit_plan as
+// the only tool: 1 round per call, 13.8s / 17.7s / 21.7s for the OpenRouter leg
+// (8.5k input tokens — the 216-row catalogue — and ~400-550 output tokens).
+// Edge-function and network overhead sit on top of those figures.
+const EDGE_FUNCTION_TIMEOUT_MS = 22000;
 
 export type GeneratedDrink = {
   catalog_id: string;

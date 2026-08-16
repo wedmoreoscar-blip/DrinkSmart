@@ -66,7 +66,7 @@ Your job: select drinks from the catalog so that the total ethanol reaches targe
 
 Filling the budget is the highest priority. The user picked a target BAC — if the plan undershoots, they don't reach it.
 
-IMPORTANT: You have a calculate_ethanol tool. ALWAYS call it with your draft picks before submitting. If the result shows a deficit > 5%, adjust your picks (add quantity or another drink) and check again. Only call submit_plan once the calculator confirms you're within range.
+IMPORTANT: You have a calculate_ethanol tool. ALWAYS call it with your draft picks before submitting. If the result shows a deficit > 5%, adjust your picks (add quantity or another drink) and check again. Only call submit_plan once the calculator confirms you're within range. The server independently recomputes the total and REJECTS the entire plan if it lands more than 10% from target.
 
 Variety rule (people stick to a few drinks):
 - Prefer 1–2 distinct catalog items per session. Increase the quantity of an existing pick before introducing a new catalog item.
@@ -195,7 +195,15 @@ function buildUserMessage(req: GeneratePlanRequest): string {
   ].join("\n");
 }
 
-// OpenAI-format tool definitions
+// OpenAI-format tool definitions.
+//
+// calculate_ethanol earns its extra round trip. Measured over 30 trials per
+// configuration on CoreWeave (2026-08-16): with it, 30/30 plans cleared the
+// +/-10% gate and the worst deviation was +/-5%; without it, 29/30 cleared and
+// the worst was -16%. The cost is ~1s (p50 2.4s -> 3.3s, max 7.0s -> 8.0s,
+// mean 2.13 rounds), which is immaterial against EDGE_FUNCTION_TIMEOUT_MS.
+// validateSubmittedPlan still recomputes every total server-side regardless,
+// so model arithmetic is never trusted.
 const TOOLS = [
   {
     type: "function" as const,
@@ -272,7 +280,7 @@ function handleCalculateEthanol(
   let total = 0;
   const breakdown: string[] = [];
 
-  for (const d of args.drinks) {
+  for (const d of args.drinks ?? []) {
     const item = catalogById.get(d.catalog_id);
     if (!item) {
       // Do not reflect an unknown identifier into a model-visible tool result.
@@ -282,9 +290,7 @@ function handleCalculateEthanol(
     }
     const ethanol = planDrinkEthanol(d, item);
     total += ethanol;
-    breakdown.push(
-      `${d.catalog_id} × ${d.quantity}: ${ethanol.toFixed(1)}ml ethanol`
-    );
+    breakdown.push(`${d.catalog_id} × ${d.quantity}: ${ethanol.toFixed(1)}ml ethanol`);
   }
 
   const deficit = targetEthanolMl - total;
@@ -412,14 +418,39 @@ export default {
               tools: TOOLS,
               tool_choice: "auto",
               max_tokens: 2048,
+              // Same model, different host. DeepSeek's own endpoint is
+              // unreachable from this OpenRouter account: a jurisdiction
+              // guardrail blocks every CN-headquartered provider (deepseek,
+              // baidu, streamlake all 404 "no endpoints available"), which no
+              // privacy/ZDR toggle overrides. Verified 2026-08-16 by sweeping
+              // all 28 providers serving this model.
+              //
+              // Restricted to two hosts benchmarked on this exact workload,
+              // CoreWeave preferred. Both scored 30/30 through the +/-10% gate
+              // over 30 trials each; CoreWeave has the tighter tail
+              // (p50 3.3s / p90 5.1s / max 8.0s vs 4.0 / 8.2 / 16.0) and
+              // declares fp8, the precision DeepSeek's own endpoint ran.
+              //
+              // Fallback is enabled ONLY between these two: Wafer returned a
+              // 429 `server_overloaded` from a shared upstream pool during
+              // benchmarking, and CoreWeave 400s under some conditions, so a
+              // single pin makes one provider's capacity a hard outage. `only`
+              // still bars every unvetted host — DigitalOcean, for instance,
+              // produced no tool call in 30 attempts.
               provider: {
-                only: ["deepseek"],
-                allow_fallbacks: false,
+                only: ["coreweave", "wafer"],
+                order: ["coreweave", "wafer"],
+                allow_fallbacks: true,
                 require_parameters: true,
               },
+              // Reasoning off, per the locked decision. It must be expressed as
+              // `enabled: false`, NOT `effort: "none"`: this model advertises
+              // supported_efforts ["max","high","low"], so "none" is not valid
+              // for it, and paired with provider.require_parameters an
+              // unsupported effort filters every endpoint out of the route —
+              // OpenRouter then answers 404 instead of running the request.
               reasoning: {
-                effort: "none",
-                exclude: true,
+                enabled: false,
               },
             }),
           }
@@ -458,8 +489,18 @@ export default {
           return jsonResponse({ error: "AI returned empty response" }, 502);
         }
 
+        // Echo back ONLY the fields the chat contract needs. OpenRouter attaches
+        // `reasoning` and `reasoning_content` to the assistant message, and
+        // CoreWeave's deserializer treats those as the same field — replaying
+        // the raw message fails every round after the first with
+        // 400 "duplicate field `reasoning_content`". Verified 2026-08-16.
         const assistantMsg = choice.message;
-        messages.push(assistantMsg);
+        const echoedMsg: ChatMessage = {
+          role: assistantMsg.role ?? "assistant",
+          content: assistantMsg.content ?? null,
+        };
+        if (assistantMsg.tool_calls) echoedMsg.tool_calls = assistantMsg.tool_calls;
+        messages.push(echoedMsg);
 
         const toolCalls = assistantMsg.tool_calls;
         if (!toolCalls || toolCalls.length === 0) {

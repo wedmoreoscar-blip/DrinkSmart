@@ -369,10 +369,16 @@ const DrinksTab = ({
       { entries: AlcoholTimelineEntryInput[]; count: number }
     >();
     for (const entry of unconsumedEntries) {
+      // Anything outside the fixed picker categories belongs in the explicit
+      // "Custom drink" panel. Dropping it instead leaves a real plan entry
+      // rendered in no panel at all — still counted in ethanol, BAC, the tray
+      // and the timeline, but with no lock or delete control anywhere.
+      // A drink kept via "keep it" is stored as category "custom", which
+      // pickerCategoryFor maps to null, and handleAddSelected does not set
+      // isCustom, so re-picking one lands exactly here.
       const label = entry.isCustom
         ? PICKER_COPY.customCategory.name
-        : pickerCategoryFor(entry.category, null);
-      if (!label) continue;
+        : (pickerCategoryFor(entry.category, null) ?? PICKER_COPY.customCategory.name);
       const group = groups.get(label) ?? { entries: [], count: 0 };
       group.entries.push(entry);
       group.count += entryServingCount(entry);

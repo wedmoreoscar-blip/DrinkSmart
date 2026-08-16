@@ -25,9 +25,10 @@ workflow. Keep history: supersede an entry instead of deleting it.
 ## LOCKED — AI plan boundary
 
 - `generate-plan` currently uses `deepseek/deepseek-v4-flash-0731` through OpenRouter.
-- OpenRouter is restricted to DeepSeek's own provider endpoint with provider fallbacks disabled and
-  reasoning effort `none`. If that endpoint is unavailable, the client uses the deterministic local
-  fallback rather than silently changing provider or model.
+- ~~OpenRouter is restricted to DeepSeek's own provider endpoint with provider fallbacks disabled and
+  reasoning effort `none`.~~ **Superseded 2026-08-16 — see "Provider routing after the CN
+  jurisdiction guardrail" below.** If no allowed endpoint is available, the client still uses the
+  deterministic local fallback rather than silently changing model.
 - Locked and explicitly excluded catalogue items are server-side filtering inputs only. They and
   their identifiers are removed from the catalogue before the model prompt is assembled, and are
   never described to the model. Manual selection still uses the complete catalogue.
@@ -1057,3 +1058,48 @@ application supplies a deterministic category fallback rather than asking the mo
   includes `+15` offsets and every other deterministic timeline displacement. Expiry clears active
   Plan/Timeline state and rebases the next planning window from the current time, but does not write
   an account history snapshot on behalf of the user.
+
+## LOCKED — Provider routing after the CN jurisdiction guardrail (2026-08-16)
+
+Supersedes the provider and reasoning clauses of **LOCKED — AI plan boundary**. The model is
+unchanged: `deepseek/deepseek-v4-flash-0731`. Only its host and the request shape changed.
+
+- **DeepSeek's own endpoint is unreachable from this OpenRouter account and cannot be made
+  reachable.** A jurisdiction guardrail blocks every CN-headquartered provider: `deepseek`, `baidu`
+  and `streamlake` all return 404 "No endpoints available matching your guardrail restrictions and
+  data policy", while 20 non-CN providers serving the same model return 200. Verified by sweeping
+  all 28 endpoints. No privacy or ZDR setting overrides it; rotating the API key does not either
+  (the guardrail is account-level, and a revoked key returns 401, not 404).
+- **Routing is `only: ["coreweave", "wafer"]`, `order: ["coreweave", "wafer"]`,
+  `allow_fallbacks: true`.** Both hosts scored 30/30 through the ±10% admission gate over 30 trials
+  each. CoreWeave is preferred: tighter tail (p50 3.3s / p90 5.1s / max 8.0s versus 4.0 / 8.2 /
+  16.0) and it declares fp8, the precision DeepSeek's own endpoint ran.
+- **Fallback is enabled only between those two vetted hosts.** This narrows, rather than abandons,
+  the original "no fallbacks" intent: `only` still bars every unvetted provider, so no silent
+  substitution can occur. Failover exists because Wafer returned a 429 `server_overloaded` from a
+  shared upstream pool during benchmarking; a single pin makes one provider's capacity a hard
+  outage. **Adding a host requires re-running the benchmark** — DigitalOcean produced no tool call
+  in 30 attempts, and Decart (an interim pin) runs at 42 tok/s with a 21.9s tail.
+- **Reasoning is disabled as `reasoning: { enabled: false }`, never `effort: "none"`.** This model
+  advertises `supported_efforts: ["max","high","low"]`; `"none"` is not among them and, paired with
+  `require_parameters: true`, an unsupported effort can empty the route. Measured: `enabled: false`
+  produced 0 reasoning tokens in ~5.5s, `effort: "low"` produced 400 reasoning tokens in ~14.7s.
+- **Both `calculate_ethanol` and `submit_plan` are exposed.** Benchmark-backed: with the verification
+  tool, 30/30 plans cleared the gate and the worst deviation was ±5%; without it 29/30 cleared and
+  the worst was −16%. It costs roughly 1s and 1.1 extra rounds. The server still recomputes every
+  total, so model arithmetic remains untrusted.
+- **The assistant message must never be echoed back raw.** OpenRouter attaches
+  `reasoning`/`reasoning_content` to it; CoreWeave's deserializer treats those as one field and
+  rejects the replay with 400 `duplicate field reasoning_content` on every round after the first.
+  Echo only `role`, `content` and `tool_calls`. This latent defect predates the session and was
+  invisible only while a single-tool configuration never reached round two.
+- **No reachable provider supports prompt caching** (`supports_implicit_caching: false` on all 20).
+  The 216-row catalogue is re-sent in full every round, so round count is the dominant latency term.
+
+## PENDING — Symmetric ±10% gate blocks the client's own underfill repair (2026-08-16)
+
+`topUpIfUnderfilled` exists to bump quantities when an accepted plan underfills, but it only runs on
+plans the server already accepted, and the symmetric ±10% gate rejects a 16% underfill first — so
+the case the repair was built for drops to greedy instead. Not changed: the ±10% rejection is locked
+and the observed failure rate with `calculate_ethanol` in place is 0/60. Revisit only if rejections
+are seen in production.

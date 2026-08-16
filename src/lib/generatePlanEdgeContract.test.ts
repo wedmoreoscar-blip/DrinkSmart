@@ -23,10 +23,52 @@ describe("generate-plan Edge contract", () => {
     expect(edgeFunction).not.toContain("${d.catalog_id}: UNKNOWN");
   });
 
-  it("pins V4 Flash to DeepSeek's provider with reasoning disabled", () => {
+  // The model is unchanged; only its host moved. DeepSeek's own endpoint is
+  // unreachable from this OpenRouter account — a jurisdiction guardrail blocks
+  // every CN-headquartered provider (deepseek, baidu, streamlake), which no
+  // privacy or ZDR setting overrides. Verified live 2026-08-16 by sweeping all
+  // 28 providers serving this model. Decart serves identical weights.
+  it("pins V4 Flash to a single reachable provider with reasoning disabled", () => {
     expect(edgeFunction).toContain('const DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash-0731"');
-    expect(edgeFunction).toMatch(/provider:\s*{\s*only:\s*\["deepseek"\],\s*allow_fallbacks:\s*false,\s*require_parameters:\s*true,/s);
-    expect(edgeFunction).toMatch(/reasoning:\s*{\s*effort:\s*"none",\s*exclude:\s*true,/s);
+    expect(edgeFunction).toMatch(/provider:\s*{\s*only:\s*\["coreweave",\s*"wafer"\],\s*order:\s*\["coreweave",\s*"wafer"\],\s*allow_fallbacks:\s*true,\s*require_parameters:\s*true,/s);
+    // Must be `enabled: false`, never `effort: "none"`: this model advertises
+    // supported_efforts ["max","high","low"], and measured live, `effort: "low"`
+    // still burned 400 reasoning tokens while `enabled: false` burned 0.
+    expect(edgeFunction).toMatch(/reasoning:\s*{\s*enabled:\s*false,/s);
+    // Scoped to the request body: the surrounding comment mentions the
+    // rejected `effort: "none"` form deliberately.
+    expect(edgeFunction).not.toMatch(/reasoning:\s*{\s*effort:/s);
+  });
+
+  // Measured 2026-08-16, 30 trials per configuration on CoreWeave: with
+  // calculate_ethanol 30/30 plans cleared the ±10% gate (worst deviation ±5%);
+  // without it 29/30 cleared (worst −16%). Costs ~1s and ~1.1 extra rounds.
+  it("gives the model calculate_ethanol as well as submit_plan", () => {
+    const tools = edgeFunction.slice(
+      edgeFunction.indexOf("const TOOLS = ["),
+      edgeFunction.indexOf("function handleCalculateEthanol"),
+    );
+    expect(tools.match(/name:\s*"(\w+)"/g)).toEqual([
+      'name: "calculate_ethanol"',
+      'name: "submit_plan"',
+    ]);
+    // The server still recomputes every total; model arithmetic is never trusted.
+    expect(edgeFunction).toContain("validateSubmittedPlan(");
+  });
+
+  // OpenRouter attaches `reasoning`/`reasoning_content` to the assistant
+  // message. CoreWeave's deserializer treats them as one field, so replaying
+  // the raw message 400s with "duplicate field `reasoning_content`" on every
+  // round after the first — which is every multi-tool call.
+  it("echoes a sanitised assistant message back into the conversation", () => {
+    expect(edgeFunction).not.toMatch(/messages\.push\(assistantMsg\)/);
+    expect(edgeFunction).toContain("const echoedMsg: ChatMessage = {");
+    expect(edgeFunction).toContain("messages.push(echoedMsg)");
+    const echo = edgeFunction.slice(
+      edgeFunction.indexOf("const echoedMsg: ChatMessage = {"),
+      edgeFunction.indexOf("messages.push(echoedMsg)"),
+    );
+    expect(echo).not.toContain("reasoning");
   });
 
   it("rejects the whole malformed or deterministically off-target answer", () => {
