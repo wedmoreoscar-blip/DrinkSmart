@@ -94,6 +94,19 @@ describe("Wave 5 picker serving contract", () => {
     expect(defaultServingFor(unknown).id).toBe("database");
   });
 
+  // The seeded Wetherspoons rows carry no volume and no volume_unit at all: the
+  // seed migration predates both columns. This is the exact shape of the row a
+  // Long Island Iced Tea arrives as, and the serving it must default to.
+  it("defaults a seeded cocktail row to the cocktail fallback, not a bottle", () => {
+    const seeded = drink("lit", "Long Island Iced Tea", 22, null, "", "cocktails", "Cocktails");
+
+    expect(databaseVolumeMl(seeded)).toBeNull();
+    expect(defaultServingFor(seeded).id).toBe("database");
+    expect(defaultServingFor(seeded).ml).toBe(250);
+    // 250 × 22% = 55 ml of ethanol, not the 72.6 that 330 ml produced.
+    expect(pureAlcoholMl(seeded, defaultServingFor(seeded).id, null)).toBeCloseTo(55, 6);
+  });
+
   it("keeps Database and Standard distinct even when both resolve to 330 ml", () => {
     const cocktail = drink("can", "Cocktail can", 5, 330, "ml", "cocktails", "Cocktails");
 
