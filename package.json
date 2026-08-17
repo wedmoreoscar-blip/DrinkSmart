@@ -15,6 +15,7 @@
     "db:types:local": "supabase gen types typescript --local > src/integrations/supabase/types.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
     "@capacitor/camera": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/local-notifications": "^8.0.0",
@@ -74,6 +75,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.16.5",
@@ -87,6 +89,7 @@
     "globals": "^15.15.0",
     "playwright": "1.62.1",
     "postcss": "^8.5.6",
+    "supabase": "^2.114.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
