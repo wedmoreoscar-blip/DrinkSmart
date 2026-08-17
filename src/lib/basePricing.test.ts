@@ -3,6 +3,7 @@ import {
   priceForServings,
   priceForVolume,
   resolvePrice,
+  sameVolumeMl,
   sumPrices,
   type PricedRung,
 } from "./basePricing";
@@ -139,5 +140,38 @@ describe("price is optional everywhere", () => {
   it("treats a rung as its volume regardless of numeric noise", () => {
     // Volumes arrive from numeric(10,2) columns; 568.000000001 is still a pint.
     expect(priceForVolume(568.0000001, BEER)?.total).toBeCloseTo(3, 6);
+  });
+});
+
+// A US bar pours 30 ml and 60 ml. Pricing those volumes is what creates them as
+// rungs — the design needs nothing else to support a different measure system.
+describe("rungs the user creates", () => {
+  const US_SPIRITS = [rung(30, 3), rung(60, 5)];
+
+  it("prices US measures once the user has priced them", () => {
+    expect(priceForVolume(30, US_SPIRITS)?.total).toBeCloseTo(3, 6);
+    expect(priceForVolume(60, US_SPIRITS)?.total).toBeCloseTo(5, 6);
+    // One single and two doubles: distinct volumes, so distinct plan cards.
+    expect(priceForServings(60, 2, US_SPIRITS)).toBeCloseTo(10, 6);
+  });
+
+  it("uses the double's own price rather than twice the single", () => {
+    // A bar's double is rarely twice its single, which is why each rung is
+    // priced separately. £5, not £6.
+    expect(priceForVolume(60, US_SPIRITS)?.exact).toBe(true);
+    expect(priceForVolume(60, US_SPIRITS)?.total).toBeCloseTo(5, 6);
+  });
+
+  it("still combines user rungs when a volume needs it", () => {
+    // 90 ml is a double and a single: £8.
+    expect(priceForVolume(90, US_SPIRITS)?.total).toBeCloseTo(8, 6);
+  });
+
+  it("shares one volume-matching rule with the picker", () => {
+    // The picker collapses a typed Custom into an existing rung using this
+    // exact comparison. A stricter one there would create a duplicate rung.
+    expect(sameVolumeMl(30, 30.0000001)).toBe(true);
+    expect(sameVolumeMl(30, 30.5)).toBe(false);
+    expect(sameVolumeMl(Number.NaN, 30)).toBe(false);
   });
 });

@@ -70,9 +70,19 @@ function isUsableRung(rung: PricedRung): boolean {
 /**
  * Volumes are compared with a tolerance because they arrive from `numeric`
  * columns and from user typing. 568 and 568.0000001 are the same pint.
+ *
+ * Exported because the picker must decide "is this typed Custom value one of
+ * the rungs we already have?" using *this* rule and not its own. A stricter
+ * comparison there would let 30.0000001 ml become a second 30 ml rung, giving
+ * one volume two prices — precisely the ambiguity this design exists to remove.
  */
-function sameVolume(a: number, b: number): boolean {
+export function sameVolumeMl(a: number, b: number): boolean {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
   return Math.abs(a - b) < EPSILON;
+}
+
+function sameVolume(a: number, b: number): boolean {
+  return sameVolumeMl(a, b);
 }
 
 /**
