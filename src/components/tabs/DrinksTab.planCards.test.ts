@@ -51,16 +51,26 @@ describe("Custom drinks behave like standard drinks", () => {
     }
   });
 
-  // The category tab must read back what the Plan tab holds, so a planned row
-  // opens showing its count and edits the entry rather than staging a new pick.
-  it("opens a planned row against the plan entry, not a pending selection", () => {
-    expect(source).toContain("plannedRows={plannedRows}");
-    expect(source).toContain("onPlannedQuantityChange={handlePlannedQuantityChange}");
+  // SUPERSEDED by Oscar, 2026-08-17. The picker is a selector and nothing else.
+  // A row that edited its plan entry in place is what let choosing a serving
+  // rewrite a drink already committed: a 250 ml custom became a 25 ml single,
+  // its card vanished and the tray emptied. Separate volumes are separate cards
+  // on the Plan tab, and that is where a committed drink is edited.
+  it("keeps the category screen a selector that never edits the plan", () => {
+    expect(source).not.toContain("plannedRows=");
+    expect(source).not.toContain("onPlannedQuantityChange=");
+    expect(source).not.toContain("onPlannedServingChange=");
+    expect(source).not.toContain("const updatePlannedEntry");
+  });
 
-    const start = source.indexOf("const updatePlannedEntry");
-    const update = source.slice(start, source.indexOf("const handlePlannedQuantityChange", start));
-    // Editing restores the no-duplicates invariant, and never rewrites history.
-    expect(update).toContain("mergePlanDuplicates(next, (entry) => !consumedSourceIds.has(entry.id))");
+  // Switching serving carries nothing over: a custom ml typed against one
+  // option must not survive into another. That carryover put a double's 50 ml
+  // and its price into the Custom box.
+  it("clears the custom ml when the serving changes", () => {
+    const start = source.indexOf("onServingChange={(servingId) => {");
+    expect(start).toBeGreaterThan(-1);
+    const body = source.slice(start, source.indexOf("}}", start));
+    expect(body).toContain("setCustomMl(null)");
   });
 
   it("steps a plan row by that row's own serving, not a category default", () => {

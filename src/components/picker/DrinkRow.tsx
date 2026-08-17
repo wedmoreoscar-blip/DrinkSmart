@@ -54,8 +54,14 @@ export const DrinkRow = ({
   const selectedMl = servingMl(drink, serving.id, customMl);
   const perUnitVolumeMl = selectedMl ?? 0;
   const perUnitPureMl = pureAlcoholMl(drink, serving.id, customMl);
+  // What THIS serving costs, and only if a price was set for THIS serving.
+  // Single, double and custom are priced independently: a double is not twice
+  // a single, so a double with no price of its own shows nothing rather than
+  // inheriting the single's arithmetic. This is the same value the price box
+  // below is filled from, so the figure and the field can never disagree.
   const resolution = servingPriceFor(drink, serving.id, customMl);
-  const perUnitPrice = resolution.status === "priced" ? resolution.total : null;
+  const exactPrice =
+    resolution.status === "priced" && resolution.exact ? resolution.total : null;
   const priceFieldLabel = CATEGORY_COPY.priceFieldLabel(
     serving.label,
     selectedMl,
@@ -66,15 +72,6 @@ export const DrinkRow = ({
   // field read-only, so the control renders but cannot be typed into at all.
   const [priceDraft, setPriceDraft] = useState<string>("");
   const priceFocused = useRef(false);
-  // Only a price stored FOR THIS VOLUME fills the box. A decomposed figure —
-  // a double reading twice the single because 50 ml is two 25 ml rungs — is a
-  // derived answer, not a price anyone set, and pre-filling it made the double
-  // look priced when it was not. Worse, blurring committed that derived number
-  // as a real rung, silently pinning the arithmetic. The row still *displays*
-  // the decomposed price; the field stays empty so a double-specific price can
-  // be typed straight in.
-  const exactPrice =
-    resolution.status === "priced" && resolution.exact ? resolution.total : null;
   useEffect(() => {
     if (priceFocused.current) return;
     setPriceDraft(exactPrice != null ? exactPrice.toFixed(2) : "");
@@ -128,25 +125,18 @@ export const DrinkRow = ({
             {sub}
           </div>
         </div>
-        {resolution.status === "priced" && (
+        {exactPrice != null && (
           <div className="flex-none text-right">
             <div className="text-[19px] font-medium leading-[1.2] tabular-nums text-foreground">
               {selected && quantity > 1
-                ? CATEGORY_COPY.priceTotal(resolution.total, quantity)
-                : money(resolution.total)}
+                ? CATEGORY_COPY.priceTotal(exactPrice, quantity)
+                : money(exactPrice)}
             </div>
             {selected && quantity > 1 && (
               <div className="mt-[3px] text-[13px] leading-[1.2] tabular-nums text-[#75798c]">
-                {CATEGORY_COPY.priceUnit(resolution.total, quantity)}
+                {CATEGORY_COPY.priceUnit(exactPrice, quantity)}
               </div>
             )}
-          </div>
-        )}
-        {resolution.status === "needs-price" && (
-          <div className="flex-none text-right">
-            <div className="text-[13px] leading-[1.3] text-muted-foreground">
-              {CATEGORY_COPY.needsPrice}
-            </div>
           </div>
         )}
       </button>
