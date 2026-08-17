@@ -36,6 +36,26 @@ export type PriceBreakdown = {
   exact: boolean;
 };
 
+/**
+ * Why a volume has no price — because the two reasons need opposite behaviour.
+ *
+ * `needs-price` is not a failure. It is the design working: this volume cannot
+ * be made from the rungs that *are* priced, so rather than guess, the app asks
+ * for a price for this volume — which then becomes a rung of its own, exactly
+ * as the 330 ml cocktail does. 60 ml against 25 ml and 50 ml lands here.
+ *
+ * `unpriced` means nothing is priced for this drink at all, and that is fine
+ * and common. Price is optional everywhere; a drink with none must plan, pace
+ * and appear on the timeline without ever being nagged for one.
+ *
+ * Collapsing the two into a bare null is what would make the app either nag
+ * about drinks nobody priced, or fall silent exactly when it should ask.
+ */
+export type PriceResolution =
+  | ({ status: "priced" } & PriceBreakdown)
+  | { status: "needs-price"; volumeMl: number }
+  | { status: "unpriced" };
+
 const EPSILON = 1e-6;
 
 function isUsableRung(rung: PricedRung): boolean {
@@ -68,21 +88,27 @@ function sameVolume(a: number, b: number): boolean {
  * is unpriceable from a pint alone, and saying so is the point. A volume with
  * no exact combination becomes a rung in its own right once the user prices it.
  */
-export function priceForVolume(
-  volumeMl: number,
-  rungs: PricedRung[],
-): PriceBreakdown | null {
-  if (!Number.isFinite(volumeMl) || volumeMl <= 0) return null;
-
+export function resolvePrice(volumeMl: number, rungs: PricedRung[]): PriceResolution {
   const usable = rungs.filter(isUsableRung);
-  if (usable.length === 0) return null;
+
+  // A volume that is not a volume yet — a Custom box with nothing typed in it.
+  // There is nothing to price and nothing to ask for.
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) return { status: "unpriced" };
+
+  // Nothing priced for this drink at all. Not a problem to solve: rule 18.
+  if (usable.length === 0) return { status: "unpriced" };
 
   // 1. An exact stored price outranks any decomposition of the same volume,
   //    even one that would resolve. If the user priced 250 ml directly, that is
   //    the price of 250 ml — 5 doubles is not a second opinion.
   const exact = usable.find((rung) => sameVolume(rung.volumeMl, volumeMl));
   if (exact) {
-    return { total: exact.price, parts: [{ rung: exact, count: 1 }], exact: true };
+    return {
+      status: "priced",
+      total: exact.price,
+      parts: [{ rung: exact, count: 1 }],
+      exact: true,
+    };
   }
 
   // 2. Search, rather than peel off the largest rung. Greedy is wrong here:
@@ -90,13 +116,27 @@ export function priceForVolume(
   //    fails, while 125 + 175 is exact. Greedy would send the user off to price
   //    a volume that is perfectly expressible.
   const best = fewestUnitDecomposition(volumeMl, usable);
-  if (!best) return null;
+
+  // 3. This drink has prices, but none of them can build this volume. Ask for
+  //    one — do not round, do not scale, and do not stay quiet about it.
+  if (!best) return { status: "needs-price", volumeMl };
 
   // Largest rung first, so a breakdown reads the way it would be said aloud:
   // "a double and a single", not "a single and a double".
   const parts = [...best.parts].sort((a, b) => b.rung.volumeMl - a.rung.volumeMl);
 
-  return { total: best.total, parts, exact: false };
+  return { status: "priced", total: best.total, parts, exact: false };
+}
+
+/** The breakdown when one exists, else null. For callers that only want money. */
+export function priceForVolume(
+  volumeMl: number,
+  rungs: PricedRung[],
+): PriceBreakdown | null {
+  const resolved = resolvePrice(volumeMl, rungs);
+  if (resolved.status !== "priced") return null;
+  const { status: _status, ...breakdown } = resolved;
+  return breakdown;
 }
 
 type Decomposition = {

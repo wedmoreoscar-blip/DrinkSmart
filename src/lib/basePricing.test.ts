@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { priceForServings, priceForVolume, sumPrices, type PricedRung } from "./basePricing";
+import {
+  priceForServings,
+  priceForVolume,
+  resolvePrice,
+  sumPrices,
+  type PricedRung,
+} from "./basePricing";
 
 const rung = (volumeMl: number, price: number): PricedRung => ({ volumeMl, price });
 
@@ -54,12 +60,31 @@ describe("price is per base unit, never a total", () => {
     ]);
   });
 
-  it("refuses a volume with no exact integer combination", () => {
-    // 60 ml against 25 and 50 has no combination. The user prices 60 ml, and it
-    // becomes a rung of its own — it is never approximated or rounded.
-    expect(priceForVolume(60, SPIRITS)).toBeNull();
-    // 300 ml of beer is not 0.528 of a pint.
-    expect(priceForVolume(300, BEER)).toBeNull();
+  it("asks for a price when no exact combination exists, rather than going quiet", () => {
+    // 60 ml against 25 and 50 has no combination. It is never approximated or
+    // rounded — the app asks for a price for 60 ml, which then becomes a rung.
+    expect(resolvePrice(60, SPIRITS)).toEqual({ status: "needs-price", volumeMl: 60 });
+    // 300 ml of beer is not 0.528 of a pint, so it asks too.
+    expect(resolvePrice(300, BEER)).toEqual({ status: "needs-price", volumeMl: 300 });
+  });
+
+  // The distinction that keeps the app from nagging about drinks nobody priced
+  // while staying silent exactly when it ought to ask.
+  it("separates 'ask me for this volume' from 'this drink has no prices'", () => {
+    expect(resolvePrice(60, SPIRITS).status).toBe("needs-price");
+    expect(resolvePrice(60, []).status).toBe("unpriced");
+    // A Custom box with nothing typed in it is not a demand for a price.
+    expect(resolvePrice(0, SPIRITS).status).toBe("unpriced");
+    expect(resolvePrice(Number.NaN, SPIRITS).status).toBe("unpriced");
+  });
+
+  it("does not ask when a lower rung could have been substituted", () => {
+    // Q1: pint unpriced, half pint priced. 568 ml is two halves, so it prices
+    // exactly — the ban on substitution is about not *scaling* one rung into
+    // another, not about refusing an exact combination.
+    expect(resolvePrice(568, [rung(284, 2)])).toMatchObject({ status: "priced", total: 4 });
+    // But 400 ml cannot be built from halves, so it asks.
+    expect(resolvePrice(400, [rung(284, 2)]).status).toBe("needs-price");
   });
 
   it("takes an exact stored price over any decomposition of the same volume", () => {
