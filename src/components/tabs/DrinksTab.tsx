@@ -44,6 +44,16 @@ import {
   PLAN_BUILT_COPY,
   SWAP_COPY,
 } from "@/components/picker/wave5-picker";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { BLOOD_WATER_FRACTION } from "@/lib/drinkConstants";
 
@@ -158,6 +168,12 @@ const DrinksTab = ({
   // adding — pressing Add is what blurs the field, so waiting for the commit
   // made the figure appear exactly when it was too late to be useful.
   const [priceDraft, setPriceDraft] = useState<{ volumeMl: number; price: number } | null>(null);
+  // Drinks added but not yet applied. `Add` fills this basket; `Apply` commits
+  // it to the plan. Deliberately component state and not the session store: a
+  // basket is a half-finished choice, and a reload continues the night rather
+  // than the choosing.
+  const [staged, setStaged] = useState<AlcoholTimelineEntryInput[]>([]);
+  const [leaveWarningOpen, setLeaveWarningOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => new Set());
   const [swapSelectedId, setSwapSelectedId] = useState<string | null>(null);
@@ -293,6 +309,29 @@ const DrinksTab = ({
         ),
       ),
     [planEntries],
+  );
+
+  // The tray reads plan + basket everywhere, so the figure on screen is always
+  // what the plan would hold if it were applied right now.
+  const stagedMl = useMemo(
+    () => staged.reduce((total, entry) => total + entryEthanolMl(entry, entryAbv(entry)), 0),
+    [staged, entryAbv],
+  );
+  const stagedCount = staged.reduce((total, entry) => total + entryServingCount(entry), 0);
+  const stagedCost = useMemo(
+    () =>
+      sumPrices(
+        staged.map((entry) =>
+          entry.pricePerUnit == null ? null : entry.pricePerUnit * entryServingCount(entry),
+        ),
+      ),
+    [staged],
+  );
+
+  const plannedPlusStagedMl = committedMl + stagedMl;
+  const plannedPlusStagedCost = useMemo(
+    () => sumPrices([committedCost, stagedCost]),
+    [committedCost, stagedCost],
   );
 
   const targetMl = calculateTotalPureAlcoholNeeded();
@@ -482,6 +521,30 @@ const DrinksTab = ({
   };
 
   /** The planned entry a new pick should fold into, per the merge rules. */
+  /** Commit the basket to the plan. This is the only path from Add to the plan. */
+  const applyStaged = useCallback(() => {
+    if (staged.length === 0) return;
+    let next = drinks;
+    for (const entry of staged) {
+      const match = next.find(
+        (candidate) =>
+          !consumedSourceIds.has(candidate.id) && isSamePlannedDrink(candidate, entry),
+      );
+      next = match
+        ? next.map((candidate) =>
+            candidate.id === match.id
+              ? withServings(
+                  candidate,
+                  entryServingCount(candidate) + entryServingCount(entry),
+                )
+              : candidate,
+          )
+        : [...next, entry];
+    }
+    updateDrinks(next);
+    setStaged([]);
+  }, [staged, drinks, consumedSourceIds, updateDrinks]);
+
   const mergeTargetFor = (candidate: AlcoholTimelineEntryInput): AlcoholTimelineEntryInput | null =>
     unconsumedEntries.find((entry) => isSamePlannedDrink(entry, candidate)) ?? null;
 
@@ -541,7 +604,9 @@ const DrinksTab = ({
 
   // ---- Add/ceiling ----------------------------------------------------------
 
-  const overCeiling = targetMl != null && committedMl + pendingMl > targetMl * 1.2;
+  // The basket counts toward the bound. Blocking Add is the strong form of
+  // the rule: if it cannot be added it can never be applied.
+  const overCeiling = targetMl != null && plannedPlusStagedMl + pendingMl > targetMl * 1.2;
 
   const handleSelect = (drinkId: string) => {
     const drink = venueDrinks.find((d) => d.id === drinkId);
@@ -563,7 +628,7 @@ const DrinksTab = ({
   const handleAddSelected = () => {
     if (!selectedDrink || !selected) return;
     if (selectedServingMl == null) return;
-    if (targetMl != null && committedMl + pendingMl > targetMl * 1.2) return;
+    if (targetMl != null && plannedPlusStagedMl + pendingMl > targetMl * 1.2) return;
     // Committing a custom ml remembers that serve for the venue drink, so the
     // next session opens this row on Custom at the same volume. A fixed rung
     // or the sheet's per-entry Serve field never writes an override.
@@ -583,9 +648,14 @@ const DrinksTab = ({
     };
     // Picking a drink already in the plan at the same serving adds to it rather
     // than opening a second identical card.
-    const existing = mergeTargetFor(entry);
-    if (existing) addServingsToEntry(existing, selected.quantity);
-    else addUnplannedDrink(entry);
+    // Add fills the basket; only Apply reaches the plan.
+    setStaged((current) => {
+      const match = current.findIndex((candidate) => isSamePlannedDrink(candidate, entry));
+      if (match === -1) return [...current, entry];
+      const next = current.slice();
+      next[match] = withServings(next[match], entryServingCount(next[match]) + selected.quantity);
+      return next;
+    });
     setSelected(null);
     setCustomMl(null);
     setPriceDraft(null);
@@ -648,7 +718,7 @@ const DrinksTab = ({
 
   // ---- Tray ----------------------------------------------------------------
 
-  const trayCommittedMl = swapMode ? swapCommittedMl : committedMl;
+  const trayCommittedMl = swapMode ? swapCommittedMl : plannedPlusStagedMl;
   const trayPendingMl = swapMode ? swapPendingMl : pendingMl;
   const trayTotalMl = trayCommittedMl + trayPendingMl;
   const trayAdvice = overTargetAdvice(trayTotalMl, targetMl, state.inebriationLevel);
@@ -856,7 +926,15 @@ const DrinksTab = ({
               }
               setPriceDraft({ volumeMl, price });
             }}
-            onBack={() => setCategory(null)}
+            // Leaving with a basket is destructive and cannot be undone, so it
+            // asks first — the same shape as the stats-change confirmation.
+            onBack={() => {
+              if (staged.length > 0) {
+                setLeaveWarningOpen(true);
+                return;
+              }
+              setCategory(null);
+            }}
           />
         ) : (
           <div className="flex flex-col gap-3">
@@ -1009,17 +1087,26 @@ const DrinksTab = ({
       <PickerTray
         targetMl={targetMl}
         committedMl={trayCommittedMl}
-        committedCount={committedCount}
+        committedCount={committedCount + stagedCount}
         pendingMl={trayPendingMl}
         pendingQuantity={swapMode ? 1 : (selected?.quantity ?? 0)}
         hasPending={swapMode ? swapHasPending : normalHasPending}
-        cost={committedCost}
+        cost={swapMode ? committedCost : plannedPlusStagedCost}
         pendingCost={swapMode ? null : pendingCost}
         // Inside a category the idle action returns to the plan; only the plan
         // root finishes the night. `Done` there took the user to the Timeline
         // mid-selection, when they had pressed it expecting to go back and add
         // more drinks.
-        onDone={!swapMode && category !== null ? () => setCategory(null) : onNext}
+        // Inside a category the idle action is Apply: it commits the basket and
+        // returns to the plan root. At the plan root it finishes the night.
+        onDone={
+          !swapMode && category !== null
+            ? () => {
+                applyStaged();
+                setCategory(null);
+              }
+            : onNext
+        }
         onAdd={swapMode ? handleCommitSwap : handleAddSelected}
         addDisabled={swapMode ? !swapHasPending : overCeiling}
         actionLabel={
@@ -1040,6 +1127,39 @@ const DrinksTab = ({
         }
         advice={trayAdvice}
       />
+      <AlertDialog open={leaveWarningOpen} onOpenChange={setLeaveWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply your changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {stagedCount === 1
+                ? "You have added a drink but not applied it. If you don't apply, it will be lost."
+                : `You have added ${stagedCount} drinks but not applied them. If you don't apply, they will be lost.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {/* Continue leaves without applying; the basket is dropped. */}
+            <AlertDialogCancel
+              onClick={() => {
+                setStaged([]);
+                setLeaveWarningOpen(false);
+                setCategory(null);
+              }}
+            >
+              Continue
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                applyStaged();
+                setLeaveWarningOpen(false);
+                setCategory(null);
+              }}
+            >
+              Apply
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <CustomDrinkSheet
         open={customOpen}
         onOpenChange={setCustomOpen}

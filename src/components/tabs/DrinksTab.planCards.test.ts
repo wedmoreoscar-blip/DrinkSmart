@@ -40,15 +40,33 @@ describe("Custom drinks behave like standard drinks", () => {
     expect(source).toContain("const category = plannedCategoryFor(selectedDrink);");
   });
 
-  // Picking a drink already in the plan at the same serving adds to it; the
-  // merge rules themselves are covered in planMerge.test.ts.
-  it("folds a repeat pick into the existing card rather than opening a second", () => {
-    for (const handler of ["const handleAddSelected", "const handleAddCustom"]) {
-      const start = source.indexOf(handler);
-      const body = source.slice(start, source.indexOf("setCustom", start));
-      expect(body).toContain("const existing = mergeTargetFor(entry);");
-      expect(body).toContain("if (existing) addServingsToEntry(existing,");
-    }
+  // Add fills a basket; Apply commits it. Nothing reaches the plan from the
+  // picker without both, so a drink chosen and abandoned leaves no trace.
+  it("stages a picked drink rather than writing it straight to the plan", () => {
+    const start = source.indexOf("const handleAddSelected");
+    const body = source.slice(start, source.indexOf("setCustom", start));
+
+    expect(body).toContain("setStaged((current)");
+    expect(body).toContain("isSamePlannedDrink(candidate, entry)");
+    expect(body).not.toContain("addUnplannedDrink(entry)");
+
+    // Applying is the only path from the basket to the plan.
+    const apply = source.slice(
+      source.indexOf("const applyStaged"),
+      source.indexOf("const mergeTargetFor"),
+    );
+    expect(apply).toContain("updateDrinks(next)");
+    expect(apply).toContain("setStaged([])");
+  });
+
+  // The Custom drink sheet is opened from the plan root, where there is no
+  // Apply step, so a staged custom drink could never be applied. Its own Add is
+  // the confirm, and it still merges straight into the plan.
+  it("keeps the custom drink sheet committing directly", () => {
+    const start = source.indexOf("const handleAddCustom");
+    const body = source.slice(start, source.indexOf("setCustom", start));
+    expect(body).toContain("const existing = mergeTargetFor(entry);");
+    expect(body).toContain("if (existing) addServingsToEntry(existing,");
   });
 
   // SUPERSEDED by Oscar, 2026-08-17. The picker is a selector and nothing else.
