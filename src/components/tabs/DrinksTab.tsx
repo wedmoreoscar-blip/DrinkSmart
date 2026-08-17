@@ -153,6 +153,11 @@ const DrinksTab = ({
   const [sort, setSort] = useState<string>(CATEGORY_COPY.sort[0]);
   const [selected, setSelected] = useState<Selection | null>(null);
   const [customMl, setCustomMl] = useState<number | null>(null);
+  // A price being typed, before it is committed on blur. Held here so the tray
+  // can show the running money as it is typed rather than at the moment of
+  // adding — pressing Add is what blurs the field, so waiting for the commit
+  // made the figure appear exactly when it was too late to be useful.
+  const [priceDraft, setPriceDraft] = useState<{ volumeMl: number; price: number } | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => new Set());
   const [swapSelectedId, setSwapSelectedId] = useState<string | null>(null);
@@ -309,9 +314,16 @@ const DrinksTab = ({
   // price" is the rule that makes a per-unit price legible in the first place.
   const pendingCost = useMemo(() => {
     if (!selected || !selectedDrink) return null;
-    const unit = servingPrice(selectedDrink, selected.servingId, customMl);
+    const selectedMl = servingMl(selectedDrink, selected.servingId, customMl);
+    // A price still being typed wins over the stored one, but only for the
+    // serving it is being typed against.
+    const draft =
+      priceDraft != null && selectedMl != null && Math.abs(priceDraft.volumeMl - selectedMl) < 0.01
+        ? priceDraft.price
+        : null;
+    const unit = draft ?? servingPrice(selectedDrink, selected.servingId, customMl);
     return unit == null ? null : unit * selected.quantity;
-  }, [selected, selectedDrink, customMl]);
+  }, [selected, selectedDrink, customMl, priceDraft]);
 
   // ---- Swap mode -----------------------------------------------------------
 
@@ -534,6 +546,9 @@ const DrinksTab = ({
   const handleSelect = (drinkId: string) => {
     const drink = venueDrinks.find((d) => d.id === drinkId);
     if (!drink) return;
+    // A half-typed price belongs to the row it was typed in, and to nothing
+    // else.
+    setPriceDraft(null);
     // A remembered serve opens the row as the user left it: Custom already
     // selected and the box pre-filled with their serve.
     if (drink.rememberedServingMl != null) {
@@ -573,6 +588,7 @@ const DrinksTab = ({
     else addUnplannedDrink(entry);
     setSelected(null);
     setCustomMl(null);
+    setPriceDraft(null);
   };
 
   /** Save a custom drink to the venue and the account, per the draft's boxes. */
@@ -820,6 +836,7 @@ const DrinksTab = ({
             // its price into the Custom box.
             onServingChange={(servingId) => {
               setCustomMl(null);
+              setPriceDraft(null);
               setSelected((current) => (current ? { ...current, servingId } : current));
             }}
             onCustomMlChange={setCustomMl}
@@ -828,8 +845,16 @@ const DrinksTab = ({
             // never folded into the drink's single price, which is what let a
             // remembered serve redefine what every stored price meant.
             onPriceCommit={(drinkId, price, volumeMl) => {
+              setPriceDraft(null);
               if (volumeMl == null) return;
               void setDrinkPrice(drinkId, volumeMl, price);
+            }}
+            onPriceDraftChange={(drinkId, price, volumeMl) => {
+              if (drinkId !== selected?.drinkId || volumeMl == null || price == null) {
+                setPriceDraft(null);
+                return;
+              }
+              setPriceDraft({ volumeMl, price });
             }}
             onBack={() => setCategory(null)}
           />

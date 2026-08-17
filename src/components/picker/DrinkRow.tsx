@@ -34,6 +34,13 @@ type DrinkRowProps = {
    * was typed against — the caller must not infer it.
    */
   onPriceCommit?: (price: number | null, volumeMl: number | null) => void;
+  /**
+   * The price as it is being typed, before any commit. The tray shows the
+   * running money live, so it cannot wait for a blur — tapping `Add` is itself
+   * what blurs the field, which made the figure flash into place at the moment
+   * of adding instead of tracking the keystrokes.
+   */
+  onPriceDraftChange?: (price: number | null, volumeMl: number | null) => void;
 };
 
 export const DrinkRow = ({
@@ -47,6 +54,7 @@ export const DrinkRow = ({
   onServingChange,
   onCustomMlChange,
   onPriceCommit = () => {},
+  onPriceDraftChange = () => {},
 }: DrinkRowProps) => {
   const options = servingOptionsFor(drink);
   const serving =
@@ -254,7 +262,16 @@ export const DrinkRow = ({
                   aria-label={priceFieldLabel}
                   placeholder="£"
                   value={priceDraft}
-                  onChange={(event) => setPriceDraft(event.target.value)}
+                  onChange={(event) => {
+                    const text = event.target.value;
+                    setPriceDraft(text);
+                    // In-range only, like the serve field: a half-typed value
+                    // must not be previewed as money.
+                    onPriceDraftChange(
+                      parseNumericFieldInRange("price", text),
+                      pricedVolumeForEntry(drink, serving.id, customMl),
+                    );
+                  }}
                   onBlur={(event) => {
                     const raw = event.target.value.trim();
                     if (raw === "") {

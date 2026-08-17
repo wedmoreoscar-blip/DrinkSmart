@@ -27,6 +27,8 @@ type CategoryScreenProps = {
   onCustomMlChange: (ml: number | null) => void;
   /** A price for one serving of `volumeMl` of that drink. See DrinkRow. */
   onPriceCommit?: (drinkId: string, price: number | null, volumeMl: number | null) => void;
+  /** The same, as it is typed, so the tray can track it live. */
+  onPriceDraftChange?: (drinkId: string, price: number | null, volumeMl: number | null) => void;
   onBack: () => void;
 };
 
@@ -47,6 +49,7 @@ export const CategoryScreen = ({
   onServingChange,
   onCustomMlChange,
   onPriceCommit,
+  onPriceDraftChange,
   onBack,
 }: CategoryScreenProps) => {
   const [sortOpen, setSortOpen] = useState(false);
@@ -177,6 +180,9 @@ export const CategoryScreen = ({
             onServingChange={onServingChange}
             onCustomMlChange={onCustomMlChange}
             onPriceCommit={(price, volumeMl) => onPriceCommit?.(drink.id, price, volumeMl)}
+            onPriceDraftChange={(price, volumeMl) =>
+              onPriceDraftChange?.(drink.id, price, volumeMl)
+            }
           />
         ))}
       </div>
