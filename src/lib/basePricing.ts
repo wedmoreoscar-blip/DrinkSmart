@@ -23,26 +23,22 @@ export type PricedRung = {
   price: number;
 };
 
-/** How a volume was priced, kept so the UI can explain itself. */
+/** How a volume was priced. One rung, since nothing is derived. */
 export type PriceBreakdown = {
   /** Total money for the volume asked about. */
   total: number;
-  /**
-   * The rungs that made it up, each with how many of it. An exact stored price
-   * yields a single entry of count 1.
-   */
+  /** The rung it came from. Always exactly one, at count 1. */
   parts: { rung: PricedRung; count: number }[];
-  /** True when a stored price for the exact volume was used verbatim. */
+  /** Always true. Kept so callers reading `.exact` stay honest if this grows. */
   exact: boolean;
 };
 
 /**
  * Why a volume has no price — because the two reasons need opposite behaviour.
  *
- * `needs-price` is not a failure. It is the design working: this volume cannot
- * be made from the rungs that *are* priced, so rather than guess, the app asks
- * for a price for this volume — which then becomes a rung of its own, exactly
- * as the 330 ml cocktail does. 60 ml against 25 ml and 50 ml lands here.
+ * `needs-price` is not a failure. It is the design working: no price has been
+ * set for this volume, so rather than derive one, the app asks — and the answer
+ * becomes a rung of its own, exactly as a 330 ml cocktail does.
  *
  * `unpriced` means nothing is priced for this drink at all, and that is fine
  * and common. Price is optional everywhere; a drink with none must plan, pace
@@ -81,37 +77,30 @@ export function sameVolumeMl(a: number, b: number): boolean {
   return Math.abs(a - b) < EPSILON;
 }
 
-function sameVolume(a: number, b: number): boolean {
-  return sameVolumeMl(a, b);
-}
-
 /**
- * The price of one volume, or null when it cannot be priced without guessing.
+ * The price of one volume — the price set for THAT volume, or nothing.
  *
- * Precedence, per the spec:
- *   1. a stored price for that exact volume wins outright;
- *   2. otherwise the *fewest-unit* exact decomposition into priced rungs,
- *      tie-broken on the cheaper total;
- *   3. otherwise null — no price is shown and the user is invited to price it.
+ * Nothing is derived. A price applies to exactly the serving it was set for:
+ * not scaled, not rounded, and not summed out of smaller rungs. A double is not
+ * two singles, and a 250 ml pour is not five doubles — if a user names a volume,
+ * that is a serving they are choosing, distinct from the ladder, and it carries
+ * its own price or none at all.
  *
- * Never proportional, never rounded. 300 ml of beer is not 0.528 of a pint: it
- * is unpriceable from a pint alone, and saying so is the point. A volume with
- * no exact combination becomes a rung in its own right once the user prices it.
+ * Decomposition was built and then removed (2026-08-17, Oscar). It let an
+ * unpriced double read as twice the single, which is the exact arithmetic
+ * per-rung pricing exists to refuse — a bar's double is rarely twice its
+ * single. Someone who wants two pints asks for two pints.
  */
 export function resolvePrice(volumeMl: number, rungs: PricedRung[]): PriceResolution {
   const usable = rungs.filter(isUsableRung);
 
   // A volume that is not a volume yet — a Custom box with nothing typed in it.
-  // There is nothing to price and nothing to ask for.
   if (!Number.isFinite(volumeMl) || volumeMl <= 0) return { status: "unpriced" };
 
-  // Nothing priced for this drink at all. Not a problem to solve: rule 18.
+  // Nothing priced for this drink at all, which is fine and common.
   if (usable.length === 0) return { status: "unpriced" };
 
-  // 1. An exact stored price outranks any decomposition of the same volume,
-  //    even one that would resolve. If the user priced 250 ml directly, that is
-  //    the price of 250 ml — 5 doubles is not a second opinion.
-  const exact = usable.find((rung) => sameVolume(rung.volumeMl, volumeMl));
+  const exact = usable.find((rung) => sameVolumeMl(rung.volumeMl, volumeMl));
   if (exact) {
     return {
       status: "priced",
@@ -121,21 +110,8 @@ export function resolvePrice(volumeMl: number, rungs: PricedRung[]): PriceResolu
     };
   }
 
-  // 2. Search, rather than peel off the largest rung. Greedy is wrong here:
-  //    300 ml of wine against rungs 125/175/250 takes 250, strands 50 and
-  //    fails, while 125 + 175 is exact. Greedy would send the user off to price
-  //    a volume that is perfectly expressible.
-  const best = fewestUnitDecomposition(volumeMl, usable);
-
-  // 3. This drink has prices, but none of them can build this volume. Ask for
-  //    one — do not round, do not scale, and do not stay quiet about it.
-  if (!best) return { status: "needs-price", volumeMl };
-
-  // Largest rung first, so a breakdown reads the way it would be said aloud:
-  // "a double and a single", not "a single and a double".
-  const parts = [...best.parts].sort((a, b) => b.rung.volumeMl - a.rung.volumeMl);
-
-  return { status: "priced", total: best.total, parts, exact: false };
+  // Priced elsewhere, but not here. Ask for this volume rather than guess it.
+  return { status: "needs-price", volumeMl };
 }
 
 /** The breakdown when one exists, else null. For callers that only want money. */
@@ -147,85 +123,6 @@ export function priceForVolume(
   if (resolved.status !== "priced") return null;
   const { status: _status, ...breakdown } = resolved;
   return breakdown;
-}
-
-type Decomposition = {
-  total: number;
-  units: number;
-  parts: { rung: PricedRung; count: number }[];
-};
-
-/**
- * Exact integer decompositions only, preferring the fewest units and then the
- * cheaper total.
- *
- * Fewest-units is not an aesthetic choice: a smaller rung is proportionally
- * dearer almost everywhere, so preferring big ones is what stops a large round
- * being systematically overcharged. 3408 ml of beer is 6 pints at £3 (£18), not
- * 12 halves at £2 (£24).
- */
-function fewestUnitDecomposition(
-  volumeMl: number,
-  rungs: PricedRung[],
-): Decomposition | null {
-  // Work in integer tenths of a millilitre so the search is exact. Volumes come
-  // from numeric(10,2) columns and from typed input, and floating-point
-  // remainders would otherwise make an exact combination look inexact.
-  const scale = 10;
-  const target = Math.round(volumeMl * scale);
-  if (target <= 0) return null;
-
-  const scaled = rungs
-    .map((rung) => ({ rung, step: Math.round(rung.volumeMl * scale) }))
-    .filter((entry) => entry.step > 0 && entry.step <= target)
-    // Largest first: it reaches the fewest-unit answer earlier, which prunes
-    // more of the search.
-    .sort((a, b) => b.step - a.step);
-
-  if (scaled.length === 0) return null;
-
-  // best[v] = the best way to make exactly v, or null if v is unreachable.
-  const best: (Decomposition | null)[] = new Array(target + 1).fill(null);
-  best[0] = { total: 0, units: 0, parts: [] };
-
-  for (let volume = 1; volume <= target; volume += 1) {
-    let chosen: Decomposition | null = null;
-
-    for (const { rung, step } of scaled) {
-      if (step > volume) continue;
-      const rest = best[volume - step];
-      if (!rest) continue;
-
-      const candidate: Decomposition = {
-        total: rest.total + rung.price,
-        units: rest.units + 1,
-        parts: addOne(rest.parts, rung),
-      };
-
-      if (!chosen || isBetter(candidate, chosen)) chosen = candidate;
-    }
-
-    best[volume] = chosen;
-  }
-
-  return best[target];
-}
-
-/** Fewest units first; the cheaper total breaks a tie. */
-function isBetter(candidate: Decomposition, incumbent: Decomposition): boolean {
-  if (candidate.units !== incumbent.units) return candidate.units < incumbent.units;
-  return candidate.total < incumbent.total - EPSILON;
-}
-
-function addOne(
-  parts: { rung: PricedRung; count: number }[],
-  rung: PricedRung,
-): { rung: PricedRung; count: number }[] {
-  const index = parts.findIndex((part) => sameVolume(part.rung.volumeMl, rung.volumeMl));
-  if (index === -1) return [...parts, { rung, count: 1 }];
-  const next = parts.slice();
-  next[index] = { rung: next[index].rung, count: next[index].count + 1 };
-  return next;
 }
 
 /**

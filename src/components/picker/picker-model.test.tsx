@@ -159,8 +159,9 @@ describe("Wave 5 picker serving contract", () => {
     expect(servingPrice(beer, "pint", null)).toBe(5);
     // A half pint is not half a pint's price: 284 cannot be built from 568.
     expect(servingPrice(beer, "half", null)).toBeNull();
-    // Two pints is two pint prices.
-    expect(servingPrice(beer, "custom", 1136)).toBe(10);
+    // Two pints is not "two pint prices": a named volume carries its own price
+    // or none, so 1136 ml is unpriced until someone prices 1136 ml.
+    expect(servingPrice(beer, "custom", 1136)).toBeNull();
   });
 
   // Two different questions, deliberately answered by two functions: which tab a

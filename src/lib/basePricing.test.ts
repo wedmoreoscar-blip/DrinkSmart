@@ -22,51 +22,31 @@ describe("price is per base unit, never a total", () => {
     expect(priceForVolume(568, BEER)?.total).toBeCloseTo(3, 6);
   });
 
-  it("prices a custom volume as a count of base units, agreeing with pressing +", () => {
-    // 250 ml of vodka is five doubles — and must cost the same as five taps.
-    expect(priceForVolume(250, SPIRITS)?.total).toBeCloseTo(20, 6);
-    expect(priceForServings(50, 5, SPIRITS)).toBeCloseTo(20, 6);
+  it("prices a named volume only from its own rung", () => {
+    // A user typing 250 ml is choosing a serving, not ordering five doubles.
+    expect(resolvePrice(250, SPIRITS).status).toBe("needs-price");
+    expect(priceForVolume(250, [...SPIRITS, rung(250, 18)])?.total).toBeCloseTo(18, 6);
   });
 
-  it("uses the fewest units, so a big round is not charged in small rungs", () => {
-    // Oscar's example: 3408 ml is 6 pints at £3, not 12 halves at £2.
-    const breakdown = priceForVolume(3408, BEER);
-    expect(breakdown?.total).toBeCloseTo(18, 6);
-    expect(breakdown?.parts).toEqual([{ rung: rung(568, 3), count: 6 }]);
-    expect(breakdown?.total).not.toBeCloseTo(24, 6);
+  it("does not build a big volume out of small rungs", () => {
+    // 3408 ml is six pints' worth, and is still not priced: a volume the user
+    // names is a serving of its own, not a sum of the ladder.
+    expect(resolvePrice(3408, BEER).status).toBe("needs-price");
   });
 
-  it("prefers the double over the single, against the shot-based example", () => {
-    // Q2: 250 ml is 5 doubles (£20), never 10 singles (£25).
-    const breakdown = priceForVolume(250, SPIRITS);
-    expect(breakdown?.parts).toEqual([{ rung: rung(50, 4), count: 5 }]);
-    expect(breakdown?.total).toBeCloseTo(20, 6);
+  it("never reads a double as two singles", () => {
+    // The arithmetic per-rung pricing exists to refuse: a bar's double is
+    // rarely twice its single, so an unpriced double shows nothing.
+    expect(resolvePrice(50, [rung(25, 2.5)]).status).toBe("needs-price");
   });
 
-  it("searches for a combination rather than peeling off the largest rung", () => {
-    // 300 ml of wine: greedy takes 250, strands 50 and fails. 125 + 175 is exact.
-    const breakdown = priceForVolume(300, WINE);
-    expect(breakdown).not.toBeNull();
-    expect(breakdown?.total).toBeCloseTo(9, 6);
-    expect(breakdown?.parts).toHaveLength(2);
-  });
 
-  it("mixes rungs when that is the exact answer", () => {
-    // 75 ml of spirit is one double plus one single.
-    const breakdown = priceForVolume(75, SPIRITS);
-    expect(breakdown?.total).toBeCloseTo(6.5, 6);
-    expect(breakdown?.parts).toEqual([
-      { rung: rung(50, 4), count: 1 },
-      { rung: rung(25, 2.5), count: 1 },
-    ]);
-  });
 
-  it("asks for a price when no exact combination exists, rather than going quiet", () => {
-    // 60 ml against 25 and 50 has no combination. It is never approximated or
-    // rounded — the app asks for a price for 60 ml, which then becomes a rung.
+  it("asks for a price for any volume it has no price for", () => {
     expect(resolvePrice(60, SPIRITS)).toEqual({ status: "needs-price", volumeMl: 60 });
-    // 300 ml of beer is not 0.528 of a pint, so it asks too.
     expect(resolvePrice(300, BEER)).toEqual({ status: "needs-price", volumeMl: 300 });
+    // Including one the ladder could have summed to. Nothing is derived.
+    expect(resolvePrice(75, SPIRITS)).toEqual({ status: "needs-price", volumeMl: 75 });
   });
 
   // The distinction that keeps the app from nagging about drinks nobody priced
@@ -79,14 +59,6 @@ describe("price is per base unit, never a total", () => {
     expect(resolvePrice(Number.NaN, SPIRITS).status).toBe("unpriced");
   });
 
-  it("does not ask when a lower rung could have been substituted", () => {
-    // Q1: pint unpriced, half pint priced. 568 ml is two halves, so it prices
-    // exactly — the ban on substitution is about not *scaling* one rung into
-    // another, not about refusing an exact combination.
-    expect(resolvePrice(568, [rung(284, 2)])).toMatchObject({ status: "priced", total: 4 });
-    // But 400 ml cannot be built from halves, so it asks.
-    expect(resolvePrice(400, [rung(284, 2)]).status).toBe("needs-price");
-  });
 
   it("takes an exact stored price over any decomposition of the same volume", () => {
     // 250 ml priced directly at £18 beats 5 doubles at £20.
@@ -104,13 +76,6 @@ describe("price is per base unit, never a total", () => {
     expect(priceForServings(330, 3, cocktail)).toBeCloseTo(27, 6);
   });
 
-  it("breaks a fewest-unit tie on the cheaper total", () => {
-    // Two ways to make 100 ml in two units: 50+50 (£8) and 25+75 (£7).
-    const laddered = [rung(25, 2.5), rung(50, 4), rung(75, 4.5)];
-    const breakdown = priceForVolume(100, laddered);
-    expect(breakdown?.parts).toHaveLength(2);
-    expect(breakdown?.total).toBeCloseTo(7, 6);
-  });
 });
 
 describe("price is optional everywhere", () => {
@@ -162,10 +127,6 @@ describe("rungs the user creates", () => {
     expect(priceForVolume(60, US_SPIRITS)?.total).toBeCloseTo(5, 6);
   });
 
-  it("still combines user rungs when a volume needs it", () => {
-    // 90 ml is a double and a single: £8.
-    expect(priceForVolume(90, US_SPIRITS)?.total).toBeCloseTo(8, 6);
-  });
 
   it("shares one volume-matching rule with the picker", () => {
     // The picker collapses a typed Custom into an existing rung using this
