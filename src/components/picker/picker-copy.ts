@@ -90,6 +90,25 @@ export const CATEGORY_COPY = {
   abvChip: (lo: number, hi: number) => "ABV " + lo + "–" + hi + "%",
   sort: ["Cheapest first", "Strongest first", "Least alcohol first"],
   trayPendingSub: (ml: number) => "of " + fmtMl(ml) + " ml — the pending amount reads hollow",
+  /**
+   * The price field's label — what ONE serving the typed number prices, so 25
+   * is never read as £25 for all ten. A named or volume-bearing serving (Pint,
+   * 125 ml) labels itself; Single, Double and Custom get the volume spelled
+   * out instead, and a Custom box with no typed serve yet falls back to a
+   * plain "per serving".
+   */
+  priceFieldLabel: (servingLabel: string, volumeMl: number | null) =>
+    servingLabel && !/^(single|double|custom)$/i.test(servingLabel)
+      ? "per " + servingLabel.toLowerCase()
+      : volumeMl != null
+        ? "per " + fmtMl(volumeMl) + " ml"
+        : "per serving",
+  /**
+   * The row's invitation when this drink has prices but none can build the
+   * selected volume (60 ml against 25 and 50). An invitation, never an error:
+   * the volume becomes a rung of its own once priced.
+   */
+  needsPrice: "price this serve",
 };
 
 export const CUSTOM_COPY = {

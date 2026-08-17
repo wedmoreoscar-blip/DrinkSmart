@@ -11,8 +11,9 @@ import {
   pricedVolumeForEntry,
   pureAlcoholMl,
   servingMl,
+  servingOptionForVolume,
   servingOptionsFor,
-  servingPrice,
+  servingPriceFor,
 } from "./picker-model";
 
 type DrinkRowProps = {
@@ -48,9 +49,12 @@ export const DrinkRow = ({
 }: DrinkRowProps) => {
   const options = servingOptionsFor(drink);
   const serving = options.find((option) => option.id === servingId) ?? options[0];
-  const perUnitVolumeMl = servingMl(drink, serving.id, customMl) ?? 0;
+  const selectedMl = servingMl(drink, serving.id, customMl);
+  const perUnitVolumeMl = selectedMl ?? 0;
   const perUnitPureMl = pureAlcoholMl(drink, serving.id, customMl);
-  const perUnitPrice = servingPrice(drink, serving.id, customMl);
+  const resolution = servingPriceFor(drink, serving.id, customMl);
+  const perUnitPrice = resolution.status === "priced" ? resolution.total : null;
+  const priceFieldLabel = CATEGORY_COPY.priceFieldLabel(serving.label, selectedMl);
 
   // The price field is edited as text and committed on blur. It must be a
   // controlled input with an onChange: a `value` prop without one makes the
@@ -102,18 +106,25 @@ export const DrinkRow = ({
           </div>
           <div className="mt-0.5 text-[15px] leading-[1.3] text-muted-foreground">{sub}</div>
         </div>
-        {perUnitPrice != null && (
+        {resolution.status === "priced" && (
           <div className="flex-none text-right">
             <div className="text-[19px] font-medium leading-[1.2] tabular-nums text-foreground">
               {selected && quantity > 1
-                ? CATEGORY_COPY.priceTotal(perUnitPrice, quantity)
-                : money(perUnitPrice)}
+                ? CATEGORY_COPY.priceTotal(resolution.total, quantity)
+                : money(resolution.total)}
             </div>
             {selected && quantity > 1 && (
               <div className="mt-[3px] text-[13px] leading-[1.2] tabular-nums text-[#75798c]">
-                {CATEGORY_COPY.priceUnit(perUnitPrice, quantity)}
+                {CATEGORY_COPY.priceUnit(resolution.total, quantity)}
               </div>
             )}
+          </div>
+        )}
+        {resolution.status === "needs-price" && (
+          <div className="flex-none text-right">
+            <div className="text-[13px] leading-[1.3] text-muted-foreground">
+              {CATEGORY_COPY.needsPrice}
+            </div>
           </div>
         )}
       </button>
@@ -172,14 +183,25 @@ export const DrinkRow = ({
                     // here instead let `1.25e-8` through as a valid volume.
                     onCustomMlChange(parseNumericField("serve", text));
                   }}
-                  onBlur={() => setServeDraft(numericFieldText(customMl))}
+                  onBlur={() => {
+                    setServeDraft(numericFieldText(customMl));
+                    // Committing a typed volume that is exactly one of the
+                    // row's own servings lands on that rung and Custom turns
+                    // off. Blur-only: switching mid-typing would hijack the
+                    // entry, which is what serveDraft exists to prevent.
+                    if (customMl == null) return;
+                    const matching = servingOptionForVolume(drink, customMl);
+                    if (!matching) return;
+                    onCustomMlChange(null);
+                    onServingChange(matching.id);
+                  }}
                   className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
                 />
               )}
               <Input
                 type="number"
                 inputMode="decimal"
-                aria-label="Price"
+                aria-label={priceFieldLabel}
                 placeholder="£"
                 value={priceDraft}
                 onChange={(event) => setPriceDraft(event.target.value)}
