@@ -17,8 +17,23 @@ describe("Wave 5 picker boundaries", () => {
     expect(overTargetAdvice(114.99, 100, 3)).toBeNull();
     expect(overTargetAdvice(115, 100, 3)).toContain("Loose");
     expect(overTargetAdvice(120, 100, 3)).toContain("Loose");
-    expect(overTargetAdvice(120.01, 100, 3)).toBeNull();
     expect(overTargetAdvice(119, 100, 7)).toBeNull();
+  });
+
+  // Past +20% the Add button is disabled by the locked hard bound. Returning
+  // null here — as this did — left the control greying out unexplained, which
+  // reads as a broken button. The bound stays; the silence does not.
+  it("explains the hard bound past +20% rather than falling silent", () => {
+    const advice = overTargetAdvice(120.01, 100, 3);
+    expect(advice).not.toBeNull();
+    expect(advice).toContain("smaller serving");
+    expect(advice).toContain("Loose");
+  });
+
+  it("offers Heavy the only move it has, with no band above to suggest", () => {
+    const advice = overTargetAdvice(200, 100, 7);
+    expect(advice).toContain("smaller serving");
+    expect(advice).not.toContain("raise the band");
   });
 
   it("puts absolute serving volume before explicitly labelled ethanol in Plan summaries", () => {

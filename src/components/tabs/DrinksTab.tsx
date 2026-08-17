@@ -18,6 +18,7 @@ import {
   pickerCategoryFor,
   pickerScreenCategoryFor,
 } from "@/components/picker/picker-copy";
+import { uuid } from "@/lib/uuid";
 import {
   defaultServingFor,
   pureAlcoholMl,
@@ -611,7 +612,7 @@ const DrinksTab = ({
     }
     const category = plannedCategoryFor(selectedDrink);
     const entry: AlcoholTimelineEntryInput = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       category,
       drink: selectedDrink.drink_name,
       customABV: selectedDrink.abv == null ? undefined : String(selectedDrink.abv),
@@ -664,7 +665,7 @@ const DrinksTab = ({
     const customMl = (((draft.serve ?? 0) * servings) * (draft.abv ?? 0)) / 100;
     if (targetMl != null && committedMl + customMl > targetMl * 1.2) return;
     const entry: AlcoholTimelineEntryInput = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       category: "Cocktails",
       drink: "",
       isCustom: true,

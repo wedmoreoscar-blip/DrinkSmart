@@ -23,6 +23,7 @@ import {
   type BudgetRange,
 } from "@/lib/budget";
 import { clearAnonymousOverrides } from "@/lib/anonymousOverrideStore";
+import { uuid } from "@/lib/uuid";
 import { clearAnonymousProfile } from "@/lib/anonymousProfileStore";
 
 type MetricType = "bmi" | "ffmi";
@@ -186,7 +187,7 @@ function loadSessionSnapshotState(
       : 180;
   const clonedDrinks = snapshot.drinks.map((drink) => ({
     ...drink,
-    id: crypto.randomUUID(),
+    id: uuid(),
   }));
 
   return {

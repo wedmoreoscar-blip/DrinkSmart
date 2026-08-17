@@ -56,9 +56,15 @@ const BAND_LEVELS = [
 ];
 
 /**
- * Tray guidance line (5d, red band only): at 15–20% over target, when the
- * current band has a band above it, advise raising the band. Heavy shows
- * nothing; shades below red show nothing.
+ * Tray guidance line (5d): at 15–20% over target, when the current band has a
+ * band above it, advise raising the band. Shades below red show nothing.
+ *
+ * Past +20% the line explains the hard bound instead. That bound disables the
+ * Add button, and this used to return null in exactly that range — so the
+ * control greyed out with the one sentence that would explain it switched off,
+ * which reads as the button being broken. The bound itself is locked and
+ * unchanged; only the silence is. Per the same decision the line advises and
+ * never scolds.
  */
 export function overTargetAdvice(
   totalMl: number,
@@ -67,14 +73,26 @@ export function overTargetAdvice(
 ): string | null {
   if (!targetMl || targetMl <= 0 || !Number.isFinite(totalMl)) return null;
   const ratio = totalMl / targetMl;
-  if (ratio < 1.15 || ratio > 1.2) return null;
+  if (ratio < 1.15) return null;
+
   const bandIndex = BAND_LEVELS.findIndex(
     (band) => inebriationLevel >= band.minLevel && inebriationLevel <= band.maxLevel
   );
-  if (bandIndex < 0 || bandIndex === BAND_LEVELS.length - 1) return null;
+  const higherBand =
+    bandIndex >= 0 && bandIndex < BAND_LEVELS.length - 1 ? BAND_LEVELS[bandIndex + 1] : null;
+
+  if (ratio > 1.2) {
+    // Heavy has nothing above it, so it is offered the only move it has.
+    return higherBand
+      ? "That is more than this night allows — use a smaller serving or fewer, or raise the band to " +
+          higherBand.name + "."
+      : "That is more than this night allows — use a smaller serving or fewer.";
+  }
+
+  if (bandIndex < 0 || !higherBand) return null;
   const band = BAND_LEVELS[bandIndex];
   return (
-    "Raise the band to " + BAND_LEVELS[bandIndex + 1].name +
+    "Raise the band to " + higherBand.name +
     " — this is past " + band.name + "'s target."
   );
 }

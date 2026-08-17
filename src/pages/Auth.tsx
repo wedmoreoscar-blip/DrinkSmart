@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Mail, Lock, Upload, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 import { isAnonymousSession } from "@/lib/anonymousAuth";
+import { isOwnEmail } from "@/lib/authEmail";
 import { cn } from "@/lib/utils";
 import { WhatComesWithYou } from "@/components/auth/WhatComesWithYou";
 import { StepStrip, type StepMark } from "@/components/auth/StepStrip";
@@ -101,6 +102,8 @@ const Auth = () => {
   const [waiting, setWaiting] = useState<UpgradeWaiting | null>(() => loadUpgradeWaiting());
   const [now, setNow] = useState(() => Date.now());
   const [resending, setResending] = useState(false);
+  // A ref, not state: the auth subscription's callback closes over it.
+  const signingInToExisting = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -111,6 +114,9 @@ const Auth = () => {
       if (!session?.user) return;
       setSession(session);
       if (isAnonymousSession(session)) {
+        // A token refresh must not drag someone back into upgrade mode after
+        // they have chosen to sign in to an existing account instead.
+        if (signingInToExisting.current) return;
         setIsUpgrade(true);
         setIsSignUp(true);
       } else {
@@ -165,11 +171,45 @@ const Auth = () => {
     return data.publicUrl;
   };
 
+  // The re-send path. Once the identity is linked, the verification email is
+  // reissued with resend() — updateUser would be asked to link an address that
+  // is already linked and would fail as a duplicate.
+  const resendUpgradeEmails = async (emailAddress: string): Promise<{ ok: boolean; userId: string | null }> => {
+    const { error: resendError } = await supabase.auth.resend({
+      type: "email_change",
+      email: emailAddress,
+    });
+
+    if (resendError) {
+      toast({
+        title: "Could not send another link",
+        description: resendError.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return { ok: false, userId: null };
+    }
+
+    await supabase.auth.resetPasswordForEmail(emailAddress, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    return { ok: true, userId: session?.user?.id ?? null };
+  };
+
   // The first-link send: updateUser({ email }) links the identity and sends the
   // verification email; resetPasswordForEmail sends the password-set link. Both
   // steps are load-bearing — the password cannot be set before the email is
   // verified — so they are kept exactly as they were.
+  //
+  // Asking for the same address a second time is a re-send, not a second link.
+  // A user who never clicked the first link and came back to try again was
+  // being told their own email belonged to someone else, with no way through:
+  // the Resend button ran this same path and failed identically.
   const sendUpgradeEmails = async (emailAddress: string): Promise<{ ok: boolean; userId: string | null }> => {
+    if (isOwnEmail(session?.user, emailAddress)) {
+      return resendUpgradeEmails(emailAddress);
+    }
+
     const { data: updateData, error: updateError } = await supabase.auth.updateUser({
       email: emailAddress,
     });
@@ -177,9 +217,16 @@ const Auth = () => {
     if (updateError) {
       const msg = updateError.message.toLowerCase();
       if (msg.includes("already registered") || msg.includes("already been registered") || msg.includes("already exists")) {
+        // The local session can be stale — a link sent from another tab or
+        // before a reload. Re-read the user before calling this a conflict.
+        const { data: fresh } = await supabase.auth.getUser();
+        if (isOwnEmail(fresh?.user, emailAddress)) {
+          return resendUpgradeEmails(emailAddress);
+        }
         toast({
           title: "Email already in use",
-          description: "That email is already linked to another account. Try signing in instead.",
+          description:
+            "That email is already linked to another account. Sign in with it, or use 'Forgot password' to get back in.",
           variant: "destructive",
         });
       } else if (msg.includes("manual linking") || msg.includes("identity linking")) {
@@ -223,6 +270,17 @@ const Auth = () => {
   const handleAnotherEmail = () => {
     clearUpgradeWaiting();
     setWaiting(null);
+  };
+
+  // Leave the upgrade flow for the ordinary sign-in form. The anonymous session
+  // is left alone: signing in replaces it, and until that succeeds the user can
+  // come back to creating an account. The pending-link state is deliberately
+  // kept, so returning here still shows it.
+  const handleSignInInstead = () => {
+    signingInToExisting.current = true;
+    setIsUpgrade(false);
+    setIsSignUp(false);
+    setErrors({});
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -586,6 +644,20 @@ const Auth = () => {
             {loading ? "Sending…" : AUTH_COPY.cta}
           </Button>
           <p className="mt-2.5 text-center text-micro text-[#75798c]">{AUTH_COPY.footnote}</p>
+          {/* Every user holds an anonymous session, so this screen is the only
+              one they ever reach — without this, the sign-in form below is
+              unreachable and an existing account cannot be opened on a new
+              device at all. */}
+          <p className="mt-3 text-center text-micro text-[#75798c]">
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={handleSignInInstead}
+              className="font-medium text-primary hover:underline"
+            >
+              Sign in
+            </button>
+          </p>
           <div className="h-3" />
         </div>
       </form>

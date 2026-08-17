@@ -13,6 +13,7 @@ import { BLOOD_WATER_FRACTION, OZ_ML } from "@/lib/drinkConstants";
 import type { PreferenceData } from "@/lib/preferences";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { greedyPlanFallback } from "@/lib/greedyPlanFallback";
+import { uuid } from "@/lib/uuid";
 
 // Measured 2026-08-16 against Decart with reasoning disabled and submit_plan as
 // the only tool: 1 round per call, 13.8s / 17.7s / 21.7s for the OpenRouter leg
@@ -298,7 +299,7 @@ export function generatedDrinkToEntry(
   }
 
   return {
-    id: crypto.randomUUID(),
+    id: uuid(),
     category: item.category,
     drink: item.name,
     customABV: item.abv.toString(),
