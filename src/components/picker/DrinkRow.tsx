@@ -65,9 +65,20 @@ export const DrinkRow = ({
   // controlled input with an onChange: a `value` prop without one makes the
   // field read-only, so the control renders but cannot be typed into at all.
   const [priceDraft, setPriceDraft] = useState<string>("");
+  const priceFocused = useRef(false);
+  // Only a price stored FOR THIS VOLUME fills the box. A decomposed figure —
+  // a double reading twice the single because 50 ml is two 25 ml rungs — is a
+  // derived answer, not a price anyone set, and pre-filling it made the double
+  // look priced when it was not. Worse, blurring committed that derived number
+  // as a real rung, silently pinning the arithmetic. The row still *displays*
+  // the decomposed price; the field stays empty so a double-specific price can
+  // be typed straight in.
+  const exactPrice =
+    resolution.status === "priced" && resolution.exact ? resolution.total : null;
   useEffect(() => {
-    setPriceDraft(perUnitPrice != null ? perUnitPrice.toFixed(2) : "");
-  }, [perUnitPrice]);
+    if (priceFocused.current) return;
+    setPriceDraft(exactPrice != null ? exactPrice.toFixed(2) : "");
+  }, [exactPrice]);
 
   // The serve field keeps the half-typed text, exactly as the custom-drink
   // sheet and the scanner review do. Driving the input's `value` from the
