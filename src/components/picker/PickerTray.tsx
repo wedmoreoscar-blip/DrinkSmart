@@ -15,8 +15,10 @@ type PickerTrayProps = {
   actionLabel?: string;
   traySub?: string;
   advice?: string | null;
-  /** Running plan cost; null when no entry carries a price. */
+  /** Money already committed to the plan; null when nothing priced is in it. */
   cost?: number | null;
+  /** Money the pending selection would add; null when it carries no price. */
+  pendingCost?: number | null;
 };
 
 export const PickerTray = ({
@@ -33,6 +35,7 @@ export const PickerTray = ({
   traySub,
   advice = null,
   cost = null,
+  pendingCost = null,
 }: PickerTrayProps) => {
   const target = targetMl ?? 0;
   const reading = hasPending
@@ -40,6 +43,19 @@ export const PickerTray = ({
     : target > 0
       ? PICKER_COPY.trayReading(committedMl, target)
       : `${fmtMl(committedMl)} ml`;
+
+  // Money reads the way the meter does: what is in the plan, plus what the
+  // pending selection would add. Selecting a £4 pint moves it to "£12 + £4",
+  // and adding settles it to £16 — the same shape as "100 + 25 ml", so the two
+  // readings are learned once.
+  const costReading =
+    cost != null && pendingCost != null
+      ? `£${cost.toFixed(2)} + £${pendingCost.toFixed(2)}`
+      : cost != null
+        ? `£${cost.toFixed(2)}`
+        : pendingCost != null
+          ? `£${pendingCost.toFixed(2)}`
+          : null;
 
   const sub =
     traySub ??
@@ -56,8 +72,8 @@ export const PickerTray = ({
       <div className="min-w-0 flex-1">
         <div className="text-lead font-medium leading-[1.1] tabular-nums text-foreground">
           {reading}
-          {cost != null && (
-            <span className="ml-2 text-[#75798c]">· Total £{cost.toFixed(2)}</span>
+          {costReading != null && (
+            <span className="ml-2 text-[#75798c]">· {costReading}</span>
           )}
         </div>
         {advice ? (

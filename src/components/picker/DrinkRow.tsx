@@ -60,6 +60,14 @@ export const DrinkRow = ({
   // inheriting the single's arithmetic. This is the same value the price box
   // below is filled from, so the figure and the field can never disagree.
   const resolution = servingPriceFor(drink, serving.id, customMl);
+
+  // Every serving of this drink that carries a price, in ladder order.
+  const ladderPrices = options.flatMap((option) => {
+    const resolved = servingPriceFor(drink, option.id, customMl);
+    return resolved.status === "priced" && resolved.exact
+      ? [{ id: option.id, price: resolved.total }]
+      : [];
+  });
   const exactPrice =
     resolution.status === "priced" && resolution.exact ? resolution.total : null;
   const priceFieldLabel = CATEGORY_COPY.priceFieldLabel(
@@ -125,18 +133,30 @@ export const DrinkRow = ({
             {sub}
           </div>
         </div>
-        {exactPrice != null && (
-          <div className="flex-none text-right">
-            <div className="text-[19px] font-medium leading-[1.2] tabular-nums text-foreground">
-              {selected && quantity > 1
-                ? CATEGORY_COPY.priceTotal(exactPrice, quantity)
-                : money(exactPrice)}
-            </div>
-            {selected && quantity > 1 && (
-              <div className="mt-[3px] text-[13px] leading-[1.2] tabular-nums text-[#75798c]">
-                {CATEGORY_COPY.priceUnit(exactPrice, quantity)}
+        {ladderPrices.length > 0 && (
+          // One figure per priced serving, in ladder order — single, double,
+          // custom. Position says which is which, and the row is right-aligned,
+          // so a drink with only a single priced shows that one number hard
+          // right. A single figure in this corner could not stand for three
+          // independent prices, which is what made it unreadable before.
+          <div className="flex flex-none items-baseline justify-end gap-2.5">
+            {ladderPrices.map((entry) => (
+              <div
+                key={entry.id}
+                className={
+                  "text-[19px] font-medium leading-[1.2] tabular-nums " +
+                  // The white marks which serving you are on, so it only
+                  // means anything while this row is open. Closed, every price
+                  // is grey — a highlighted leftmost figure on a row nobody is
+                  // editing points at nothing.
+                  (selected && entry.id === serving.id
+                    ? "text-foreground"
+                    : "text-[#75798c]")
+                }
+              >
+                {money(entry.price)}
               </div>
-            )}
+            ))}
           </div>
         )}
       </button>

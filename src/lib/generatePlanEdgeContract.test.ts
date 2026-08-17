@@ -76,7 +76,7 @@ describe("generate-plan Edge contract", () => {
     expect(edgeFunction).toContain("!Number.isFinite(drink.quantity)");
     expect(edgeFunction).toContain("drink.quantity <= 0");
     expect(edgeFunction).toContain("!VALID_UNITS.has(drink.unit)");
-    expect(edgeFunction).toContain("!Number.isFinite(drink.ml)");
+    expect(edgeFunction).toContain("Number.isFinite(drink.ml) && drink.ml > 0");
     expect(edgeFunction).toContain("Math.abs(total - targetEthanolMl) / targetEthanolMl > 0.1");
     expect(edgeFunction).toContain("return jsonResponse({ error: `Invalid plan: ${validation.reason}` }, 422)");
     expect(edgeFunction).not.toContain("cleanedDrinks");
@@ -84,5 +84,15 @@ describe("generate-plan Edge contract", () => {
     expect(Math.abs(110 - 100) / 100 > 0.1).toBe(false);
     expect(Math.abs(89.9 - 100) / 100 > 0.1).toBe(true);
     expect(Math.abs(110.1 - 100) / 100 > 0.1).toBe(true);
+  });
+
+  // A custom volume is a serving the USER names. A model free to pick any ml
+  // invents servings nobody sells, at prices nobody set.
+  it("honours an ml override only when it names the catalogue serving", () => {
+    expect(edgeFunction).toContain("Math.abs(drink.ml - item.typical_ml) > 0.01");
+    expect(edgeFunction).toContain("delete drink.ml");
+    // Dropped, not rejected: the item counts at its catalogue serving and the
+    // recomputed total still faces the same gate.
+    expect(edgeFunction).toContain("const serving = drink.ml ?? item.typical_ml");
   });
 });

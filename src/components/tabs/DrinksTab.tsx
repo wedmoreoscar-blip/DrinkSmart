@@ -313,13 +313,6 @@ const DrinksTab = ({
     return unit == null ? null : unit * selected.quantity;
   }, [selected, selectedDrink, customMl]);
 
-  // Committed plus pending. sumPrices keeps the null meaning intact: nothing
-  // priced stays absent rather than becoming a guessed zero.
-  const trayCost = useMemo(
-    () => sumPrices([committedCost, pendingCost]),
-    [committedCost, pendingCost],
-  );
-
   // ---- Swap mode -----------------------------------------------------------
 
   const sourceBreak = useMemo(
@@ -995,7 +988,8 @@ const DrinksTab = ({
         pendingMl={trayPendingMl}
         pendingQuantity={swapMode ? 1 : (selected?.quantity ?? 0)}
         hasPending={swapMode ? swapHasPending : normalHasPending}
-        cost={swapMode ? committedCost : trayCost}
+        cost={committedCost}
+        pendingCost={swapMode ? null : pendingCost}
         // Inside a category the idle action returns to the plan; only the plan
         // root finishes the night. `Done` there took the user to the Timeline
         // mid-selection, when they had pressed it expecting to go back and add
