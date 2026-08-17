@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
+import type { PricedRung } from "@/lib/basePricing";
 import {
-  basePriceFromServingPrice,
   defaultServingFor,
-  pricedVolumeMl,
+  pricedVolumeForEntry,
   pureAlcoholMl,
+  rungsFor,
   servingMl,
+  servingOptionForVolume,
   servingOptionsFor,
   servingPrice,
 } from "@/components/picker/picker-model";
 
-type Resolved = EstablishmentDrink & { rememberedServingMl?: number | null };
+type Resolved = EstablishmentDrink & {
+  rememberedServingMl?: number | null;
+  userPricedRungs?: PricedRung[];
+};
 
 function beer(overrides: Partial<Resolved> = {}): Resolved {
   return {
@@ -64,22 +69,41 @@ describe("a remembered serve as the drink's default", () => {
   });
 });
 
-// W6-2 clause 3, second half: the remembered serve is the volume the user's
-// price is for, so it is the base per-serving scaling divides by.
-describe("the remembered serve as the priced volume", () => {
-  it("takes precedence over the row's own database volume", () => {
-    expect(pricedVolumeMl(beer({ rememberedServingMl: 400 }))).toBe(400);
-    expect(pricedVolumeMl(beer())).toBeCloseTo(568, 0);
+// Price is per base unit. The remembered serve is a *serving* preference and
+// no longer the denominator of anything — that coupling is what let remembering
+// a serve silently redefine the unit every stored price was quoted in.
+describe("a price belongs to the volume it was typed against", () => {
+  it("stores against the serving on screen, with no conversion", () => {
+    const drink = beer({ rememberedServingMl: 400 });
+    expect(pricedVolumeForEntry(drink, "custom", 400)).toBe(400);
+    expect(pricedVolumeForEntry(drink, "pint", null)).toBeCloseTo(568, 0);
+    // Nothing commitable, so nothing to price.
+    expect(pricedVolumeForEntry(beer(), "custom", null)).toBeNull();
   });
 
-  it("prices the remembered serve at exactly the stored price", () => {
-    const drink = beer({ rememberedServingMl: 400, price: 5 });
+  it("reads a rung back at exactly what was typed", () => {
+    const drink = beer({ price: null, userPricedRungs: [{ volumeMl: 400, price: 5 }] });
     expect(servingPrice(drink, "custom", 400)).toBeCloseTo(5, 6);
   });
 
-  it("scales a different serving against the remembered volume", () => {
-    const drink = beer({ rememberedServingMl: 400, price: 5 });
-    expect(servingPrice(drink, "custom", 200)).toBeCloseTo(2.5, 6);
+  it("does not scale one rung into another", () => {
+    // 200 ml is half of a priced 400 ml, and is still not priced: the app asks
+    // rather than halving a figure the user never quoted for 200 ml.
+    const drink = beer({ price: null, userPricedRungs: [{ volumeMl: 400, price: 5 }] });
+    expect(servingPrice(drink, "custom", 200)).toBeNull();
+  });
+
+  it("is stable across repeated commits", () => {
+    // The old model rescaled an already-scaled number on every edit. Here the
+    // stored figure is the typed figure, so re-committing changes nothing.
+    const drink = beer({ price: null, userPricedRungs: [{ volumeMl: 284, price: 2 }] });
+    const shown = servingPrice(drink, "half", null)!;
+    expect(shown).toBeCloseTo(2, 6);
+    const recommitted = beer({
+      price: null,
+      userPricedRungs: [{ volumeMl: pricedVolumeForEntry(drink, "half", null)!, price: shown }],
+    });
+    expect(servingPrice(recommitted, "half", null)).toBeCloseTo(2, 6);
   });
 
   it("returns null when the drink has no price at all", () => {
@@ -87,36 +111,35 @@ describe("the remembered serve as the priced volume", () => {
   });
 });
 
-// The round-trip defect: the row shows a price scaled to the serving on
-// screen, so committing that displayed figure unchanged would rescale an
-// already-scaled number and the price would drift on every edit.
-describe("price round-trips without drifting", () => {
-  it("is the identity when the selected serving is the priced volume", () => {
-    const drink = beer({ rememberedServingMl: 400, price: 5 });
-    const shown = servingPrice(drink, "custom", 400)!;
-    expect(basePriceFromServingPrice(drink, "custom", 400, shown)).toBeCloseTo(5, 6);
+describe("the rung ladder", () => {
+  it("takes the catalogue row's own price as a rung at its own volume", () => {
+    expect(rungsFor(beer({ price: 4 }))).toEqual([{ volumeMl: 568, price: 4 }]);
   });
 
-  it("converts back to the stored figure from a different serving", () => {
-    const drink = beer({ price: 4 }); // priced per pint
-    const shownForHalf = servingPrice(drink, "half", null)!;
-    expect(shownForHalf).toBeCloseTo(2, 6);
-    expect(basePriceFromServingPrice(drink, "half", null, shownForHalf)).toBeCloseTo(4, 6);
+  it("lets a user rung override the catalogue rung at the same volume", () => {
+    const drink = beer({ price: 4, userPricedRungs: [{ volumeMl: 568, price: 3.5 }] });
+    expect(rungsFor(drink)).toEqual([{ volumeMl: 568, price: 3.5 }]);
   });
 
-  it("survives two consecutive commits unchanged", () => {
-    const drink = beer({ price: 4 });
-    const once = basePriceFromServingPrice(drink, "half", null, servingPrice(drink, "half", null)!)!;
-    const twice = basePriceFromServingPrice(
-      { ...drink, price: once },
-      "half",
-      null,
-      servingPrice({ ...drink, price: once }, "half", null)!,
-    )!;
-    expect(twice).toBeCloseTo(4, 6);
+  it("keeps user rungs at other volumes, ascending", () => {
+    const drink = beer({ price: 4, userPricedRungs: [{ volumeMl: 284, price: 2.2 }] });
+    expect(rungsFor(drink)).toEqual([
+      { volumeMl: 284, price: 2.2 },
+      { volumeMl: 568, price: 4 },
+    ]);
+  });
+});
+
+// A typed Custom value equal to an existing rung collapses into it, so one
+// volume never ends up with two prices.
+describe("a custom volume that matches a rung", () => {
+  it("finds the rung it should collapse into", () => {
+    expect(servingOptionForVolume(beer(), 568)?.id).toBe("pint");
+    expect(servingOptionForVolume(beer(), 284)?.id).toBe("half");
   });
 
-  it("yields null when the selected serving has no committable volume", () => {
-    expect(basePriceFromServingPrice(beer(), "custom", null, 5)).toBeNull();
+  it("returns null for a genuinely new volume", () => {
+    expect(servingOptionForVolume(beer(), 400)).toBeNull();
+    expect(servingOptionForVolume(beer(), 0)).toBeNull();
   });
 });

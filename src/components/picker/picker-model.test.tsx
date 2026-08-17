@@ -150,12 +150,17 @@ describe("Wave 5 picker serving contract", () => {
     expect(pureAlcoholMl(spirit, "custom", 35) * 2).toBe(28);
   });
 
-  it("scales prices from the database serving to the selected serving and count", () => {
+  // Prices are no longer scaled between servings. The catalogue row is a rung
+  // at its own volume, and a serving it cannot be built from is unpriced rather
+  // than halved — the user is asked instead of guessed at.
+  it("prices the catalogue rung exactly and refuses to scale into another", () => {
     const beer = drink("beer", "Beer", 4, 568, "ml");
 
     expect(servingPrice(beer, "pint", null)).toBe(5);
-    expect(servingPrice(beer, "half", null)).toBe(2.5);
-    expect((servingPrice(beer, "half", null) ?? 0) * 3).toBe(7.5);
+    // A half pint is not half a pint's price: 284 cannot be built from 568.
+    expect(servingPrice(beer, "half", null)).toBeNull();
+    // Two pints is two pint prices.
+    expect(servingPrice(beer, "custom", 1136)).toBe(10);
   });
 
   // Two different questions, deliberately answered by two functions: which tab a

@@ -3,9 +3,9 @@ import { Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DrinkFilterPopover, type DrinkFilters } from "@/components/DrinkFilterPopover";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
-import { compareByPriceCheapestFirst } from "@/lib/drinkOverrides";
+import { compareByResolvedPrice } from "@/lib/drinkOverrides";
 import { CATEGORY_COPY, pickerScreenCategoryFor } from "./picker-copy";
-import { defaultServingFor } from "./picker-model";
+import { defaultServingFor, servingPrice } from "./picker-model";
 import { DrinkRow } from "./DrinkRow";
 import { pureAlcoholMl } from "./picker-model";
 
@@ -34,7 +34,8 @@ type CategoryScreenProps = {
   onQuantityChange: (quantity: number) => void;
   onServingChange: (servingId: string) => void;
   onCustomMlChange: (ml: number | null) => void;
-  onPriceCommit?: (drinkId: string, price: number | null) => void;
+  /** A price for one serving of `volumeMl` of that drink. See DrinkRow. */
+  onPriceCommit?: (drinkId: string, price: number | null, volumeMl: number | null) => void;
   onBack: () => void;
 };
 
@@ -90,7 +91,16 @@ export const CategoryScreen = ({
           pureAlcoholMl(a, defaultServingFor(a).id, null) -
           pureAlcoholMl(b, defaultServingFor(b).id, null)
       );
-    else sorted.sort(compareByPriceCheapestFirst);
+    // Cheapest first compares each drink at the serving it would open on, since
+    // a price is now per rung and two drinks' prices are only comparable at a
+    // stated volume. Unpriced rows sort last, per compareByResolvedPrice.
+    else
+      sorted.sort((a, b) =>
+        compareByResolvedPrice(
+          servingPrice(a, defaultServingFor(a).id, null),
+          servingPrice(b, defaultServingFor(b).id, null),
+        ),
+      );
     return sorted;
   }, [drinks, filters.abvRange, filters.selectedCategories, sort]);
 
@@ -193,7 +203,7 @@ export const CategoryScreen = ({
               onCustomMlChange={(next) =>
                 planned ? onPlannedCustomMlChange?.(drink.id, next) : onCustomMlChange(next)
               }
-              onPriceCommit={(price) => onPriceCommit?.(drink.id, price)}
+              onPriceCommit={(price, volumeMl) => onPriceCommit?.(drink.id, price, volumeMl)}
             />
           );
         })}

@@ -140,7 +140,7 @@ const DrinksTab = ({
     addEstablishmentDrink,
   } = useEstablishments();
   const { isLoggedIn: hasAccount, saveDrink, savedDrinks } = useSavedDrinks();
-  const { setOverride } = useDrinkOverrides();
+  const { setOverride, setDrinkPrice } = useDrinkOverrides();
 
   const drinks = state.drinks;
 
@@ -877,8 +877,13 @@ const DrinksTab = ({
               setSelected((current) => (current ? { ...current, servingId } : current))
             }
             onCustomMlChange={setCustomMl}
-            onPriceCommit={(drinkId, price) => {
-              void setOverride(drinkId, { price });
+            // A price belongs to the volume it was typed against, so the row
+            // reports that volume and it is stored as a rung of its own. It is
+            // never folded into the drink's single price, which is what let a
+            // remembered serve redefine what every stored price meant.
+            onPriceCommit={(drinkId, price, volumeMl) => {
+              if (volumeMl == null) return;
+              void setDrinkPrice(drinkId, volumeMl, price);
             }}
             onBack={() => setCategory(null)}
           />

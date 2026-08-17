@@ -1,4 +1,10 @@
 import { OZ_ML, PINT_ML, SHOT_ML } from "@/lib/drinkConstants";
+import {
+  resolvePrice,
+  sameVolumeMl,
+  type PriceResolution,
+  type PricedRung,
+} from "@/lib/basePricing";
 import { fallbackServeMl } from "@/lib/drinkFallbacks";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import { fmtMl, pickerCategoryFor, type PickerCategoryLabel } from "./picker-copy";
@@ -154,55 +160,103 @@ export function pureAlcoholMl(
 }
 
 /**
- * Scale the price to the selected serving volume. The user's remembered serve
- * is the volume their price is for, so it takes precedence over the row's own
- * database serving, its default rung, and the category fallback as the base
- * the scaling divides by.
- */
-/**
- * The volume a drink's stored `price` is the price *of*. The user's remembered
- * serve wins: it is the volume they actually buy, so it is what their price
- * refers to.
- */
-export function pricedVolumeMl(
-  drink: EstablishmentDrink & { rememberedServingMl?: number | null },
-): number {
-  return (
-    drink.rememberedServingMl ??
-    databaseVolumeMl(drink) ??
-    defaultServingFor(drink).ml ??
-    fallbackServeMl(drink.category, drink.category_label)
-  );
-}
-
-export function servingPrice(
-  drink: EstablishmentDrink & { rememberedServingMl?: number | null },
-  servingId: string,
-  customMl: number | null,
-): number | null {
-  if (drink.price == null) return null;
-  const selectedMl = servingMl(drink, servingId, customMl);
-  if (selectedMl === null) return null;
-  return drink.price * (selectedMl / pricedVolumeMl(drink));
-}
-
-/**
- * The inverse of `servingPrice`: convert a price the user typed against the
- * serving currently on screen back into the stored per-`pricedVolumeMl` figure.
+ * Every priced volume this drink has, as rungs.
  *
- * Without this the value drifts. The row displays `servingPrice` — the stored
- * price scaled to the selected serving — so storing that displayed figure
- * unchanged means the next render scales an already-scaled number, and the
- * price moves by the same ratio again on every edit whenever the selected
- * serving is not the priced volume.
+ * Two sources, user first. The catalogue row contributes one rung — its own
+ * `price` at its own volume — and the user's priced volumes contribute the
+ * rest, overriding the catalogue rung when they name the same volume.
+ *
+ * The catalogue rung is composed here rather than in `drinkOverrides.ts`
+ * because turning `volume`/`volume_unit` into millilitres is picker knowledge;
+ * the resolver is pure and deliberately does not carry it.
  */
-export function basePriceFromServingPrice(
+export function rungsFor(
+  drink: EstablishmentDrink & {
+    rememberedServingMl?: number | null;
+    userPricedRungs?: PricedRung[];
+  },
+): PricedRung[] {
+  const rungs: PricedRung[] = [];
+
+  const catalogueVolume = databaseVolumeMl(drink);
+  if (drink.price != null && drink.price >= 0 && catalogueVolume != null && catalogueVolume > 0) {
+    rungs.push({ volumeMl: catalogueVolume, price: drink.price });
+  }
+
+  for (const rung of drink.userPricedRungs ?? []) {
+    const existing = rungs.findIndex((entry) => sameVolumeMl(entry.volumeMl, rung.volumeMl));
+    if (existing === -1) rungs.push(rung);
+    else rungs[existing] = rung;
+  }
+
+  return rungs.sort((a, b) => a.volumeMl - b.volumeMl);
+}
+
+/**
+ * What one serving of this drink costs, at the serving currently selected.
+ *
+ * Replaces the old `servingPrice`, which scaled a single stored price by
+ * `selectedMl / pricedVolumeMl`. That divisor came from a mutable field, so
+ * remembering a serve silently redefined the unit every stored price was
+ * quoted in. Here the price is resolved from rungs and never rescaled.
+ */
+export function servingPriceFor(
+  drink: EstablishmentDrink & {
+    rememberedServingMl?: number | null;
+    userPricedRungs?: PricedRung[];
+  },
+  servingId: string,
+  customMl: number | null,
+): PriceResolution {
+  const selectedMl = servingMl(drink, servingId, customMl);
+  if (selectedMl === null) return { status: "unpriced" };
+  return resolvePrice(selectedMl, rungsFor(drink));
+}
+
+/** The money for one serving, or null. For callers that only want a figure. */
+export function servingPrice(
+  drink: EstablishmentDrink & {
+    rememberedServingMl?: number | null;
+    userPricedRungs?: PricedRung[];
+  },
+  servingId: string,
+  customMl: number | null,
+): number | null {
+  const resolved = servingPriceFor(drink, servingId, customMl);
+  return resolved.status === "priced" ? resolved.total : null;
+}
+
+/**
+ * The volume a typed price applies to: whatever serving is on screen.
+ *
+ * This replaces `basePriceFromServingPrice`, and it is deliberately not a
+ * conversion. A typed price is stored against the volume it was typed against,
+ * full stop — that is what makes the value stable. Returns null when the
+ * serving is not commitable, so there is nothing to price.
+ */
+export function pricedVolumeForEntry(
   drink: EstablishmentDrink & { rememberedServingMl?: number | null },
   servingId: string,
   customMl: number | null,
-  typedPrice: number,
 ): number | null {
   const selectedMl = servingMl(drink, servingId, customMl);
-  if (selectedMl === null || selectedMl <= 0) return null;
-  return typedPrice * (pricedVolumeMl(drink) / selectedMl);
+  return selectedMl !== null && selectedMl > 0 ? selectedMl : null;
+}
+
+/**
+ * The rung a typed Custom volume collapses into, or null when it is genuinely
+ * a new volume. Uses `sameVolumeMl` so the picker and the pricing lookup agree
+ * on what counts as the same volume — a stricter rule here would let
+ * 30.0000001 ml become a second 30 ml rung, giving one volume two prices.
+ */
+export function servingOptionForVolume(
+  drink: EstablishmentDrink,
+  volumeMl: number,
+): ServingOption | null {
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) return null;
+  return (
+    servingOptionsFor(drink).find(
+      (option) => option.ml != null && sameVolumeMl(option.ml, volumeMl),
+    ) ?? null
+  );
 }

@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { EstablishmentDrink } from "@/hooks/useEstablishments";
 import {
   buildOverrideMap,
-  compareByPriceCheapestFirst,
+  buildPriceMap,
+  compareByResolvedPrice,
+  EMPTY_OVERRIDES,
   mergeDrinkOverride,
   parseDrinkOverride,
+  parseDrinkPrice,
   resolveDrink,
   resolveDrinks,
 } from "@/lib/drinkOverrides";
@@ -117,12 +120,22 @@ describe("resolveDrink", () => {
     expect(resolved.hasPriceOverride).toBe(false);
   });
 
-  it("lays the user's price over the catalogue's", () => {
-    const resolved = resolveDrink(drink(), {
-      "drink-1": { establishment_drink_id: "drink-1", price: 6.1, serving_ml: null },
+  // A user price no longer overwrites the catalogue's. It is a rung at a stated
+  // volume, and the catalogue row stays exactly as it is — the two are prices
+  // of different things until a volume says otherwise.
+  it("carries the user's priced volumes as rungs, leaving the catalogue row alone", () => {
+    const resolved = resolveDrink(drink(), EMPTY_OVERRIDES, {
+      "drink-1": [{ volumeMl: 568, price: 6.1 }],
     });
-    expect(resolved.price).toBe(6.1);
+    expect(resolved.price).toBe(4.2);
+    expect(resolved.userPricedRungs).toEqual([{ volumeMl: 568, price: 6.1 }]);
     expect(resolved.hasPriceOverride).toBe(true);
+  });
+
+  it("reports no price override when the user has priced nothing", () => {
+    const resolved = resolveDrink(drink());
+    expect(resolved.userPricedRungs).toEqual([]);
+    expect(resolved.hasPriceOverride).toBe(false);
   });
 
   // The catalogue price must survive a serve-only override: the user said how
@@ -136,29 +149,60 @@ describe("resolveDrink", () => {
     expect(resolved.rememberedServingMl).toBe(400);
   });
 
-  it("prices an unpriced catalogue row from the override alone", () => {
-    const resolved = resolveDrink(drink({ price: null }), {
-      "drink-1": { establishment_drink_id: "drink-1", price: 5, serving_ml: null },
+  it("gives an unpriced catalogue row its rungs from the user alone", () => {
+    const resolved = resolveDrink(drink({ price: null }), EMPTY_OVERRIDES, {
+      "drink-1": [{ volumeMl: 330, price: 5 }],
     });
-    expect(resolved.price).toBe(5);
+    expect(resolved.price).toBeNull();
+    expect(resolved.userPricedRungs).toEqual([{ volumeMl: 330, price: 5 }]);
     expect(resolved.hasPriceOverride).toBe(true);
   });
 
-  it("does not leak one drink's override onto another", () => {
-    const resolved = resolveDrinks([drink(), drink({ id: "drink-2", price: 3 })], {
-      "drink-1": { establishment_drink_id: "drink-1", price: 9, serving_ml: null },
+  it("does not leak one drink's rungs onto another", () => {
+    const resolved = resolveDrinks([drink(), drink({ id: "drink-2", price: 3 })], EMPTY_OVERRIDES, {
+      "drink-1": [{ volumeMl: 568, price: 9 }],
     });
-    expect(resolved.map((d) => d.price)).toEqual([9, 3]);
+    expect(resolved.map((d) => d.userPricedRungs)).toEqual([[{ volumeMl: 568, price: 9 }], []]);
+  });
+
+  it("groups price rows into ascending rungs, last write winning per volume", () => {
+    const map = buildPriceMap([
+      { establishment_drink_id: "drink-1", serving_ml: 568, price: 4 },
+      { establishment_drink_id: "drink-1", serving_ml: 284, price: 2.5 },
+      { establishment_drink_id: "drink-1", serving_ml: 568, price: 3.8 },
+      { establishment_drink_id: "drink-1", serving_ml: null, price: 3 },
+      { establishment_drink_id: "drink-1", serving_ml: 330 },
+    ]);
+    expect(map["drink-1"]).toEqual([
+      { volumeMl: 284, price: 2.5 },
+      { volumeMl: 568, price: 3.8 },
+    ]);
+  });
+
+  // A price with no volume is exactly the ambiguity the design removes.
+  it("drops a price row missing either half", () => {
+    expect(parseDrinkPrice({ establishment_drink_id: "d", serving_ml: 25 })).toBeNull();
+    expect(parseDrinkPrice({ establishment_drink_id: "d", price: 3 })).toBeNull();
+    expect(parseDrinkPrice({ serving_ml: 25, price: 3 })).toBeNull();
+    // Postgres numerics arrive as strings on some drivers.
+    expect(parseDrinkPrice({ establishment_drink_id: "d", serving_ml: "25", price: "3" })).toEqual({
+      establishment_drink_id: "d",
+      serving_ml: 25,
+      price: 3,
+    });
   });
 });
 
-describe("compareByPriceCheapestFirst", () => {
+describe("compareByResolvedPrice", () => {
   it("sorts unpriced rows last, not first", () => {
-    const sorted = [
-      { price: null },
-      { price: 5 },
-      { price: 2 },
-    ].sort(compareByPriceCheapestFirst);
-    expect(sorted.map((d) => d.price)).toEqual([2, 5, null]);
+    // A naive ascending sort on null puts every unpriced row at the top and
+    // presents "cheapest" as an answer nobody computed.
+    expect([null, 5, 2].sort(compareByResolvedPrice)).toEqual([2, 5, null]);
+  });
+
+  it("compares resolved money rather than a stored figure", () => {
+    // Two prices are only comparable at a stated volume, which is why the
+    // caller resolves them first: this no longer reads drink.price at all.
+    expect([7, 3, null, 4].sort(compareByResolvedPrice)).toEqual([3, 4, 7, null]);
   });
 });

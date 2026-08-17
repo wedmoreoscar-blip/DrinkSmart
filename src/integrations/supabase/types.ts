@@ -249,6 +249,44 @@ export type Database = {
           },
         ]
       }
+      user_drink_prices: {
+        Row: {
+          created_at: string
+          establishment_drink_id: string
+          id: string
+          price: number
+          serving_ml: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_drink_id: string
+          id?: string
+          price: number
+          serving_ml: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          establishment_drink_id?: string
+          id?: string
+          price?: number
+          serving_ml?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_drink_prices_establishment_drink_id_fkey"
+            columns: ["establishment_drink_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_drinks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null

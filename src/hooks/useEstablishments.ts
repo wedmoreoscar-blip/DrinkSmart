@@ -181,7 +181,7 @@ export const useEstablishments = () => {
     [allEstablishments, activeVenueId]
   );
 
-  const { overrides } = useDrinkOverrides();
+  const { overrides, prices } = useDrinkOverrides();
 
   /**
    * The one place a user's remembered price and serve are laid over the
@@ -195,9 +195,9 @@ export const useEstablishments = () => {
         (d) => d.establishment_id === establishmentId
       );
       const databaseDrinks = db.drinks.filter((d) => d.establishment_id === establishmentId);
-      return resolveDrinks([...databaseDrinks, ...sessionDrinks], overrides);
+      return resolveDrinks([...databaseDrinks, ...sessionDrinks], overrides, prices);
     },
-    [db.drinks, session.drinks, overrides]
+    [db.drinks, session.drinks, overrides, prices]
   );
 
   const getGlobalEstablishments = useCallback(

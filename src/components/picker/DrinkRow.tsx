@@ -8,7 +8,7 @@ import {
   parseNumericField,
 } from "@/lib/numericField";
 import {
-  basePriceFromServingPrice,
+  pricedVolumeForEntry,
   pureAlcoholMl,
   servingMl,
   servingOptionsFor,
@@ -25,7 +25,13 @@ type DrinkRowProps = {
   onQuantityChange: (quantity: number) => void;
   onServingChange: (servingId: string) => void;
   onCustomMlChange: (ml: number | null) => void;
-  onPriceCommit?: (price: number | null) => void;
+  /**
+   * A price for one serving of `volumeMl`. A null price clears that rung; a
+   * null volume means the serving is not commitable and there is nothing to
+   * price. The volume is passed because a price now belongs to the volume it
+   * was typed against — the caller must not infer it.
+   */
+  onPriceCommit?: (price: number | null, volumeMl: number | null) => void;
 };
 
 export const DrinkRow = ({
@@ -180,21 +186,19 @@ export const DrinkRow = ({
                 onBlur={(event) => {
                   const raw = event.target.value.trim();
                   if (raw === "") {
-                    onPriceCommit(null);
+                    onPriceCommit(null, pricedVolumeForEntry(drink, serving.id, customMl));
                     return;
                   }
                   const parsed = Number(raw);
                   if (!Number.isFinite(parsed) || parsed < 0) {
-                    onPriceCommit(null);
+                    onPriceCommit(null, pricedVolumeForEntry(drink, serving.id, customMl));
                     return;
                   }
-                  // The user types the price of the serving in front of them;
-                  // what is stored is the price of the priced volume. Commit
-                  // the converted figure so re-reading it does not rescale an
-                  // already-scaled number.
-                  onPriceCommit(
-                    basePriceFromServingPrice(drink, serving.id, customMl, parsed),
-                  );
+                  // The user types the price of the serving in front of them,
+                  // and that is exactly what is stored — against the volume it
+                  // was typed against, with no conversion. The conversion is
+                  // what used to make the value drift.
+                  onPriceCommit(parsed, pricedVolumeForEntry(drink, serving.id, customMl));
                 }}
                 className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
               />
