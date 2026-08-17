@@ -33,6 +33,8 @@ A merge that genuinely integrates no delegation bypasses the guard with the lite
 | 2026-08-16 | W6-2 picker price and remembered serve | ~85k | spec + commission 14k, handback 9k, clause map 16k, read-only-input/zero-ethanol/price-drift repairs + 14 tests 38k, shared baseline 8k |
 | 2026-08-16 | W6-3 menu scanner dedupe and overrides | ~45k | spec + commission 12k, handback 8k, clause map 10k, insert-order repair 7k, shared baseline 8k |
 | 2026-08-16 | W6-4 model price column and budget | ~50k | spec + commission 13k, handback 8k, clause map 11k, catalog-test repair + cross-leg budget wiring 10k, shared baseline 8k |
+| 2026-08-17 | W7-1 picker prices per rung | ~34k | spec + commission 11k, handback 6k, clause map 9k, visible-label repair 4k, shared baseline 4k |
+| 2026-08-17 | W7-2 tray sum and Total price | ~26k | spec + commission 9k, handback 5k, clause map 7k, cross-leg pending-cost repair 3k, shared baseline 2k |
 
 Wave 5 rows are estimates split from one Codex TUI batch. The acceptance repair commit names the
 routine spec gaps that required checker-owned inline work: generation hint/state sync; consumed
@@ -67,3 +69,21 @@ leg: PlanTab never sent the budget, because leg 4 owned the request type and leg
 site. Two lines. This is the semantic clash between file-disjoint branches that the single
 post-merge baseline exists to catch, and the clearest evidence so far that batched fan-in earns
 its place — four separate integrations would each have been green.
+
+## W7 — the smallest batch yet, and the same cross-leg finding
+
+Both legs came back clean: 8 of 9 clauses satisfied as delivered, nothing handed back, two repairs
+inline. Cheaper per leg than any W6 row, because the spine, the schema, the read path and the volume
+backfill were all built inline first and the legs only called them — the delegation gate kept three
+of the five stages out of a spec entirely.
+
+The expensive finding was again invisible to both legs and cost two lines: the tray's total ignored
+the pending selection, so pressing `+` did not move it. W7-2's spec said to treat the `cost` prop as
+given; W7-1's spec never mentioned the tray. Both were correct against their own specs and the
+behaviour was wrong. Second consecutive batch where the single post-merge review caught a semantic
+clash no leg could see — the argument for batched fan-in, not against the partition.
+
+One clause miss recorded as a spec lesson rather than an implementer fault: W7-1 labelled the price
+field with an `aria-label` alone. The acceptance line said "visibly labelled" but the clause body
+said only "must state which serving the number applies to", which an aria-label technically does.
+The body must not be weaker than the acceptance criterion.

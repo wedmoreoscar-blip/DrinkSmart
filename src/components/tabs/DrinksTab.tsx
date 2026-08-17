@@ -18,6 +18,7 @@ import {
   pickerCategoryFor,
   pickerScreenCategoryFor,
 } from "@/components/picker/picker-copy";
+import { sumPrices } from "@/lib/basePricing";
 import { uuid } from "@/lib/uuid";
 import {
   defaultServingFor,
@@ -275,16 +276,15 @@ const DrinksTab = ({
 
   // Running plan cost: pricePerUnit × servings, present only when some entry
   // actually carries a price — never a guessed £0.
-  const committedCost = useMemo(() => {
-    let total = 0;
-    let priced = false;
-    for (const entry of planEntries) {
-      if (entry.pricePerUnit == null) continue;
-      priced = true;
-      total += entry.pricePerUnit * entryServingCount(entry);
-    }
-    return priced ? total : null;
-  }, [planEntries]);
+  const committedCost = useMemo(
+    () =>
+      sumPrices(
+        planEntries.map((entry) =>
+          entry.pricePerUnit == null ? null : entry.pricePerUnit * entryServingCount(entry),
+        ),
+      ),
+    [planEntries],
+  );
 
   const targetMl = calculateTotalPureAlcoholNeeded();
 
@@ -298,6 +298,23 @@ const DrinksTab = ({
       ? (selectedServingMl * selected.quantity * (selectedDrink?.abv ?? 0)) / 100
       : 0;
   const normalHasPending = selected !== null && selectedDrink !== null && selectedServingMl != null;
+
+  // The pending selection counts toward the tray's running total. Without it
+  // the figure sat still while the user pressed `+`, because it summed only
+  // committed entries — and "each press of + raises the tray by one base unit
+  // price" is the rule that makes a per-unit price legible in the first place.
+  const pendingCost = useMemo(() => {
+    if (!selected || !selectedDrink) return null;
+    const unit = servingPrice(selectedDrink, selected.servingId, customMl);
+    return unit == null ? null : unit * selected.quantity;
+  }, [selected, selectedDrink, customMl]);
+
+  // Committed plus pending. sumPrices keeps the null meaning intact: nothing
+  // priced stays absent rather than becoming a guessed zero.
+  const trayCost = useMemo(
+    () => sumPrices([committedCost, pendingCost]),
+    [committedCost, pendingCost],
+  );
 
   // ---- Swap mode -----------------------------------------------------------
 
@@ -1042,7 +1059,7 @@ const DrinksTab = ({
         pendingMl={trayPendingMl}
         pendingQuantity={swapMode ? 1 : (selected?.quantity ?? 0)}
         hasPending={swapMode ? swapHasPending : normalHasPending}
-        cost={committedCost}
+        cost={swapMode ? committedCost : trayCost}
         // Inside a category the idle action returns to the plan; only the plan
         // root finishes the night. `Done` there took the user to the Timeline
         // mid-selection, when they had pressed it expecting to go back and add

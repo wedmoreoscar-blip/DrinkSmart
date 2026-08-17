@@ -48,13 +48,17 @@ export const DrinkRow = ({
   onPriceCommit = () => {},
 }: DrinkRowProps) => {
   const options = servingOptionsFor(drink);
-  const serving = options.find((option) => option.id === servingId) ?? options[0];
+  const serving =
+    options.find((option) => option.id === servingId) ?? options[0];
   const selectedMl = servingMl(drink, serving.id, customMl);
   const perUnitVolumeMl = selectedMl ?? 0;
   const perUnitPureMl = pureAlcoholMl(drink, serving.id, customMl);
   const resolution = servingPriceFor(drink, serving.id, customMl);
   const perUnitPrice = resolution.status === "priced" ? resolution.total : null;
-  const priceFieldLabel = CATEGORY_COPY.priceFieldLabel(serving.label, selectedMl);
+  const priceFieldLabel = CATEGORY_COPY.priceFieldLabel(
+    serving.label,
+    selectedMl,
+  );
 
   // The price field is edited as text and committed on blur. It must be a
   // controlled input with an onChange: a `value` prop without one makes the
@@ -78,13 +82,13 @@ export const DrinkRow = ({
   const sub =
     selected && quantity > 1
       ? CATEGORY_COPY.rowSub(drink.abv, perUnitVolumeMl, perUnitPureMl)
-      : CATEGORY_COPY.rowSubSingle(
-          drink.abv,
-          perUnitVolumeMl,
-          perUnitPureMl,
-        );
+      : CATEGORY_COPY.rowSubSingle(drink.abv, perUnitVolumeMl, perUnitPureMl);
 
-  const summary = CATEGORY_COPY.selectedSummary(quantity, perUnitVolumeMl, perUnitPureMl);
+  const summary = CATEGORY_COPY.selectedSummary(
+    quantity,
+    perUnitVolumeMl,
+    perUnitPureMl,
+  );
 
   return (
     <div
@@ -104,7 +108,9 @@ export const DrinkRow = ({
           <div className="truncate text-[22px] leading-[1.2] text-foreground">
             {drink.drink_name}
           </div>
-          <div className="mt-0.5 text-[15px] leading-[1.3] text-muted-foreground">{sub}</div>
+          <div className="mt-0.5 text-[15px] leading-[1.3] text-muted-foreground">
+            {sub}
+          </div>
         </div>
         {resolution.status === "priced" && (
           <div className="flex-none text-right">
@@ -198,36 +204,56 @@ export const DrinkRow = ({
                   className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
                 />
               )}
-              <Input
-                type="number"
-                inputMode="decimal"
-                aria-label={priceFieldLabel}
-                placeholder="£"
-                value={priceDraft}
-                onChange={(event) => setPriceDraft(event.target.value)}
-                onBlur={(event) => {
-                  const raw = event.target.value.trim();
-                  if (raw === "") {
-                    onPriceCommit(null, pricedVolumeForEntry(drink, serving.id, customMl));
-                    return;
-                  }
-                  const parsed = Number(raw);
-                  if (!Number.isFinite(parsed) || parsed < 0) {
-                    onPriceCommit(null, pricedVolumeForEntry(drink, serving.id, customMl));
-                    return;
-                  }
-                  // The user types the price of the serving in front of them,
-                  // and that is exactly what is stored — against the volume it
-                  // was typed against, with no conversion. The conversion is
-                  // what used to make the value drift.
-                  onPriceCommit(parsed, pricedVolumeForEntry(drink, serving.id, customMl));
-                }}
-                className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
-              />
+              {/* The label is rendered, not just announced. A screen-reader-only
+                  label leaves a sighted user typing `25` into a bare £ box with
+                  nothing on screen saying whether that is per shot or for all
+                  ten — which is the ambiguity this field exists to remove. */}
+              <div className="flex flex-none flex-col items-center gap-[3px]">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  aria-label={priceFieldLabel}
+                  placeholder="£"
+                  value={priceDraft}
+                  onChange={(event) => setPriceDraft(event.target.value)}
+                  onBlur={(event) => {
+                    const raw = event.target.value.trim();
+                    if (raw === "") {
+                      onPriceCommit(
+                        null,
+                        pricedVolumeForEntry(drink, serving.id, customMl),
+                      );
+                      return;
+                    }
+                    const parsed = Number(raw);
+                    if (!Number.isFinite(parsed) || parsed < 0) {
+                      onPriceCommit(
+                        null,
+                        pricedVolumeForEntry(drink, serving.id, customMl),
+                      );
+                      return;
+                    }
+                    // The user types the price of the serving in front of them,
+                    // and that is exactly what is stored — against the volume it
+                    // was typed against, with no conversion. The conversion is
+                    // what used to make the value drift.
+                    onPriceCommit(
+                      parsed,
+                      pricedVolumeForEntry(drink, serving.id, customMl),
+                    );
+                  }}
+                  className="flex h-14 w-24 flex-none rounded-ctl bg-field px-4 text-center text-[19px] leading-none tabular-nums text-foreground shadow-[0_0_0_1px_#383a46] outline-none focus:shadow-[0_0_0_2px_#9184d9]"
+                />
+                <span className="text-[11px] leading-[1.2] text-[#75798c]">
+                  {priceFieldLabel}
+                </span>
+              </div>
             </div>
           </div>
           {quantity > 1 && (
-            <div className="mt-3 text-note text-muted-foreground">{summary}</div>
+            <div className="mt-3 text-note text-muted-foreground">
+              {summary}
+            </div>
           )}
         </>
       )}
