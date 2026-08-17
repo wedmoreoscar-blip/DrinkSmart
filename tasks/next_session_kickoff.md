@@ -51,7 +51,8 @@ Re-derived on `51eb844`. **Never quote these — run them.**
 - `npm run lint` — **23 problems (11 errors, 12 warnings)**, the known baseline, held all session.
 - `npm run build` — passed.
 - Live: both migrations (`20260817000200`, `20260817000300`) applied by Oscar; `db:types` regenerated
-  and **byte-identical** to the hand-added table.
+  and **byte-identical** to the hand-added table. **`generate-plan` deployed by Oscar**, so the
+  ml-override constraint is running in production.
 
 **Do not stage `package.json` / `package-lock.json`.**
 
@@ -67,11 +68,14 @@ name on a narrow screen, the leave warning's `Continue` branch, and the scanner'
 Carried risks, stated rather than buried:
 
 - **The `ml` constraint on the model is unmeasured** and expected to cost admission-gate pass rate.
+  It is live (see below), so that cost is being paid now rather than hypothetically.
 - **`or_bench` does not exist** anywhere in the repo, `/home/oscar`, or git history, though
   `CLAUDE.md` requires re-running it before changing hosts.
 - **The basket warning fires on the category back arrow only.** Leaving by tab drops it silently.
 - **Edge functions are inspection-checked only** — outside the tsc project, Deno absent.
-- **`generate-plan` has committed but undeployed changes** — the `ml` constraint is not live.
+- **The `ml` constraint is now LIVE.** Deployed by Oscar 2026-08-17, after the rest of this handoff
+  was written. It is the one change in this session that alters production behaviour without any
+  measurement behind it, so it is the first thing to suspect if plan quality shifts.
 
 ---
 
@@ -164,6 +168,10 @@ supabase/functions/**/*.ts is inspection-checked only. Deployed function logs ar
 anything requiring a physical iOS device.
 
 Commit locally when the baseline holds. Never push, deploy an edge function, rotate secrets, apply a
-migration to the remote database, or publish a mobile build without asking. generate-plan has
-UNDEPLOYED changes: the ml-override constraint is committed but not live.
+migration to the remote database, or publish a mobile build without asking.
+
+Note that generate-plan IS deployed with the ml-override constraint live, as of 2026-08-17. That
+constraint went out unmeasured and is expected to cost admission-gate pass rate, so if Oscar reports
+worse plans, more "Built offline" toasts, or more greedy fallbacks, suspect it first and measure
+before changing anything else. Reverting it is a deploy and needs his say-so.
 ```
