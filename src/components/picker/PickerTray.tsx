@@ -57,7 +57,7 @@ export const PickerTray = ({
         <div className="text-lead font-medium leading-[1.1] tabular-nums text-foreground">
           {reading}
           {cost != null && (
-            <span className="ml-2 text-[#75798c]">· £{cost.toFixed(2)}</span>
+            <span className="ml-2 text-[#75798c]">· Total £{cost.toFixed(2)}</span>
           )}
         </div>
         {advice ? (
