@@ -173,28 +173,14 @@ export const CategoryScreen = ({
           // A planned row is already open, and its controls act on the plan
           // rather than on a pending selection — there is nothing to "add".
           const planned = plannedRows?.[drink.id];
-          const isSelected = selectedId === drink.id;
-          // A row that is neither planned nor open is measured and priced by the
-          // serving it would *open* on — its remembered serve, else its category
-          // default. It used to inherit the open row's pending servingId and
-          // customMl, so every other row on screen was priced against a serving
-          // belonging to a different drink: a 250 ml custom serve elsewhere left
-          // this row showing its 25 ml single price, and the same £25 read as
-          // £2.50 depending only on which row happened to be open.
-          const rowServingId = planned
-            ? planned.servingId
-            : isSelected
-              ? servingId
-              : defaultServingFor(drink).id;
-          const rowCustomMl = planned ? planned.customMl : isSelected ? customMl : null;
           return (
             <DrinkRow
               key={drink.id}
               drink={drink}
-              selected={planned ? true : isSelected}
+              selected={planned ? true : selectedId === drink.id}
               quantity={planned ? planned.servings : quantity}
-              servingId={rowServingId}
-              customMl={rowCustomMl}
+              servingId={planned ? planned.servingId : servingId}
+              customMl={planned ? planned.customMl : customMl}
               onSelect={() => {
                 if (!planned) onSelect(drink.id);
               }}
