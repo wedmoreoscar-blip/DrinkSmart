@@ -53,6 +53,7 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableTimelineItem } from "./SortableTimelineItem";
 import { replanRemaining, sortableIdFor } from "./timeline-replan";
+import { timelineDropIndex, timelineDropLineY } from "./timeline-drag";
 import type { CatalogItem } from "@/lib/planCatalog";
 import { fmtMl } from "@/components/picker/picker-copy";
 
@@ -302,43 +303,37 @@ const TimelineTab = ({ onNext, onSwapRequest, replanCatalog = [] }: TimelineTabP
       setDropLineY(null);
       return;
     }
+    const fromIndex = state.drinkTimeline.findIndex(
+      (entry) => sortableIdFor(entry) === event.active.id,
+    );
     const overIndex = state.drinkTimeline.findIndex((entry) => sortableIdFor(entry) === over.id);
-    if (overIndex < firstMovableIndex) {
-      setDropLineY(null);
-      return;
-    }
     const wrapper = rowRefs.current.get(String(over.id));
-    if (!wrapper) {
+    if (!wrapper || timelineDropIndex({ fromIndex, overIndex, firstMovableIndex }) === null) {
       setDropLineY(null);
       return;
     }
-    const activeRect = event.active.rect.current.translated;
-    const below = activeRect ? activeRect.top + activeRect.height / 2 > over.rect.top + over.rect.height / 2 : false;
-    setDropLineY(wrapper.offsetTop + (below ? wrapper.offsetHeight : 0));
+    setDropLineY(
+      timelineDropLineY({
+        fromIndex,
+        overIndex,
+        rowTop: wrapper.offsetTop,
+        rowHeight: wrapper.offsetHeight,
+      }),
+    );
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setMovingEntryId(null);
     setDropLineY(null);
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
-    const oldIndex = state.drinkTimeline.findIndex((entry) => sortableIdFor(entry) === active.id);
+    const fromIndex = state.drinkTimeline.findIndex((entry) => sortableIdFor(entry) === active.id);
     const overIndex = state.drinkTimeline.findIndex((entry) => sortableIdFor(entry) === over.id);
-    if (oldIndex < 0 || overIndex < 0) return;
+    const newIndex = timelineDropIndex({ fromIndex, overIndex, firstMovableIndex });
+    if (newIndex === null) return;
 
-    const activeRect = active.rect.current.translated;
-    const below = activeRect
-      ? activeRect.top + activeRect.height / 2 > over.rect.top + over.rect.height / 2
-      : false;
-    const target = overIndex + (below ? 1 : 0);
-    // A drink cannot be dropped before now: past rows refuse the drop.
-    if (target < firstMovableIndex) return;
-
-    const newIndex = oldIndex < target ? target - 1 : target;
-    if (newIndex !== oldIndex) {
-      reorderTimelineEntries(oldIndex, newIndex);
-    }
+    reorderTimelineEntries(fromIndex, newIndex);
   };
 
   const handleDragCancel = () => {
