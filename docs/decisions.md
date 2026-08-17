@@ -1418,16 +1418,12 @@ exact and independent of the stored figure.
 - **Pricing a volume creates a rung.** That is how a US 30/60 ml ladder, an odd 60 ml pour, and a
   330 ml cocktail all exist without a special case. A rung belongs to the drink it was priced on —
   no ladder preference above it; revisit only if it bites.
-- **Resolution has three outcomes, and the last two are not the same.** An exact stored price for the
-  volume wins; else the **fewest-unit** exact decomposition into priced rungs, tie-broken on the
-  cheaper total; else the app **asks** for a price for that volume — unless nothing is priced for the
-  drink at all, in which case it says nothing. Price is optional everywhere and an unpriced drink is
-  never nagged.
-- **Never proportional, never rounded.** 300 ml of beer is not 0.528 of a pint. Decomposition
-  **searches** rather than peeling off the largest rung: greedy takes the 250 from 125/175/250,
-  strands 50 and fails, while `125 + 175` is exact.
-- **Fewest units is not aesthetic.** A smaller rung is proportionally dearer, so preferring big ones
-  stops 3408 ml of beer being charged as 12 halves (£24) instead of 6 pints (£18).
+- **Resolution has three outcomes, and the last two are not the same.** A price stored for that exact
+  volume, else the app **asks** for a price for it, unless nothing is priced for the drink at all, in
+  which case it says nothing. Price is optional everywhere and an unpriced drink is never nagged.
+- **Nothing is derived. ~~Fewest-unit decomposition~~ was built and removed the same day** — see the
+  amendment below. A price applies to the serving it was set for: not scaled, not rounded, not summed
+  out of smaller rungs.
 - **A typed Custom volume that equals a rung collapses into it**, on commit and never per keystroke,
   loading that rung's price. This is what stops one volume acquiring two prices.
 - **The picker shows the unit price; the tray and the Plan tab show totals**, the latter labelled
@@ -1436,3 +1432,77 @@ exact and independent of the stored figure.
   alcohol fill is what drives planning. A user may price a 250 ml pour at £18 and it will outrank
   `5 × 50`, but that is a serving size, not a quantity discount, and the app will not tell them apart.
 - **The ±10% ethanol admission gate is untouched.** Budget never justifies underfilling it.
+
+### Amendment — decomposition is removed; a price is never derived (2026-08-17, later)
+
+Settled by Oscar in use, hours after the rule above was written, and recorded with its reversal
+visible rather than quietly rewritten.
+
+- **A custom volume is a serving the user is naming, not a sum of the ladder.** *"If the user is
+  putting in 250ml, its because thats a specific serving separate from the doubles set."* Someone who
+  wants two pints and a half asks for exactly that, without Custom at all.
+- **So `resolvePrice` returns the price set for that volume, or nothing.** The fewest-unit search,
+  its cheaper-total tie-break, and the 3408 ml and 300 ml worked examples are all withdrawn.
+- **The reason is the one that motivated per-rung pricing in the first place.** Decomposition let an
+  unpriced double read as twice the single — the exact arithmetic the design exists to refuse, since
+  a bar's double is rarely twice its single. It also made a 250 ml pour quietly inherit five doubles'
+  worth.
+- Their tests were rewritten to state the replacing rule rather than deleted, so the reversal stays
+  legible in the suite.
+
+## LOCKED — The picker selects; it never edits the plan (2026-08-17)
+
+**Supersedes the Wave 5 rule** that *"a planned row is already open, and its controls act on the plan
+rather than on a pending selection"*. Found by Oscar in use, and the cause of a class of bugs that
+made the app feel broken everywhere at once.
+
+- **A picker row was bound to a plan entry**, so choosing a serving rewrote a drink already
+  committed. A 250 ml custom became a 25 ml single, its card vanished and the tray emptied — while
+  the user was still choosing.
+- **One row per drink per category.** The row is a selector and nothing else.
+- **Separate volumes are separate cards on the Plan tab**, which is where a committed drink is
+  edited. The plan model was never wrong: `isSamePlannedDrink` already treats a single and a double
+  as different drinks by per-serving volume. The picker made the second unreachable.
+- **The options do not interact.** Switching serving carries nothing over — a custom ml typed against
+  one must not survive into another.
+- **The card corner shows one figure per priced serving**, in ladder order, right-aligned, so
+  position says which is which. One figure could not stand for three independent prices. White marks
+  the serving in use and only while the row is open.
+- An intermediate attempt rendering one row per *planned volume* was wrong and was reverted.
+
+## LOCKED — Add fills a basket; Apply commits it (2026-08-17)
+
+Settled by Oscar. The tray was a mirror of the plan when it needed to be a basket in front of it.
+
+- **`Add` stages a selection. `Apply` commits the basket to the plan** and returns to the plan root.
+  Both are required for a drink or its price to reach the plan.
+- **A selection abandoned without `Add` leaves nothing behind** — no lingering `+ £z` in the tray.
+- **The tray reads plan + basket** in meter, count and money, so the figure on screen is always what
+  the plan would hold if applied now.
+- **The +20% bound counts the basket and blocks `Add`**, not `Apply`. The strong form: what cannot be
+  added can never be applied.
+- **Leaving a category with a basket asks first.** `Apply` commits and leaves; `Continue` leaves and
+  drops them. The loss is silent and cannot be undone otherwise.
+- **A reload discards the basket.** A half-finished choice is not the night; the locked rule is that
+  a reload continues the same night.
+- **Not staged:** a price rung, which saves on blur because what a pint costs at a venue is knowledge
+  about the venue rather than a plan change; and the Custom drink sheet, which opens from the plan
+  root where no `Apply` exists, so a staged custom drink could never be applied.
+- **Known gap:** the warning fires on the category back arrow, not on switching tabs. Leaving by tab
+  still drops a basket silently.
+
+## LOCKED — The model may not invent a serving volume (2026-08-17)
+
+Settled by Oscar. The `submit_plan` tool carried `ml: "Optional ml override."` with no constraint.
+
+- **An `ml` override is honoured only when it names the catalogue serving** for that item; anything
+  else is **dropped, not rejected**, so the item counts at its catalogue serving and the recomputed
+  total faces the same ±10% gate. A stray override costs accuracy, not the whole plan.
+- **The reason is that a custom volume is the user's to name.** A model free to pick any ml invents
+  servings nobody sells, at prices nobody set.
+- **Oscar's own caveat, recorded as the expectation:** because the catalogue offers one volume per
+  item, this behaves like removing the override outright for nearly everything. Expect more
+  near-misses on the admission gate and more silent falls back to the greedy generator. **Accepted
+  knowingly and unmeasured** — the benchmark that would size it is deferred, and `or_bench` is
+  missing from the repo besides.
+- `calculate_ethanol`'s own `ml` parameter is left alone: it computes, it does not submit.
