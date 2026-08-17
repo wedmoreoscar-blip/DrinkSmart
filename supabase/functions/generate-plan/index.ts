@@ -170,11 +170,24 @@ function validateSubmittedPlan(
     if (typeof drink.unit !== "string" || !VALID_UNITS.has(drink.unit)) {
       return { ok: false, reason: `invalid unit: ${drink.unit}` };
     }
-    if (
-      drink.ml !== undefined &&
-      (typeof drink.ml !== "number" || !Number.isFinite(drink.ml) || drink.ml <= 0)
-    ) {
-      return { ok: false, reason: "ml must be finite and strictly greater than zero" };
+    // The model may not invent a serving volume. A custom volume is a serving
+    // the USER is naming, distinct from the catalogue ladder and carrying its
+    // own price; a model free to pick any ml can conjure servings nobody sells
+    // and prices nobody set. An override is therefore only honoured when it
+    // names the volume the catalogue already offers for that item.
+    //
+    // Dropped rather than rejected: the item is then counted at its catalogue
+    // serving and the recomputed total faces the same +/-10% gate, so a stray
+    // override costs accuracy instead of costing the whole plan.
+    if (drink.ml !== undefined) {
+      const validMl =
+        typeof drink.ml === "number" && Number.isFinite(drink.ml) && drink.ml > 0;
+      if (!validMl) {
+        return { ok: false, reason: "ml must be finite and strictly greater than zero" };
+      }
+      if (Math.abs(drink.ml - item.typical_ml) > 0.01) {
+        delete drink.ml;
+      }
     }
     const ethanol = planDrinkEthanol(drink, item);
     if (!Number.isFinite(ethanol) || ethanol < 0) {
@@ -249,7 +262,11 @@ const TOOLS = [
                   type: "string",
                   enum: ["ml", "oz", "shots", "pints", "glass"],
                 },
-                ml: { type: "number", description: "Optional ml override." },
+                ml: {
+                  type: "number",
+                  description:
+                    "Optional. Must equal the catalogue typical_ml for this item; any other value is ignored. Use quantity to order more, never a different volume.",
+                },
               },
               required: ["catalog_id", "quantity", "unit"],
             },
