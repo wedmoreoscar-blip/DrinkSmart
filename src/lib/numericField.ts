@@ -50,6 +50,29 @@ export const parseNumericField = (key: NumericFieldKey, text: string): number | 
   return Math.min(Math.max(parsed, min), max);
 };
 
+/**
+ * Parse only a value that is already in range, else null. **Nothing is clamped.**
+ *
+ * This is what a field should call while the user is still typing. Clamping
+ * per keystroke turns every value whose first digits fall below the minimum
+ * into the minimum: in a 25–1000 ml serve field, typing `2` commits 25, and if
+ * the caller then re-renders the box from the committed value the user is
+ * typing after a `5` they never entered — `250` becomes `2550`, which clamps
+ * to 1000. Returning null instead leaves the committed value alone until the
+ * text means something, and `parseNumericField` still clamps on commit.
+ */
+export const parseNumericFieldInRange = (
+  key: NumericFieldKey,
+  text: string,
+): number | null => {
+  const trimmed = text.trim();
+  if (trimmed === "") return null;
+  const parsed = Number.parseFloat(trimmed);
+  if (!Number.isFinite(parsed)) return null;
+  const [min, max] = NUMERIC_FIELD_RANGE[key];
+  return parsed >= min && parsed <= max ? parsed : null;
+};
+
 /** Render a committed value back into input text; null is an empty field. */
 export const numericFieldText = (value: number | null): string =>
   value === null ? "" : String(value);

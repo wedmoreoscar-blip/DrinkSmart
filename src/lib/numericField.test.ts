@@ -4,6 +4,7 @@ import {
   NUMERIC_FIELD_RANGE,
   numericFieldText,
   parseNumericField,
+  parseNumericFieldInRange,
 } from "./numericField";
 
 // The clamp table these cover came from the deleted `4o` keypad primitive. It is
@@ -55,5 +56,38 @@ describe("numericFieldText", () => {
   it("round-trips a parsed value", () => {
     expect(numericFieldText(parseNumericField("abv", "4.6"))).toBe("4.6");
     expect(numericFieldText(parseNumericField("serve", "568"))).toBe("568");
+  });
+});
+
+// Oscar, 2026-08-17: typing `2` into a spirit's custom ml wrote 25, and the
+// next keystrokes landed after a 5 he never typed — `250` became `2550`, which
+// clamped to 1000. Clamping per keystroke is only safe if the committed value
+// is never rendered back into the box mid-entry, and it was.
+describe("parseNumericFieldInRange — what a field calls while typing", () => {
+  it("leaves a below-minimum keystroke uncommitted instead of clamping it", () => {
+    expect(parseNumericFieldInRange("serve", "2")).toBeNull();
+    expect(parseNumericField("serve", "2")).toBe(25);
+  });
+
+  it("commits the moment the text is a legal serve", () => {
+    expect(parseNumericFieldInRange("serve", "25")).toBe(25);
+    expect(parseNumericFieldInRange("serve", "250")).toBe(250);
+  });
+
+  it("refuses an above-maximum value rather than pinning it to the top", () => {
+    expect(parseNumericFieldInRange("serve", "2550")).toBeNull();
+    expect(parseNumericField("serve", "2550")).toBe(1000);
+  });
+
+  it("holds the same line for the other fields", () => {
+    expect(parseNumericFieldInRange("abv", "70")).toBeNull();
+    expect(parseNumericFieldInRange("abv", "40")).toBe(40);
+    expect(parseNumericFieldInRange("price", "1000")).toBeNull();
+    expect(parseNumericFieldInRange("price", "3.5")).toBe(3.5);
+  });
+
+  it("treats empty and unparseable text as nothing typed yet", () => {
+    expect(parseNumericFieldInRange("serve", "")).toBeNull();
+    expect(parseNumericFieldInRange("serve", "1.25e-")).toBeNull();
   });
 });
