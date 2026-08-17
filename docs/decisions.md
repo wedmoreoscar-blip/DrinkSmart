@@ -1269,7 +1269,58 @@ re-run inside E.
   for every seeded row and starts working when A lands; C still needs its stated null-price sort
   rule (sort last, visibly) so the inert period is honest rather than silently mis-ordered.
 
+### Amendment — the re-run is deferred, and its trigger is no longer A (2026-08-17)
+
+Settled by Oscar: *"without actual pricing it's basically pointless to run the benchmark."* The
+sequencing above stands; its **trigger** does not, because what A turned out to be changed.
+
+- **A backfills volumes, not prices** (see *Workstream A backfills volumes* below). So the condition
+  this entry named — "real Wetherspoons prices go into the seeded rows first" — cannot be met by A,
+  and running after A would measure exactly the empty price column this entry set out to avoid.
+- **The trigger becomes real prices existing at all**, from any source: a user's own priced rungs, a
+  scanned menu, or a future seed. Not the completion of a workstream.
+- **Measured before deciding**, so this is not a guess. The volume backfill barely moves the
+  catalogue the model sees: `buildStaticCatalog` uses a hardcoded `CATEGORY_TYPICAL_ML` table and
+  `price: null` unconditionally, and `buildCatalogFromDrinks` falls back through `fallbackServeMl`,
+  whose values already equal the backfilled ones for beer (568), wine (175), spirits (25) and
+  cocktails (250). Only alcopops and bottled beer move at all.
+- **E remains un-benchmarked and its plans remain unvalidated** against the ±10% gate. That is
+  carried knowingly rather than closed by a run that would measure nothing new.
+- **The real reason to re-run, when it comes, is the prompt** — the budget rule and the price column
+  E added — not the catalogue. Recorded because it is a different justification from the one
+  originally written down.
+
+> **Blocker to resolve first.** `CLAUDE.md` requires re-running `or_bench` before changing hosts, but
+> no `or_bench` exists in the repo, in `/home/oscar`, or in git history — only the generic `bench`
+> and `make-bench` skills. Either it lives somewhere unrecorded or it was never committed.
+
+## LOCKED — Workstream A backfills volumes, and deliberately not prices (2026-08-17)
+
+Settled by Oscar after research. **Resolves the open decision below** — the source of the
+Wetherspoons price list — by concluding there is no acceptable source.
+
+- **No national price list is shipped.** Searched 2026-08-17: Wetherspoon's current prices live in
+  their app, per pub. The aggregator sites claiming per-drink figures quote £6.80 for a 25 ml gin,
+  which fails a sanity check for the chain and reads as spirit-with-mixer; the only official menu
+  reachable is January 2023. Filling 237 rows from that would produce numbers that look sourced,
+  cannot be defended, and are indistinguishable from real prices a year later — the "another 330 ml"
+  failure the kickoff named.
+- **Volumes are backfilled instead**, and every value is derived rather than estimated: bottled beer
+  states its size in its own name, a pint is 568 ml, the wine category label reads "175ml Glass", UK
+  measures law fixes the spirit single at 25 ml, and a cocktail is 250 ml by earlier decision.
+  Liqueurs are the one judgement call and are named as such in the migration.
+- **A null price stopped being a gap** when price became per-user and per-rung. Price is optional
+  everywhere, and a user pricing the few drinks they buy against the menu in front of them is more
+  accurate than any national list and dated by definition.
+- **`Cheapest first` is no longer inert on A.** It starts working as soon as a user prices anything,
+  rather than waiting on a seed that is not coming.
+
 ## PARTLY BUILT — Price capture, and the one open decision (2026-08-16)
+
+> **Its open decision is RESOLVED (2026-08-17)** — see *Workstream A backfills volumes* above. The
+> `user_drink_overrides` price mechanism described below is also superseded by
+> *Price is per base unit* at the end of this file: a price now belongs to a volume, and a remembered
+> serve and a price are no longer one record.
 
 Specified in `price-and-account-value`. **Built in Wave 6**: the `user_drink_overrides` table, the
 resolver (`src/lib/drinkOverrides.ts`), the picker's price control and remembered serve, tray and
@@ -1344,3 +1395,44 @@ generalises beyond this wave. The partition itself is the artifact
 - **`.env` is gitignored and does not come with a worktree.** Provisioning must copy it, or five
   suites fail to *load* rather than fail an assertion, and the implementer cannot reach the stated
   test baseline. Add it to the provisioning step, not to the spec.
+
+## LOCKED — Price is per base unit, never a total (2026-08-17)
+
+Settled by Oscar across a long design pass, and built the same day. **Supersedes the price half of
+*Price capture*, and the `user_drink_overrides.price` column with it.** The full design, with worked
+examples, is the artifact `price-per-base-unit`.
+
+**The rule.** The number a user types is the price of **one base unit** — one shot, one pint, one
+175 ml glass. The app multiplies. It is never a total the app divides.
+
+**Why it had to change.** A price was stored once per drink and divided by a `pricedVolumeMl`
+derived from a *mutable* field. Remembering a serve silently redefined the unit every stored price
+was quoted in, so £25 typed against a 250 ml serve read back as £2.50 the moment that serve was
+remembered. Found by Oscar in use; the arithmetic is `typed × S_display / S_commit`, so the error is
+exact and independent of the stored figure.
+
+- **A price belongs to a volume.** `user_drink_prices` keys on `(user, drink, serving_ml)`. One drink
+  carries several prices, and none is ever re-interpreted.
+- **Each rung is priced separately.** A pint is not twice a half, and a double is rarely twice a
+  single. This is the point, not an inefficiency.
+- **Pricing a volume creates a rung.** That is how a US 30/60 ml ladder, an odd 60 ml pour, and a
+  330 ml cocktail all exist without a special case. A rung belongs to the drink it was priced on —
+  no ladder preference above it; revisit only if it bites.
+- **Resolution has three outcomes, and the last two are not the same.** An exact stored price for the
+  volume wins; else the **fewest-unit** exact decomposition into priced rungs, tie-broken on the
+  cheaper total; else the app **asks** for a price for that volume — unless nothing is priced for the
+  drink at all, in which case it says nothing. Price is optional everywhere and an unpriced drink is
+  never nagged.
+- **Never proportional, never rounded.** 300 ml of beer is not 0.528 of a pint. Decomposition
+  **searches** rather than peeling off the largest rung: greedy takes the 250 from 125/175/250,
+  strands 50 and fails, while `125 + 175` is exact.
+- **Fewest units is not aesthetic.** A smaller rung is proportionally dearer, so preferring big ones
+  stops 3408 ml of beer being charged as 12 halves (£24) instead of 6 pints (£18).
+- **A typed Custom volume that equals a rung collapses into it**, on commit and never per keystroke,
+  loading that rung's price. This is what stops one volume acquiring two prices.
+- **The picker shows the unit price; the tray and the Plan tab show totals**, the latter labelled
+  `Total price`. Ten taps of `+` on a £3 pint move the tray to £30 while the card still reads £3.
+- **Deals are not modelled.** Settled: they change constantly, the machinery is disproportionate, and
+  alcohol fill is what drives planning. A user may price a 250 ml pour at £18 and it will outrank
+  `5 × 50`, but that is a serving size, not a quantity discount, and the app will not tell them apart.
+- **The ±10% ethanol admission gate is untouched.** Budget never justifies underfilling it.
