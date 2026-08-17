@@ -156,6 +156,8 @@ const DrinksTab = ({
   const [customOpen, setCustomOpen] = useState(false);
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => new Set());
   const [swapSelectedId, setSwapSelectedId] = useState<string | null>(null);
+  // Planned rows the user has switched into Custom entry, by plan-entry id.
+  const [customModeEntryIds, setCustomModeEntryIds] = useState<Set<string>>(() => new Set());
   const swapScreenRef = useRef<HTMLDivElement | null>(null);
 
   const venue = activeVenue;
@@ -498,51 +500,71 @@ const DrinksTab = ({
    * offers.
    */
   const plannedRows = useMemo(() => {
-    const rows: Record<string, PlannedRow & { entryId: string }> = {};
+    const rows: Record<string, (PlannedRow & { entryId: string })[]> = {};
     for (const drink of venueDrinks) {
-      const entry = unconsumedEntries.find(
+      // EVERY unconsumed entry for this drink, not the first. A single and a
+      // double are two plan cards by the locked merge identity, and keying one
+      // row per drink made the second unreachable: choosing another serving
+      // moved the existing entry instead of adding beside it.
+      const entries = unconsumedEntries.filter(
         (candidate) =>
           !candidate.isCustom &&
           candidate.drink === drink.drink_name &&
           candidate.category === plannedCategoryFor(drink),
       );
-      if (!entry) continue;
-      const ml = perServingMl(entry);
-      if (ml === null) continue;
-      const option = servingOptionsFor(drink).find(
-        (candidate) => candidate.ml != null && Math.abs(candidate.ml - ml) < 0.01,
-      );
-      rows[drink.id] = {
-        entryId: entry.id,
-        servings: entryServingCount(entry),
-        servingId: option?.id ?? "custom",
-        customMl: option ? null : ml,
-      };
+      const options = servingOptionsFor(drink);
+      for (const entry of entries) {
+        const ml = perServingMl(entry);
+        if (ml === null) continue;
+        const option = options.find(
+          (candidate) => candidate.ml != null && Math.abs(candidate.ml - ml) < 0.01,
+        );
+        // Custom mode is a choice the row is holding, not a fact about the
+        // entry: pressing Custom on a row whose volume happens to match a rung
+        // has to open the ml box, or Custom can never be reached again.
+        const custom = customModeEntryIds.has(entry.id) || !option;
+        (rows[drink.id] ??= []).push({
+          entryId: entry.id,
+          servings: entryServingCount(entry),
+          servingId: custom ? "custom" : option!.id,
+          customMl: custom ? ml : null,
+        });
+      }
     }
     return rows;
-  }, [venueDrinks, unconsumedEntries]);
+  }, [venueDrinks, unconsumedEntries, customModeEntryIds]);
+
+  const plannedEntryIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const rows of Object.values(plannedRows)) for (const row of rows) ids.add(row.entryId);
+    return ids;
+  }, [plannedRows]);
 
   /** Rewrite a planned row's entry, then restore the no-duplicates invariant. */
   const updatePlannedEntry = (
-    drinkId: string,
+    entryId: string,
     change: (entry: AlcoholTimelineEntryInput) => AlcoholTimelineEntryInput,
   ) => {
-    const row = plannedRows[drinkId];
-    if (!row) return;
-    const next = drinks.map((entry) => (entry.id === row.entryId ? change(entry) : entry));
+    if (!plannedEntryIds.has(entryId)) return;
+    const next = drinks.map((entry) => (entry.id === entryId ? change(entry) : entry));
     updateDrinks(mergePlanDuplicates(next, (entry) => !consumedSourceIds.has(entry.id)));
   };
 
-  const handlePlannedQuantityChange = (drinkId: string, quantity: number) => {
+  const handlePlannedQuantityChange = (entryId: string, quantity: number) => {
     if (quantity < 1) return;
-    updatePlannedEntry(drinkId, (entry) => withServings(entry, quantity));
+    updatePlannedEntry(entryId, (entry) => withServings(entry, quantity));
   };
 
   /** Changing a planned row's serving re-prices and re-sizes it in place. */
-  const setPlannedServingMl = (drinkId: string, servingId: string, ml: number | null) => {
+  const setPlannedServingMl = (
+    drinkId: string,
+    entryId: string,
+    servingId: string,
+    ml: number | null,
+  ) => {
     const drink = venueDrinks.find((candidate) => candidate.id === drinkId);
     if (!drink || ml == null || !Number.isFinite(ml) || ml <= 0) return;
-    updatePlannedEntry(drinkId, (entry) => ({
+    updatePlannedEntry(entryId, (entry) => ({
       // Floor the count at one serving. `withServings` returns the entry
       // untouched when it is asked for fewer than one, so an entry that has
       // reached a zero or unparseable quantity would refuse every serving
@@ -555,17 +577,29 @@ const DrinksTab = ({
     }));
   };
 
-  const handlePlannedServingChange = (drinkId: string, servingId: string) => {
+  const handlePlannedServingChange = (drinkId: string, entryId: string, servingId: string) => {
     const drink = venueDrinks.find((candidate) => candidate.id === drinkId);
     if (!drink) return;
     const option = servingOptionsFor(drink).find((candidate) => candidate.id === servingId);
-    // Custom has no volume of its own; it waits for the ml the user types.
-    if (!option || option.ml == null) return;
-    setPlannedServingMl(drinkId, servingId, option.ml);
+    if (!option) return;
+    // Custom has no volume of its own. Pressing it opens the ml box on the
+    // row's current volume rather than doing nothing, which is what made
+    // Custom permanently unreachable once a drink was in the plan.
+    if (option.ml == null) {
+      setCustomModeEntryIds((current) => new Set(current).add(entryId));
+      return;
+    }
+    setCustomModeEntryIds((current) => {
+      if (!current.has(entryId)) return current;
+      const next = new Set(current);
+      next.delete(entryId);
+      return next;
+    });
+    setPlannedServingMl(drinkId, entryId, servingId, option.ml);
   };
 
-  const handlePlannedCustomMlChange = (drinkId: string, ml: number | null) =>
-    setPlannedServingMl(drinkId, "custom", ml);
+  const handlePlannedCustomMlChange = (drinkId: string, entryId: string, ml: number | null) =>
+    setPlannedServingMl(drinkId, entryId, "custom", ml);
 
   /**
    * Step a planned entry by one of its own servings. The per-serving volume is

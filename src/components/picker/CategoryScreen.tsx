@@ -22,14 +22,16 @@ type CategoryScreenProps = {
   servingId: string;
   customMl: number | null;
   /**
-   * Rows already in the plan, keyed by venue drink id. Such a row opens showing
-   * what is planned and edits the plan directly, so the tab always reads back
-   * what the Plan tab holds.
+   * Rows already in the plan, keyed by venue drink id — **one per planned
+   * volume**, not one per drink. A single and a double of the same spirit are
+   * two plan cards, so they are two rows here, each editing its own entry.
+   * Every planned row is followed by a fresh selectable row, which is how a
+   * second volume of an already-planned drink gets added at all.
    */
-  plannedRows?: Record<string, PlannedRow>;
-  onPlannedQuantityChange?: (drinkId: string, quantity: number) => void;
-  onPlannedServingChange?: (drinkId: string, servingId: string) => void;
-  onPlannedCustomMlChange?: (drinkId: string, ml: number | null) => void;
+  plannedRows?: Record<string, (PlannedRow & { entryId: string })[]>;
+  onPlannedQuantityChange?: (entryId: string, quantity: number) => void;
+  onPlannedServingChange?: (drinkId: string, entryId: string, servingId: string) => void;
+  onPlannedCustomMlChange?: (drinkId: string, entryId: string, ml: number | null) => void;
   onSelect: (drinkId: string) => void;
   onQuantityChange: (quantity: number) => void;
   onServingChange: (servingId: string) => void;
@@ -179,33 +181,47 @@ export const CategoryScreen = ({
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {visibleDrinks.map((drink) => {
-          // A planned row is already open, and its controls act on the plan
-          // rather than on a pending selection — there is nothing to "add".
-          const planned = plannedRows?.[drink.id];
-          return (
+        {visibleDrinks.flatMap((drink) => {
+          const planned = plannedRows?.[drink.id] ?? [];
+          // Each planned volume edits its own entry; the trailing row is a
+          // fresh pick, so adding a second volume of a drink already in the
+          // plan is possible at all.
+          const plannedNodes = planned.map((row) => (
             <DrinkRow
-              key={drink.id}
+              key={drink.id + "::" + row.entryId}
               drink={drink}
-              selected={planned ? true : selectedId === drink.id}
-              quantity={planned ? planned.servings : quantity}
-              servingId={planned ? planned.servingId : servingId}
-              customMl={planned ? planned.customMl : customMl}
-              onSelect={() => {
-                if (!planned) onSelect(drink.id);
-              }}
-              onQuantityChange={(next) =>
-                planned ? onPlannedQuantityChange?.(drink.id, next) : onQuantityChange(next)
-              }
+              selected
+              quantity={row.servings}
+              servingId={row.servingId}
+              customMl={row.customMl}
+              onSelect={() => {}}
+              onQuantityChange={(next) => onPlannedQuantityChange?.(row.entryId, next)}
               onServingChange={(next) =>
-                planned ? onPlannedServingChange?.(drink.id, next) : onServingChange(next)
+                onPlannedServingChange?.(drink.id, row.entryId, next)
               }
               onCustomMlChange={(next) =>
-                planned ? onPlannedCustomMlChange?.(drink.id, next) : onCustomMlChange(next)
+                onPlannedCustomMlChange?.(drink.id, row.entryId, next)
               }
               onPriceCommit={(price, volumeMl) => onPriceCommit?.(drink.id, price, volumeMl)}
             />
-          );
+          ));
+
+          return [
+            ...plannedNodes,
+            <DrinkRow
+              key={drink.id}
+              drink={drink}
+              selected={selectedId === drink.id}
+              quantity={quantity}
+              servingId={servingId}
+              customMl={customMl}
+              onSelect={() => onSelect(drink.id)}
+              onQuantityChange={onQuantityChange}
+              onServingChange={onServingChange}
+              onCustomMlChange={onCustomMlChange}
+              onPriceCommit={(price, volumeMl) => onPriceCommit?.(drink.id, price, volumeMl)}
+            />,
+          ];
         })}
       </div>
     </div>
