@@ -299,4 +299,23 @@ describe("Wave 5 picker serving contract", () => {
     expect(single).toContain(">Double<");
     expect(single).not.toContain("40.0% · Single");
   });
+
+  // F4, in Oscar's numbers: Aftershock at a remembered 250 ml custom serve,
+  // priced £25 for that serve. A closed row used to inherit whatever serving
+  // the *open* row had, so this one rendered its 25 ml single price — £2.50 —
+  // and snapped back to £25 the moment it was tapped.
+  it("prices a closed row by the serve it would open on, not by another row's serving", () => {
+    const aftershock = {
+      ...drink("aftershock", "Aftershock", 40, null, "ml", "spirits", "Spirits"),
+      price: 25,
+      rememberedServingMl: 250,
+    };
+
+    // What a closed row shows now: its own remembered serve.
+    expect(defaultServingFor(aftershock).id).toBe("custom");
+    expect(servingPrice(aftershock, defaultServingFor(aftershock).id, null)).toBeCloseTo(25, 5);
+
+    // What it showed before, when it borrowed a 25 ml single from elsewhere.
+    expect(servingPrice(aftershock, "single", null)).toBeCloseTo(2.5, 5);
+  });
 });

@@ -20,6 +20,22 @@ export const AccountCard = ({
 }: AccountCardProps) => {
   const isAnonymous = isAnonymousSession(session);
 
+  // A null session means "not known yet", not "signed in". Falling through to
+  // the signed-in branch flashed an avatar, an email and a Sign out button on
+  // every visit to this tab before the session resolved, and then swapped them
+  // for the anonymous card. Nothing is claimed about the account until one is
+  // actually loaded.
+  if (!session) {
+    return (
+      <div className="rounded-lg bg-card p-4">
+        <div className="mb-1.5 text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
+          Account
+        </div>
+        <div className="text-lead text-muted-foreground">Checking…</div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg bg-card p-4">
       <div className="mb-1.5 text-micro font-medium uppercase tracking-[0.09em] text-muted-foreground">
