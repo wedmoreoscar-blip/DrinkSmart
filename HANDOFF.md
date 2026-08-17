@@ -55,11 +55,14 @@ Re-derived on `51eb844`. **Never quote these — run them.**
 
 **Do not stage `package.json` / `package-lock.json`.**
 
-## What is NOT verified
+## Runtime state — Oscar's verdict
 
-**Everything from `51eb844` backwards to roughly `787f32d` has had no runtime test.** Oscar tested
-each fix as it landed up to the ladder-price display; the staging model (`Add` → basket → `Apply`),
-the live tray price, and the leave warning have **never been exercised**.
+**Oscar tested the `Add` / `Apply` staging model after the handoff was first written and reports it
+working. His words: the app is "basically fully functioning now".** That was the last piece with no
+runtime evidence, so the web app is now considered functional end to end.
+
+Not a claim that every path is exercised. Untested specifics remain: three prices crowding a long
+name on a narrow screen, the leave warning's `Continue` branch, and the scanner's rung write.
 
 Carried risks, stated rather than buried:
 
@@ -67,62 +70,100 @@ Carried risks, stated rather than buried:
 - **`or_bench` does not exist** anywhere in the repo, `/home/oscar`, or git history, though
   `CLAUDE.md` requires re-running it before changing hosts.
 - **The basket warning fires on the category back arrow only.** Leaving by tab drops it silently.
-- **Three prices in a card corner may crowd** a long drink name on a narrow screen. Untested on a
-  phone.
 - **Edge functions are inspection-checked only** — outside the tsc project, Deno absent.
+- **`generate-plan` has committed but undeployed changes** — the `ml` constraint is not live.
 
 ---
 
-# NEXT SESSION — test the staging model, then decide what is actually left
+# NEXT SESSION — native conversion, iOS and Android
 
-Read first: `AGENTS.md`; `docs/decisions.md` (every 2026-08-17 entry, especially the four at the
-end); the artifacts `price-per-base-unit` and `wave-6-runtime-test`; `src/lib/basePricing.ts`.
+Oscar's instruction: the web app is functioning, so the next stage is **conversion to Android and
+iOS**.
+
+Read first: `AGENTS.md`; `docs/decisions.md` (the 2026-08-17 entries); `CLAUDE.md`'s Capacitor
+section — but note it **overstates readiness**, corrected below.
+
+## The actual native state, checked 2026-08-17
+
+`CLAUDE.md` says "notifications are Capacitor-native already", which is true of the *code* and
+misleading about the *project*. Nothing has ever been built natively.
+
+| Thing | State |
+| --- | --- |
+| `@capacitor/core`, `camera`, `local-notifications` | Installed |
+| **`@capacitor/cli`** | **Missing** |
+| **`@capacitor/ios`, `@capacitor/android`** | **Missing** |
+| **`ios/` and `android/` folders** | **Do not exist** — platforms never added |
+| `capacitor.config.ts` | Carries an unresolved `TODO` and `cleartext: true` |
+
+So this is a from-zero platform bring-up, not a sync-and-build.
+
+## Two constraints that shape the whole stage
+
+- **iOS cannot be built on this machine.** It needs Xcode, which is macOS-only, and Oscar is on
+  Windows/WSL2. The iOS half is `BLOCKED` on hardware — write the config and the plan, but do not
+  claim an iOS build. Say so early rather than discovering it at the build step.
+- **Adding platform packages is a dependency change.** `AGENTS.md` requires approval for production
+  dependencies and serialization through `tools/agent-lock` for dependency work. Ask before
+  installing.
+
+## What the native surfaces actually are
+
+- **Local notifications** (`src/lib/notificationService.ts`) — the web path is a sonner-toast
+  fallback, so scheduling has never fired a real notification.
+- **Camera** — the menu scanner. Untested natively.
+- **`cleartext: true`** allows plain HTTP and should not ship; resolve the `TODO` rather than
+  carrying it into a bundle.
+
+One relevant note from this session: the `crypto.randomUUID` bug (F5) would **not** have appeared in
+a Capacitor build, because a native webview serves from a secure origin. It only bit over LAN HTTP.
+The fix stands, but do not expect that class of failure natively.
 
 ## PROMPT
 
 ```text
-Continue DrinkSmart. The pricing model was rebuilt this session — price is per base unit, never a
-total — and the picker was rebuilt around it. Start by reading docs/decisions.md's 2026-08-17
-entries and the Traycer artifact price-per-base-unit; the design moved several times in one day and
-the ledger records the reversals deliberately.
+Continue DrinkSmart. The web app is functioning — Oscar has tested the Add/Apply staging model and
+reports it working — so this session is the native conversion to Android and iOS.
 
-FIRST, runtime-test what has never been exercised. Oscar tested each fix as it landed, but the last
-three changes have no runtime evidence at all: (1) Add fills a basket and Apply commits it — select a
-priced drink and leave without Add, the tray must drop its price; add three shots and back out, the
-warning must offer Apply and Continue; nothing must reach the Plan tab without Apply; (2) the tray
-follows a price as it is typed, without needing to tap out of the field; (3) the card corner shows
-one figure per priced serving, white only on the serving in use and only while the row is open.
+Read docs/decisions.md's 2026-08-17 entries first for the pricing model, then check the native state
+yourself rather than trusting CLAUDE.md, which overstates it. As of 2026-08-17: @capacitor/core,
+camera and local-notifications are installed, but @capacitor/cli, @capacitor/ios and
+@capacitor/android are NOT, there are no ios/ or android/ folders, and capacitor.config.ts still
+carries an unresolved TODO and cleartext: true. This is a from-zero platform bring-up.
 
-Reset between attempts with localStorage.clear(); sessionStorage.clear(); location.reload() in the
-browser console — Oscar reaches the app at http://172.28.72.242:8080, and localhost and the LAN IP
-are different origins with different storage.
+Raise two things with Oscar before doing anything. First, iOS needs Xcode and therefore macOS; he is
+on Windows/WSL2, so the iOS half is blocked on hardware and only the config and plan can be
+prepared here — say this up front rather than at the build step. Second, adding @capacitor/cli and
+the platform packages is a production dependency change, which AGENTS.md requires approval for and
+serialization through tools/agent-lock.
 
-Known gaps to fix or decide, in the order they will bite: the basket warning fires on the category
-back arrow but not on switching tabs, so leaving by tab drops a basket silently; three prices in a
-card corner may crowd a long name on a narrow screen; and the Custom drink sheet still commits
-straight to the plan because it opens from the plan root where no Apply exists — decide whether that
-asymmetry stands.
+Then: resolve capacitor.config.ts (cleartext: true must not ship, and the TODO about a production
+URL needs settling — a bundled app ships dist and needs no server.url at all), add the Android
+platform, build, sync, and get it running on a device or emulator. The two native surfaces that have
+never executed are local notifications (src/lib/notificationService.ts — the web path is a sonner
+toast fallback, so no real notification has ever fired) and the camera used by the menu scanner.
 
-Do NOT re-run the benchmark. It is deferred and its trigger changed: workstream A backfilled volumes
-rather than prices, so every catalogue price is still null and a re-run would measure the empty
-price column it was sequenced to avoid. The trigger is now real prices existing at all, from any
-source. Note also that or_bench does not exist in the repo, in /home/oscar, or in git history,
-despite CLAUDE.md requiring it — resolve that before any future run.
+Carry these: the ±10% ethanol admission gate stays the single hard rejection. A price applies to the
+volume it was set for and is never derived, scaled, rounded or summed out of smaller rungs. The
+picker selects and never edits the plan; Add fills a basket and Apply commits it. The model may not
+invent a serving volume, and that constraint is unmeasured — expect more falls back to the greedy
+generator and do not treat it as a new bug without measuring. Do not re-run the benchmark: it is
+deferred because every catalogue price is still null, and or_bench does not exist in the repo
+despite CLAUDE.md requiring it. Do not stage, revert or delete the unstaged package.json /
+package-lock.json.
 
-Carry these: the ±10% ethanol admission gate stays the single hard rejection and budget never
-justifies underfilling it. A price applies to the volume it was set for and is never derived,
-scaled, rounded or summed out of smaller rungs. The picker selects and never edits the plan. The
-model may not invent a serving volume, and that constraint is unmeasured — expect more falls back to
-the greedy generator and do not treat that as a new bug without measuring. Do not re-pin the AI
-provider to DeepSeek, and do not change DEEPSEEK_MODEL, the routing arrays, allow_fallbacks or the
-reasoning setting. Do not stage, revert or delete the unstaged package.json / package-lock.json.
+Two loose ends worth closing if the native work stalls: the basket warning fires on the category
+back arrow but not on switching tabs, so leaving by tab drops a basket silently; and the Custom
+drink sheet still commits straight to the plan because it opens from the plan root where no Apply
+exists — decide whether that asymmetry stands.
 
 Verification baseline, re-derive rather than quote: npm run typecheck PASSES; npx vitest run is 347
 tests across 50 files; npm run build PASSES; npm run lint is known-failing at exactly 11 errors and
 12 warnings and must not get worse. Edge functions sit outside the tsc project and Deno is absent, so
-supabase/functions/**/*.ts is inspection-checked only. Deployed function logs are BLOCKED.
+supabase/functions/**/*.ts is inspection-checked only. Deployed function logs are BLOCKED, and so is
+anything requiring a physical iOS device.
 
-Commit locally when the baseline holds. Never push, deploy an edge function, rotate secrets, or
-apply a migration to the remote database without asking — Oscar applies migrations himself. Note
-that generate-plan has UNDEPLOYED changes: the ml-override constraint is committed but not live.
+Commit locally when the baseline holds. Never push, deploy an edge function, rotate secrets, apply a
+migration to the remote database, or publish a mobile build without asking. generate-plan has
+UNDEPLOYED changes: the ml-override constraint is committed but not live.
 ```
