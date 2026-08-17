@@ -591,6 +591,19 @@ const Auth = () => {
                 {AUTH_WAIT_COPY.change}
               </button>
             </div>
+            {/* Reachable from the waiting state too. Someone stuck on a link
+                that never arrives is exactly who needs to sign in to the
+                account they already have. */}
+            <p className="mt-3 text-center text-micro text-[#75798c]">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={handleSignInInstead}
+                className="font-medium text-primary hover:underline"
+              >
+                Sign in
+              </button>
+            </p>
             <div className="h-3" />
           </div>
         </div>
