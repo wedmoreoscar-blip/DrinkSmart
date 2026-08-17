@@ -178,8 +178,13 @@ export function rungsFor(
 ): PricedRung[] {
   const rungs: PricedRung[] = [];
 
-  const catalogueVolume = databaseVolumeMl(drink);
-  if (drink.price != null && drink.price >= 0 && catalogueVolume != null && catalogueVolume > 0) {
+  // A legacy or scanned row can carry a price with no volume. Its serving is
+  // the category fallback everywhere else — the catalogue, the scanner review,
+  // the picker's own ladder — so its price is the price of that. Requiring a
+  // stored volume here silently dropped the price of every such row.
+  const catalogueVolume =
+    databaseVolumeMl(drink) ?? fallbackServeMl(drink.category, drink.category_label);
+  if (drink.price != null && drink.price >= 0 && catalogueVolume > 0) {
     rungs.push({ volumeMl: catalogueVolume, price: drink.price });
   }
 

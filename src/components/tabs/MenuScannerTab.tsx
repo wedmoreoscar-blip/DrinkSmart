@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 import { useDrinkOverrides } from "@/hooks/useDrinkOverrides";
-import { useEstablishments } from "@/hooks/useEstablishments";
+import { useEstablishments, type EstablishmentDrink } from "@/hooks/useEstablishments";
+import { databaseVolumeMl } from "@/components/picker/picker-model";
 import { supabase } from "@/integrations/supabase/client";
 import {
   isNativePlatform,
@@ -42,6 +43,17 @@ type MenuScannerTabProps = {
 
 const VENUE_NAME_FALLBACK = "Scanned menu";
 
+/**
+ * The volume a scanned price is the price of. A price with no volume cannot
+ * become a rung, so it is not written at all rather than guessed at.
+ */
+function scannedVolumeMl(drink: ParsedDrink): number | null {
+  return databaseVolumeMl({
+    volume: drink.volume,
+    volume_unit: drink.volumeUnit,
+  } as EstablishmentDrink);
+}
+
 const MenuScannerTab = ({
   onNext,
   onClose,
@@ -53,7 +65,7 @@ const MenuScannerTab = ({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addSessionEstablishment, refetch, isLoggedIn } = useEstablishments();
-  const { setOverride } = useDrinkOverrides();
+  const { setDrinkPrice } = useDrinkOverrides();
 
   const [screen, setScreen] = useState<ScannerScreen>("capture");
   const [photo, setPhoto] = useState<PhotoItem | null>(null);
@@ -331,7 +343,14 @@ const MenuScannerTab = ({
                   })
                   .eq("id", drinkId);
                 if (updateError) throw updateError;
-                if (drink.price !== null) await setOverride(drinkId, { price: drink.price });
+                // A scanned price is the price of the scanned serving, so it
+                // is stored as a rung at that volume. It used to go to
+                // user_drink_overrides.price, which nothing reads any more —
+                // every scanned price was written and silently lost.
+                const scannedMl = scannedVolumeMl(drink);
+                if (drink.price !== null && scannedMl != null) {
+                  await setDrinkPrice(drinkId, scannedMl, drink.price);
+                }
               })(),
             );
           }
@@ -356,8 +375,9 @@ const MenuScannerTab = ({
             }
             for (const drink of newDrinks) {
               const insertedId = insertedIdByKey.get(drink.name.trim().toLowerCase());
-              if (drink.price !== null && insertedId) {
-                writeTasks.push(setOverride(insertedId, { price: drink.price }));
+              const scannedMl = scannedVolumeMl(drink);
+              if (drink.price !== null && insertedId && scannedMl != null) {
+                writeTasks.push(setDrinkPrice(insertedId, scannedMl, drink.price));
               }
             }
           }

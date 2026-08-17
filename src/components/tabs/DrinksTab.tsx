@@ -173,8 +173,12 @@ const DrinksTab = ({
       const label = pickerScreenCategoryFor(drink.category, drink.category_label);
       const entry = map.get(label) ?? { count: 0, minPrice: null };
       entry.count += 1;
-      if (drink.price != null) {
-        entry.minPrice = entry.minPrice == null ? drink.price : Math.min(entry.minPrice, drink.price);
+      // The cheapest serving on offer, resolved from rungs like everywhere
+      // else. Reading `drink.price` here showed the catalogue figure and never
+      // the user's own, so a venue the user had priced still read as unpriced.
+      const cheapest = servingPrice(drink, defaultServingFor(drink).id, null);
+      if (cheapest != null) {
+        entry.minPrice = entry.minPrice == null ? cheapest : Math.min(entry.minPrice, cheapest);
       }
       map.set(label, entry);
     }

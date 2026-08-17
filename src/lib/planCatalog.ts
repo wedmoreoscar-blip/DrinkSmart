@@ -1,7 +1,8 @@
 import { drinkCategories } from "@/data/drinksData";
 import type { Establishment, EstablishmentDrink } from "@/hooks/useEstablishments";
 import { pickerCategoryFor, type PickerCategoryLabel } from "@/components/picker/picker-copy";
-import { databaseVolumeMl } from "@/components/picker/picker-model";
+import { databaseVolumeMl, rungsFor } from "@/components/picker/picker-model";
+import { resolvePrice } from "@/lib/basePricing";
 import { fallbackAbv, fallbackServeMl } from "@/lib/drinkFallbacks";
 
 export type DrinkUnit = "ml" | "oz" | "shots" | "pints" | "glass";
@@ -88,14 +89,25 @@ export function catalogCategoryKey(drink: EstablishmentDrink): string {
  * picker's serving assumptions for that category.
  */
 export function buildCatalogFromDrinks(drinks: EstablishmentDrink[]): CatalogItem[] {
-  return drinks.map((drink) => ({
-    id: drink.id,
-    name: drink.drink_name,
-    abv: drink.abv ?? fallbackAbv(drink.category, drink.category_label),
-    typical_ml: databaseVolumeMl(drink) ?? fallbackServeMl(drink.category, drink.category_label),
-    category: catalogCategoryKey(drink),
-    price: drink.price,
-  }));
+  return drinks.map((drink) => {
+    const typicalMl =
+      databaseVolumeMl(drink) ?? fallbackServeMl(drink.category, drink.category_label);
+    return {
+      id: drink.id,
+      name: drink.drink_name,
+      abv: drink.abv ?? fallbackAbv(drink.category, drink.category_label),
+      typical_ml: typicalMl,
+      category: catalogCategoryKey(drink),
+      // The price of ONE typical serving, resolved from this drink's rungs —
+      // which is where a user's own prices live. Reading `drink.price` alone
+      // showed the model the catalogue figure and never the user's, so a fully
+      // priced venue still reached the model with an empty price column.
+      price: (() => {
+        const resolved = resolvePrice(typicalMl, rungsFor(drink));
+        return resolved.status === "priced" ? resolved.total : null;
+      })(),
+    };
+  });
 }
 
 export function buildStaticCatalog(): CatalogItem[] {
